@@ -42,18 +42,18 @@ async function tryFetchSheet(spreadsheetId: string, gids: string[]): Promise<str
 
 export async function loadGoogleSheetData(
   sheetGid: string = '0',
-  spreadsheetId?: string
+  spreadsheetId?: string,
 ): Promise<DataRow[]> {
   try {
     const id = spreadsheetId || getStoredSpreadsheetId();
     // Google Sheets CSV export URL
     const csvUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${sheetGid}`;
-    
+
     const response = await fetch(csvUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch: ${response.status}`);
     }
-    
+
     const csvText = await response.text();
     return parseCSV(csvText);
   } catch (error) {
@@ -63,15 +63,15 @@ export async function loadGoogleSheetData(
 }
 
 function parseCSV(csvText: string): DataRow[] {
-  const lines = csvText.split('\n').filter(line => line.trim());
-  
+  const lines = csvText.split('\n').filter((line) => line.trim());
+
   if (lines.length < 2) {
     throw new Error('CSV has no data rows');
   }
-  
+
   // Parse header
-  const header = lines[0].split(',').map(h => h.trim().toLowerCase());
-  
+  const header = lines[0].split(',').map((h) => h.trim().toLowerCase());
+
   // Find column indices
   const getIndex = (names: string[]) => {
     for (const name of names) {
@@ -80,7 +80,7 @@ function parseCSV(csvText: string): DataRow[] {
     }
     return -1;
   };
-  
+
   const indices = {
     t: getIndex(['t', 'time', '시간']),
     x: getIndex(['x', 'pos_x', 'position_x']),
@@ -93,16 +93,16 @@ function parseCSV(csvText: string): DataRow[] {
     is_miss: getIndex(['is_miss', 'miss', 'ismiss', '회피']),
     is_crit: getIndex(['is_crit', 'crit', 'iscrit', 'critical', '크리티컬']),
   };
-  
+
   // Parse data rows
   const data: DataRow[] = [];
-  
+
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    
+    const values = lines[i].split(',').map((v) => v.trim());
+
     // Skip empty rows
-    if (values.every(v => !v)) continue;
-    
+    if (values.every((v) => !v)) continue;
+
     const row: DataRow = {
       t: parseFloat(values[indices.t] || '0') || 0,
       x: parseFloat(values[indices.x] || '0') || 0,
@@ -115,10 +115,10 @@ function parseCSV(csvText: string): DataRow[] {
       is_miss: parseInt(values[indices.is_miss] || '0') || 0,
       is_crit: parseInt(values[indices.is_crit] || '0') || 0,
     };
-    
+
     data.push(row);
   }
-  
+
   return data;
 }
 
@@ -133,15 +133,15 @@ export async function loadLevelExpData(spreadsheetId?: string): Promise<LevelDat
     const csvUrl = `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${SHEET_GIDS.levelExp}`;
     const response = await fetch(csvUrl);
     if (!response.ok) throw new Error('Failed to fetch level data');
-    
+
     const csvText = await response.text();
-    const lines = csvText.split('\n').filter(line => line.trim());
-    
+    const lines = csvText.split('\n').filter((line) => line.trim());
+
     if (lines.length < 2) return [];
-    
+
     const data: LevelData[] = [];
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
+      const values = lines[i].split(',').map((v) => v.trim());
       if (values.length >= 2) {
         data.push({
           level: parseInt(values[0]) || 1,
@@ -149,7 +149,7 @@ export async function loadLevelExpData(spreadsheetId?: string): Promise<LevelDat
         });
       }
     }
-    
+
     return data;
   } catch (error) {
     console.error('Error loading level data:', error);
@@ -157,49 +157,53 @@ export async function loadLevelExpData(spreadsheetId?: string): Promise<LevelDat
   }
 }
 
-export async function loadCharacterStats(spreadsheetId?: string): Promise<Partial<CharacterStats> | null> {
+export async function loadCharacterStats(
+  spreadsheetId?: string,
+): Promise<Partial<CharacterStats> | null> {
   try {
     const id = spreadsheetId || getStoredSpreadsheetId();
     // Try multiple GIDs in case the character stats are on different sheets
     const csvText = await tryFetchSheet(id, ['0', '1', '2', '3']);
-    
+
     if (!csvText) {
       console.warn('Could not fetch any sheet data');
       return null;
     }
-    
+
     console.log('Character stats CSV (first 300 chars):\n', csvText.substring(0, 300));
-    
-    const lines = csvText.split('\n').filter(line => line.trim());
-    
+
+    const lines = csvText.split('\n').filter((line) => line.trim());
+
     if (lines.length < 2) {
       console.warn('Sheet has insufficient data (need at least 2 rows)');
       return null;
     }
-    
+
     // Try to find character stats in any row
     for (let rowIdx = 0; rowIdx < Math.min(lines.length, 10); rowIdx++) {
-      const header = lines[rowIdx].split(',').map(h => h.trim().toLowerCase());
-      
+      const header = lines[rowIdx].split(',').map((h) => h.trim().toLowerCase());
+
       // Check if this looks like a character stats header
-      const hasCharFields = header.some(h => 
-        ['hp', 'health', '체력', 'atk', 'attack', '공격', 'def', 'defense', '방어'].some(f => h.includes(f))
+      const hasCharFields = header.some((h) =>
+        ['hp', 'health', '체력', 'atk', 'attack', '공격', 'def', 'defense', '방어'].some((f) =>
+          h.includes(f),
+        ),
       );
-      
+
       if (!hasCharFields) continue;
-      
+
       // Found a potential header row, try next row for data
       if (rowIdx + 1 >= lines.length) continue;
-      
-      const values = lines[rowIdx + 1].split(',').map(v => v.trim());
-      
+
+      const values = lines[rowIdx + 1].split(',').map((v) => v.trim());
+
       console.log(`Row ${rowIdx} - Header:`, header);
       console.log(`Row ${rowIdx + 1} - Values:`, values);
-      
+
       const getVal = (names: string[]) => {
         for (const name of names) {
           for (let i = 0; i < header.length; i++) {
-            if (names.some(n => header[i].includes(n))) {
+            if (names.some((n) => header[i].includes(n))) {
               const val = parseFloat(values[i]);
               if (!isNaN(val) && val > 0) return val;
             }
@@ -207,21 +211,21 @@ export async function loadCharacterStats(spreadsheetId?: string): Promise<Partia
         }
         return null;
       };
-      
+
       const stats = {
         hp: getVal(['hp', 'health', '체력']),
         maxHp: getVal(['max_hp', 'maxhp', 'max', '최대']),
         atk: getVal(['atk', 'attack', '공격']),
         def: getVal(['def', 'defense', '방어']),
       };
-      
-      const hasData = Object.values(stats).some(v => v !== null);
+
+      const hasData = Object.values(stats).some((v) => v !== null);
       if (hasData) {
         console.log('✓ Found character stats:', stats);
         return stats as Partial<CharacterStats>;
       }
     }
-    
+
     console.info('ℹ️ No character stats found in sheet - using default values');
     return null;
   } catch (error) {
@@ -230,65 +234,69 @@ export async function loadCharacterStats(spreadsheetId?: string): Promise<Partia
   }
 }
 
-export async function loadMonsterStats(spreadsheetId?: string): Promise<Partial<MonsterStats> | null> {
+export async function loadMonsterStats(
+  spreadsheetId?: string,
+): Promise<Partial<MonsterStats> | null> {
   try {
     const id = spreadsheetId || getStoredSpreadsheetId();
     // Try multiple GIDs in case the monster stats are on different sheets
     const csvText = await tryFetchSheet(id, ['0', '1', '2', '3']);
-    
+
     if (!csvText) {
       console.warn('Could not fetch any sheet data');
       return null;
     }
-    
+
     console.log('Monster stats CSV (first 300 chars):\n', csvText.substring(0, 300));
-    
-    const lines = csvText.split('\n').filter(line => line.trim());
-    
+
+    const lines = csvText.split('\n').filter((line) => line.trim());
+
     if (lines.length < 2) {
       console.warn('Sheet has insufficient data (need at least 2 rows)');
       return null;
     }
-    
+
     // Try to find monster stats in any row
     for (let rowIdx = 0; rowIdx < Math.min(lines.length, 10); rowIdx++) {
-      const header = lines[rowIdx].split(',').map(h => h.trim().toLowerCase());
-      
+      const header = lines[rowIdx].split(',').map((h) => h.trim().toLowerCase());
+
       // Check if this looks like a monster stats header
-      const hasMonsterFields = header.some(h => 
-        ['monster', '몬스터', 'mob', 'enemy', '적'].some(f => h.includes(f)) ||
-        ['hp', 'atk', 'exp', '경험치'].filter(f => header.some(hh => hh.includes(f))).length >= 2
+      const hasMonsterFields = header.some(
+        (h) =>
+          ['monster', '몬스터', 'mob', 'enemy', '적'].some((f) => h.includes(f)) ||
+          ['hp', 'atk', 'exp', '경험치'].filter((f) => header.some((hh) => hh.includes(f)))
+            .length >= 2,
       );
-      
+
       if (!hasMonsterFields) continue;
-      
+
       // Found a potential header row, try next row for data
       if (rowIdx + 1 >= lines.length) continue;
-      
-      const values = lines[rowIdx + 1].split(',').map(v => v.trim());
-      
+
+      const values = lines[rowIdx + 1].split(',').map((v) => v.trim());
+
       console.log(`Row ${rowIdx} - Header:`, header);
       console.log(`Row ${rowIdx + 1} - Values:`, values);
-      
+
       const getVal = (names: string[]) => {
         for (let i = 0; i < header.length; i++) {
-          if (names.some(n => header[i].includes(n))) {
+          if (names.some((n) => header[i].includes(n))) {
             const val = parseFloat(values[i]);
             if (!isNaN(val) && val > 0) return val;
           }
         }
         return null;
       };
-      
+
       const getStr = (names: string[]) => {
         for (let i = 0; i < header.length; i++) {
-          if (names.some(n => header[i].includes(n))) {
+          if (names.some((n) => header[i].includes(n))) {
             if (values[i] && values[i].length > 0) return values[i];
           }
         }
         return null;
       };
-      
+
       const stats = {
         name: getStr(['name', 'monster', '이름', '몬스터', 'mob']),
         hp: getVal(['hp', 'health', '체력']),
@@ -297,14 +305,14 @@ export async function loadMonsterStats(spreadsheetId?: string): Promise<Partial<
         def: getVal(['def', 'defense', '방어']),
         expReward: getVal(['exp', 'experience', '경험', 'reward']),
       };
-      
-      const hasData = Object.values(stats).some(v => v !== null);
+
+      const hasData = Object.values(stats).some((v) => v !== null);
       if (hasData) {
         console.log('✓ Found monster stats:', stats);
         return stats as Partial<MonsterStats>;
       }
     }
-    
+
     console.info('ℹ️ No monster stats found in sheet - using default values');
     return null;
   } catch (error) {
@@ -319,7 +327,7 @@ export async function writeToGoogleSheet(
   sheetName: string,
   headers: string[],
   data: any[][],
-  apiKey?: string
+  apiKey?: string,
 ): Promise<{ success: boolean; message: string }> {
   try {
     const response = await fetch(webAppUrl, {

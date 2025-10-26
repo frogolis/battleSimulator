@@ -5,7 +5,14 @@
 import { DataRow } from './mockData';
 import { Character, Monster } from './gameTypes';
 import { defaultSkills } from './skillSystem';
-import { decideSkillToUse, decideMovementDirection, shouldAttack, AIConfig, AIPatternConfig, defaultAIPatternConfig } from './monsterAI';
+import {
+  decideSkillToUse,
+  decideMovementDirection,
+  shouldAttack,
+  AIConfig,
+  AIPatternConfig,
+  defaultAIPatternConfig,
+} from './monsterAI';
 
 /**
  * 캐릭터 스킬 슬롯 정보
@@ -106,7 +113,7 @@ export interface BasicAttackInfo {
 export function loadPlayerBasicAttack(row: DataRow): BasicAttackInfo {
   const skillId = (row.player_basic_attack_id as string) || 'meleeBasic';
   const skill = defaultSkills[skillId];
-  
+
   // 스킬이 없으면 기본값 사용
   if (!skill) {
     return {
@@ -119,7 +126,7 @@ export function loadPlayerBasicAttack(row: DataRow): BasicAttackInfo {
       castTime: row.player_basic_attack_cast_time || 300,
     };
   }
-  
+
   return {
     id: skillId,
     range: row.player_basic_attack_range ?? skill.range,
@@ -137,7 +144,7 @@ export function loadPlayerBasicAttack(row: DataRow): BasicAttackInfo {
 export function loadMonsterBasicAttack(row: DataRow): BasicAttackInfo {
   const skillId = (row.monster_basic_attack_id as string) || 'meleeBasic';
   const skill = defaultSkills[skillId];
-  
+
   // 스킬이 없으면 기본값 사용
   if (!skill) {
     return {
@@ -150,7 +157,7 @@ export function loadMonsterBasicAttack(row: DataRow): BasicAttackInfo {
       castTime: row.monster_basic_attack_cast_time || 300,
     };
   }
-  
+
   return {
     id: skillId,
     range: row.monster_basic_attack_range ?? skill.range,
@@ -179,10 +186,11 @@ export function loadMonsterAI(row: DataRow): AIConfig {
 export function loadMonsterAIPattern(row: DataRow): AIPatternConfig {
   try {
     if (row.monster_ai_patterns) {
-      const parsed = typeof row.monster_ai_patterns === 'string' 
-        ? JSON.parse(row.monster_ai_patterns)
-        : row.monster_ai_patterns;
-      
+      const parsed =
+        typeof row.monster_ai_patterns === 'string'
+          ? JSON.parse(row.monster_ai_patterns)
+          : row.monster_ai_patterns;
+
       if (parsed && Array.isArray(parsed.patterns)) {
         return {
           patterns: parsed.patterns.map((p: any) => ({
@@ -191,15 +199,25 @@ export function loadMonsterAIPattern(row: DataRow): AIPatternConfig {
             enabled: p.enabled !== false,
             skillId: p.skillId,
           })),
-          aggroRange: typeof parsed.aggroRange === 'number' ? parsed.aggroRange : defaultAIPatternConfig.aggroRange,
-          chaseMinDistance: typeof parsed.chaseMinDistance === 'number' ? parsed.chaseMinDistance : defaultAIPatternConfig.chaseMinDistance,
+          aggroRange:
+            typeof parsed.aggroRange === 'number'
+              ? parsed.aggroRange
+              : defaultAIPatternConfig.aggroRange,
+          chaseMinDistance:
+            typeof parsed.chaseMinDistance === 'number'
+              ? parsed.chaseMinDistance
+              : defaultAIPatternConfig.chaseMinDistance,
         };
       }
     }
   } catch (error) {
-    console.warn('⚠️ AI 패턴 로드 실패, 기본값 사용:', error, row.monster_name || 'Unknown Monster');
+    console.warn(
+      '⚠️ AI 패턴 로드 실패, 기본값 사용:',
+      error,
+      row.monster_name || 'Unknown Monster',
+    );
   }
-  
+
   // 기본값 반환
   return { ...defaultAIPatternConfig };
 }
@@ -229,10 +247,7 @@ export function updateSkillCooldowns(skills: CharacterSkills, deltaTime: number)
 /**
  * 스킬 사용 가능 여부 체크
  */
-export function canUseSkill(
-  slot: CharacterSkillSlot | null,
-  currentSP: number
-): boolean {
+export function canUseSkill(slot: CharacterSkillSlot | null, currentSP: number): boolean {
   if (!slot || !slot.id) return false;
   if (slot.currentCooldown > 0) return false;
   if (currentSP < slot.spCost) return false;
@@ -242,17 +257,14 @@ export function canUseSkill(
 /**
  * 사용 가능한 스킬 슬롯 번호 가져오기
  */
-export function getAvailableSkills(
-  skills: CharacterSkills,
-  currentSP: number
-): number[] {
+export function getAvailableSkills(skills: CharacterSkills, currentSP: number): number[] {
   const available: number[] = [];
-  
+
   if (canUseSkill(skills.slot1, currentSP)) available.push(1);
   if (canUseSkill(skills.slot2, currentSP)) available.push(2);
   if (canUseSkill(skills.slot3, currentSP)) available.push(3);
   if (canUseSkill(skills.slot4, currentSP)) available.push(4);
-  
+
   return available;
 }
 
@@ -261,21 +273,23 @@ export function getAvailableSkills(
  */
 export function getSkillSlot(skills: CharacterSkills, slotNum: number): CharacterSkillSlot | null {
   switch (slotNum) {
-    case 1: return skills.slot1;
-    case 2: return skills.slot2;
-    case 3: return skills.slot3;
-    case 4: return skills.slot4;
-    default: return null;
+    case 1:
+      return skills.slot1;
+    case 2:
+      return skills.slot2;
+    case 3:
+      return skills.slot3;
+    case 4:
+      return skills.slot4;
+    default:
+      return null;
   }
 }
 
 /**
  * 스킬 사용 (쿨타임 시작)
  */
-export function useSkill(
-  skills: CharacterSkills,
-  slotNum: number
-): CharacterSkills {
+export function useSkill(skills: CharacterSkills, slotNum: number): CharacterSkills {
   const slot = getSkillSlot(skills, slotNum);
   if (!slot) return skills;
 
@@ -285,11 +299,16 @@ export function useSkill(
   };
 
   switch (slotNum) {
-    case 1: return { ...skills, slot1: updatedSlot };
-    case 2: return { ...skills, slot2: updatedSlot };
-    case 3: return { ...skills, slot3: updatedSlot };
-    case 4: return { ...skills, slot4: updatedSlot };
-    default: return skills;
+    case 1:
+      return { ...skills, slot1: updatedSlot };
+    case 2:
+      return { ...skills, slot2: updatedSlot };
+    case 3:
+      return { ...skills, slot3: updatedSlot };
+    case 4:
+      return { ...skills, slot4: updatedSlot };
+    default:
+      return skills;
   }
 }
 
@@ -302,11 +321,11 @@ export function decideMonsterSkill(
   currentHP: number,
   maxHP: number,
   currentSP: number,
-  maxSP: number
+  maxSP: number,
 ): number {
   const distance = Math.sqrt(
     Math.pow(playerPosition.x - monster.position.x, 2) +
-    Math.pow(playerPosition.y - monster.position.y, 2)
+      Math.pow(playerPosition.y - monster.position.y, 2),
   );
 
   const availableSkills = getAvailableSkills(monster.skills, currentSP);
@@ -317,12 +336,16 @@ export function decideMonsterSkill(
     monster.skills.slot2,
     monster.skills.slot3,
     monster.skills.slot4,
-  ].map(slot => slot ? {
-    id: slot.id,
-    range: slot.range,
-    width: slot.width,
-    damage: slot.damage,
-  } : null);
+  ].map((slot) =>
+    slot
+      ? {
+          id: slot.id,
+          range: slot.range,
+          width: slot.width,
+          damage: slot.damage,
+        }
+      : null,
+  );
 
   return decideSkillToUse(
     monster.aiConfig,
@@ -332,7 +355,7 @@ export function decideMonsterSkill(
     maxHP,
     currentSP,
     maxSP,
-    skillData
+    skillData,
   );
 }
 
@@ -341,7 +364,7 @@ export function decideMonsterSkill(
  */
 export function applySkillEffect(
   skillId: string,
-  character: Character
+  character: Character,
 ): { hp?: number; sp?: number; buffApplied?: boolean } {
   const skill = defaultSkills[skillId];
   if (!skill) return {};
@@ -370,7 +393,7 @@ export function isInAttackRange(
   attackerAngle: number,
   targetPos: { x: number; y: number },
   range: number,
-  width: number // 각도 (도 단위)
+  width: number, // 각도 (도 단위)
 ): boolean {
   const dx = targetPos.x - attackerPos.x;
   const dy = targetPos.y - attackerPos.y;
@@ -406,10 +429,10 @@ export interface CriticalResult {
  */
 export function calculateCritical(
   baseCriticalRate: number = 0.15,
-  criticalMultiplier: number = 1.5
+  criticalMultiplier: number = 1.5,
 ): CriticalResult {
   const isCritical = Math.random() < baseCriticalRate;
-  
+
   return {
     isCritical,
     damageMultiplier: isCritical ? criticalMultiplier : 1.0,

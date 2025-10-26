@@ -5,32 +5,40 @@
  * - 스킬 효과 적용
  */
 
-export type SkillType = 'melee' | 'ranged' | 'damage' | 'heal' | 'buff' | 'debuff' | 'area' | 'defense';
+export type SkillType =
+  | 'melee'
+  | 'ranged'
+  | 'damage'
+  | 'heal'
+  | 'buff'
+  | 'debuff'
+  | 'area'
+  | 'defense';
 
 // 스킬 카테고리 (슬롯 타입 구분)
 export type SkillCategory = 'basicAttack' | 'skill';
 
 // ===== 새로운 5가지 이펙트 타입 시스템 =====
-export type EffectType = 
-  | 'projectile'   // 투사체 발사 (방향/방사형)
-  | 'trail'        // 궤적 (공격 방향 기준)
-  | 'lightning'    // 번개 (대상 연결)
-  | 'ring'         // 링/동심원
-  | 'glow';        // 글로우 (상승 파티클)
+export type EffectType =
+  | 'projectile' // 투사체 발사 (방향/방사형)
+  | 'trail' // 궤적 (공격 방향 기준)
+  | 'lightning' // 번개 (대상 연결)
+  | 'ring' // 링/동심원
+  | 'glow'; // 글로우 (상승 파티클)
 
 // 투사체 발사 패턴
-export type ProjectilePattern = 
-  | 'directional'  // 방향성 발사 (타겟 방향)
-  | 'radial'       // 방사형 발사 (사방으로)
-  | 'cone';        // 부채꼴 발사
+export type ProjectilePattern =
+  | 'directional' // 방향성 발사 (타겟 방향)
+  | 'radial' // 방사형 발사 (사방으로)
+  | 'cone'; // 부채꼴 발사
 
 // 파티클 텍스쳐 타입
-export type ParticleTexture = 
-  | 'circle'       // 원형
-  | 'star'         // 별 모양
-  | 'square'       // 사각형
-  | 'diamond'      // 다이아몬드
-  | 'spark';       // 스파크
+export type ParticleTexture =
+  | 'circle' // 원형
+  | 'star' // 별 모양
+  | 'square' // 사각형
+  | 'diamond' // 다이아몬드
+  | 'spark'; // 스파크
 
 // ===== 새로운 이펙트 프리셋 시스템 =====
 export interface EffectPreset {
@@ -38,50 +46,50 @@ export interface EffectPreset {
   name: string;
   description: string;
   effectType: EffectType;
-  
+
   // 공통 설정
   color: string;
   secondaryColor: string;
   particleTexture: ParticleTexture;
-  glowIntensity: number;  // 0-1
-  
+  glowIntensity: number; // 0-1
+
   // 투사체 이펙트 전용
   projectilePattern?: ProjectilePattern;
-  projectileCount?: number;      // 발사할 투사체 개수
-  projectileSpeed?: number;       // 투사체 속도 (px/s)
-  projectileSize?: number;        // 투사체 크기
-  projectileLifetime?: number;    // 투사체 수명 (ms)
-  isHoming?: boolean;             // 유도 처리 여부
-  spreadAngle?: number;           // 확산 각도 (라디안)
-  
+  projectileCount?: number; // 발사할 투사체 개수
+  projectileSpeed?: number; // 투사체 속도 (px/s)
+  projectileSize?: number; // 투사체 크기
+  projectileLifetime?: number; // 투사체 수명 (ms)
+  isHoming?: boolean; // 유도 처리 여부
+  spreadAngle?: number; // 확산 각도 (라디안)
+
   // 궤적 이펙트 전용
-  trailType?: 'slash' | 'thrust' | 'spin';  // 궤적 타입
-  trailParticleCount?: number;    // 궤적 파티클 수
-  trailLength?: number;           // 궤적 길이 (픽셀)
-  trailWidth?: number;            // 궤적 두께
-  trailFadeSpeed?: number;        // 페이드 속도
-  trailArcAngle?: number;         // 호의 각도 (라디안, slash용)
-  
+  trailType?: 'slash' | 'thrust' | 'spin'; // 궤적 타입
+  trailParticleCount?: number; // 궤적 파티클 수
+  trailLength?: number; // 궤적 길이 (픽셀)
+  trailWidth?: number; // 궤적 두께
+  trailFadeSpeed?: number; // 페이드 속도
+  trailArcAngle?: number; // 호의 각도 (라디안, slash용)
+
   // 번개 이펙트 전용
-  lightningSegments?: number;     // 번개 세그먼트 수
-  lightningJitter?: number;       // 번개 지터 정도
-  lightningForkChance?: number;   // 번개 갈라짐 확률
-  
+  lightningSegments?: number; // 번개 세그먼트 수
+  lightningJitter?: number; // 번개 지터 정도
+  lightningForkChance?: number; // 번개 갈라짐 확률
+
   // 링 이펙트 전용
-  ringRadius?: number;            // 링 반지름 (픽셀)
-  ringExpansionSpeed?: number;    // 확장 속도
-  ringCount?: number;             // 동심원 개수
-  ringInterval?: number;          // 동심원 간격 (ms)
-  
+  ringRadius?: number; // 링 반지름 (픽셀)
+  ringExpansionSpeed?: number; // 확장 속도
+  ringCount?: number; // 동심원 개수
+  ringInterval?: number; // 동심원 간격 (ms)
+
   // 글로우 이펙트 전용
-  glowRadius?: number;            // 글로우 반지름
-  glowParticleCount?: number;     // 상승 파티클 개수
-  glowRiseSpeed?: number;         // 상승 속도
-  glowFadeSpeed?: number;         // 페이드 속도
-  
+  glowRadius?: number; // 글로우 반지름
+  glowParticleCount?: number; // 상승 파티클 개수
+  glowRiseSpeed?: number; // 상승 속도
+  glowFadeSpeed?: number; // 페이드 속도
+
   // 재생 설정
-  repeatCount?: number;           // 반복 횟수 (1 = 1회만)
-  repeatInterval?: number;        // 반복 간격 (ms)
+  repeatCount?: number; // 반복 횟수 (1 = 1회만)
+  repeatInterval?: number; // 반복 간격 (ms)
 }
 
 // ===== 새로운 이펙트 프리셋 라이브러리 =====
@@ -105,7 +113,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     spreadAngle: 0,
     repeatCount: 1,
   },
-  
+
   projectile_arrow_multi: {
     id: 'projectile_arrow_multi',
     name: '다중 화살',
@@ -124,7 +132,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     spreadAngle: 0.3,
     repeatCount: 1,
   },
-  
+
   projectile_fireball: {
     id: 'projectile_fireball',
     name: '화염구',
@@ -143,7 +151,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     spreadAngle: 0,
     repeatCount: 1,
   },
-  
+
   projectile_fireball_homing: {
     id: 'projectile_fireball_homing',
     name: '유도 화염구',
@@ -162,7 +170,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     spreadAngle: 0,
     repeatCount: 1,
   },
-  
+
   projectile_radial_burst: {
     id: 'projectile_radial_burst',
     name: '방사형 폭발',
@@ -181,7 +189,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     spreadAngle: 0,
     repeatCount: 1,
   },
-  
+
   projectile_cone_spread: {
     id: 'projectile_cone_spread',
     name: '부채꼴 발사',
@@ -219,7 +227,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     trailArcAngle: 0.1, // 스킬의 area를 사용하도록 fallback 값을 최소화
     repeatCount: 1,
   },
-  
+
   trail_thrust: {
     id: 'trail_thrust',
     name: '찌르기 궤적',
@@ -236,7 +244,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     trailFadeSpeed: 1.0,
     repeatCount: 1,
   },
-  
+
   trail_spin: {
     id: 'trail_spin',
     name: '회전 궤적',
@@ -253,7 +261,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     trailFadeSpeed: 0.6,
     repeatCount: 1,
   },
-  
+
   // ===== 번개 이펙트 =====
   lightning_chain: {
     id: 'lightning_chain',
@@ -269,7 +277,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     lightningForkChance: 0.3,
     repeatCount: 1,
   },
-  
+
   lightning_strike: {
     id: 'lightning_strike',
     name: '낙뢰',
@@ -284,7 +292,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     lightningForkChance: 0.5,
     repeatCount: 1,
   },
-  
+
   // ===== 링 이펙트 =====
   ring_single: {
     id: 'ring_single',
@@ -301,7 +309,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     ringInterval: 0,
     repeatCount: 1,
   },
-  
+
   ring_concentric: {
     id: 'ring_concentric',
     name: '동심원',
@@ -317,7 +325,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     ringInterval: 200,
     repeatCount: 1,
   },
-  
+
   ring_explosion: {
     id: 'ring_explosion',
     name: '폭발 링',
@@ -333,7 +341,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     ringInterval: 0,
     repeatCount: 1,
   },
-  
+
   // ===== 글로우 이펙트 =====
   glow_heal: {
     id: 'glow_heal',
@@ -350,7 +358,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     glowFadeSpeed: 0.7,
     repeatCount: 1,
   },
-  
+
   glow_buff: {
     id: 'glow_buff',
     name: '버프 글로우',
@@ -366,7 +374,7 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     glowFadeSpeed: 0.8,
     repeatCount: 1,
   },
-  
+
   glow_power: {
     id: 'glow_power',
     name: '파워 글로우',
@@ -404,7 +412,7 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     trailEnabled: true,
     trailLength: 25,
     trailWidth: 2,
-    description: '초고속으로 날아가는 번개 (전격 궤적 포함)'
+    description: '초고속으로 날아가는 번개 (전격 궤적 포함)',
   },
 
   // 유도형 발사체
@@ -426,9 +434,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     trailEnabled: true,
     trailLength: 30,
     trailWidth: 2.5,
-    description: '대상을 추적하는 에너지 볼트 (추적 궤적 포함)'
+    description: '대상을 추적하는 에너지 볼트 (추적 궤적 포함)',
   },
-  
+
   projectile_ice_homing: {
     name: '얼음 파편 (유도)',
     category: 'projectile',
@@ -447,7 +455,7 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     trailEnabled: true,
     trailLength: 25,
     trailWidth: 2,
-    description: '대상을 추적하는 얼음 파편 (얼음 궤적 포함)'
+    description: '대상을 추적하는 얼음 파편 (얼음 궤적 포함)',
   },
 
   // 곡선형 발사체
@@ -469,9 +477,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     trailEnabled: true,
     trailLength: 35,
     trailWidth: 3,
-    description: '파도처럼 곡선으로 날아가는 발사체 (파동 궤적 포함)'
+    description: '파도처럼 곡선으로 날아가는 발사체 (파동 궤적 포함)',
   },
-  
+
   projectile_wind_curve: {
     name: '바람 칼날 (곡선)',
     category: 'projectile',
@@ -487,11 +495,11 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 550,
     effectPlaybackSpeed: 1.2,
     particlePlaybackSpeed: 1.3,
-    description: '바람처럼 곡선으로 날아가는 칼날'
+    description: '바람처럼 곡선으로 날아가는 칼날',
   },
 
   // ===== 영역 이펙트 (Area Effects) =====
-  
+
   area_healing_circle: {
     name: '치유 영역 (동심원)',
     category: 'area',
@@ -507,9 +515,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 0.8,
     particlePlaybackSpeed: 0.6,
-    description: '동심원으로 퍼지는 치유 영역'
+    description: '동심원으로 퍼지는 치유 영역',
   },
-  
+
   area_buff_circle: {
     name: '버프 영역 (동심원)',
     category: 'area',
@@ -525,9 +533,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 1.0,
     particlePlaybackSpeed: 0.8,
-    description: '동심원으로 퍼지는 버프 영역'
+    description: '동심원으로 퍼지는 버프 영역',
   },
-  
+
   area_explosion: {
     name: '폭발 영역',
     category: 'area',
@@ -543,9 +551,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 1.5,
     particlePlaybackSpeed: 2.0,
-    description: '폭발적으로 퍼지는 영역 공격'
+    description: '폭발적으로 퍼지는 영역 공격',
   },
-  
+
   area_shield_dome: {
     name: '방어 영역 (돔)',
     category: 'area',
@@ -561,11 +569,11 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 0.5,
     particlePlaybackSpeed: 0.7,
-    description: '돔 형태의 보호 영역'
+    description: '돔 형태의 보호 영역',
   },
 
   // ===== 대상 이펙트 (Target Effects) - 단일 대상 =====
-  
+
   target_heal_rising: {
     name: '치유 (상승)',
     category: 'target',
@@ -581,9 +589,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 1.0,
     particlePlaybackSpeed: 0.8,
-    description: '아래에서 위로 올라가는 치유 효과'
+    description: '아래에서 위로 올라가는 치유 효과',
   },
-  
+
   target_buff_rising: {
     name: '버프 (상승)',
     category: 'target',
@@ -599,9 +607,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 1.0,
     particlePlaybackSpeed: 1.0,
-    description: '아래에서 위로 올라가는 버프 효과'
+    description: '아래에서 위로 올라가는 버프 효과',
   },
-  
+
   target_damage_hit: {
     name: '피격 (충격)',
     category: 'target',
@@ -617,9 +625,9 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 1.5,
     particlePlaybackSpeed: 1.8,
-    description: '대상에 충격이 가해지는 효과'
+    description: '대상에 충격이 가해지는 효과',
   },
-  
+
   target_debuff_rising: {
     name: '디버프 (상승)',
     category: 'target',
@@ -635,17 +643,20 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
     projectileSpeed: 0,
     effectPlaybackSpeed: 0.8,
     particlePlaybackSpeed: 0.9,
-    description: '아래에서 위로 올라가는 디버프 효과'
+    description: '아래에서 위로 올라가는 디버프 효과',
   },
 };
 
 // 이펙트 카테고리 정의
-export const EFFECT_CATEGORY_INFO: Record<EffectCategory, {
-  label: string;
-  description: string;
-  animationPatterns: AnimationPattern[];
-  icon: string;
-}> = {
+export const EFFECT_CATEGORY_INFO: Record<
+  EffectCategory,
+  {
+    label: string;
+    description: string;
+    animationPatterns: AnimationPattern[];
+    icon: string;
+  }
+> = {
   trail: {
     label: '궤적 이펙트',
     description: '근접 공격의 움직임 궤적을 표현',
@@ -694,80 +705,81 @@ export interface Skill {
   name: string;
   description: string;
   type: SkillType;
-  category: SkillCategory;  // 기본 공격 or 일반 스킬
-  tags: string[];           // 태그 배열 (예: ['basicAttack'], ['skill'], ['fire', 'aoe'])
+  category: SkillCategory; // 기본 공격 or 일반 스킬
+  tags: string[]; // 태그 배열 (예: ['basicAttack'], ['skill'], ['fire', 'aoe'])
   iconName: string; // lucide-react 아이콘 이름 (예: 'Swords', 'Heart', 'Zap')
-  
+
   // 스킬 파라미터 (데이터셋에서 조정 가능)
-  spCost: number;           // SP 소모량
-  cooldown: number;         // 쿨타임 (ms)
-  castTime: number;         // 시전 시간 (ms) - 하위 호환성 유지 (windup + execution + recovery)
-  range: number;            // 사거리
-  area: number;             // 범위 (각도 또는 반경)
-  
+  spCost: number; // SP 소모량
+  cooldown: number; // 쿨타임 (ms)
+  castTime: number; // 시전 시간 (ms) - 하위 호환성 유지 (windup + execution + recovery)
+  range: number; // 사거리
+  area: number; // 범위 (각도 또는 반경)
+
   // 스킬 타이밍 구조 (선딜-공격-후딜)
   timing: {
-    windup: number;         // 선 딜레이 (준비 모션, ms)
-    execution: number;      // 공격 모션 (실제 공격 판정, ms)
-    recovery: number;       // 후 딜레이 (경직, ms)
+    windup: number; // 선 딜레이 (준비 모션, ms)
+    execution: number; // 공격 모션 (실제 공격 판정, ms)
+    recovery: number; // 후 딜레이 (경직, ms)
   };
-  
+
   // 스킬 효과
   damageMultiplier: number; // 데미지 배율 (1.0 = 100%)
-  damageFormula?: {         // 능력치 기반 데미지 계산식
+  damageFormula?: {
+    // 능력치 기반 데미지 계산식
     stat: 'attack' | 'defense' | 'magic' | 'speed';
     operator: '+' | '*';
     value: number;
   };
-  healAmount: number;       // 회복량
-  buffDuration: number;     // 버프 지속시간 (ms)
+  healAmount: number; // 회복량
+  buffDuration: number; // 버프 지속시간 (ms)
   buffEffect: {
-    attack?: number;        // 공격력 증가
-    defense?: number;       // 방어력 증가
-    speed?: number;         // 속도 증가
+    attack?: number; // 공격력 증가
+    defense?: number; // 방어력 증가
+    speed?: number; // 속도 증가
   };
-  
+
   // 시각 효과 설정 (스킬 시스템 설정에서만 조정)
   visual: {
-    effectPresetId?: string;    // 이펙트 프리셋 ID (새 시스템)
-    color: string;              // 주 색상
-    secondaryColor: string;     // 보조 색상
-    particleCount: number;      // 파티클 수
-    particleSize: number;       // 파티클 크기 (px)
-    particleLifetime: number;   // 파티클 수명 (ms)
-    glowIntensity: number;      // 발광 강도 (0-1)
-    effectShape: EffectShape;   // 이펙트 모양
+    effectPresetId?: string; // 이펙트 프리셋 ID (새 시스템)
+    color: string; // 주 색상
+    secondaryColor: string; // 보조 색상
+    particleCount: number; // 파티클 수
+    particleSize: number; // 파티클 크기 (px)
+    particleLifetime: number; // 파티클 수명 (ms)
+    glowIntensity: number; // 발광 강도 (0-1)
+    effectShape: EffectShape; // 이펙트 모양
   };
-  
+
   // 투사체 설정 (스킬 시스템 설정에서만 조정)
   projectile: {
-    type: ProjectileType;       // 투사체 타입
-    speed: number;              // 투사체 속도 (px/s)
-    size: number;               // 투사체 크기 (px)
-    piercing: boolean;          // 관통 여부
-    homing: boolean;            // 유도 여부
-    trail: boolean;             // 궤적 표시 여부
-    trailLength: number;        // 궤적 길이
+    type: ProjectileType; // 투사체 타입
+    speed: number; // 투사체 속도 (px/s)
+    size: number; // 투사체 크기 (px)
+    piercing: boolean; // 관통 여부
+    homing: boolean; // 유도 여부
+    trail: boolean; // 궤적 표시 여부
+    trailLength: number; // 궤적 길이
   };
-  
+
   // 애니메이션 설정 (스킬 시스템 설정에서만 조정)
   animation: {
-    castAnimation: string;      // 시전 애니메이션 ('charge' | 'spin' | 'glow' | 'pulse')
-    castScale: number;          // 시전 시 크기 변화 (1.0 = 원본)
-    impactAnimation: string;    // 적중 애니메이션 ('explosion' | 'ripple' | 'flash' | 'scatter')
-    impactDuration: number;     // 적중 이펙트 지속 시간 (ms)
-    cameraShake: number;        // 화면 흔들림 강도 (0-10)
+    castAnimation: string; // 시전 애니메이션 ('charge' | 'spin' | 'glow' | 'pulse')
+    castScale: number; // 시전 시 크기 변화 (1.0 = 원본)
+    impactAnimation: string; // 적중 애니메이션 ('explosion' | 'ripple' | 'flash' | 'scatter')
+    impactDuration: number; // 적중 이펙트 지속 시간 (ms)
+    cameraShake: number; // 화면 흔들림 강도 (0-10)
   };
-  
+
   // 사운드 설정 (스킬 시스템 설정에서만 조정)
   sound: {
-    castSound: string;          // 시전 사운드
-    impactSound: string;        // 적중 사운드
-    volume: number;             // 볼륨 (0-1)
+    castSound: string; // 시전 사운드
+    impactSound: string; // 적중 사운드
+    volume: number; // 볼륨 (0-1)
   };
-  
+
   // 상태 (런타임)
-  currentCooldown: number;  // 현재 쿨타임 (ms)
+  currentCooldown: number; // 현재 쿨타임 (ms)
   isOnCooldown: boolean;
 }
 
@@ -911,7 +923,7 @@ export const defaultBasicAttacks: Record<string, Skill> = {
 export const defaultSkills: Record<string, Skill> = {
   // 기본 공격들을 먼저 포함
   ...defaultBasicAttacks,
-  
+
   // 일반 스킬들
   powerSlash: {
     id: 'powerSlash',
@@ -965,7 +977,7 @@ export const defaultSkills: Record<string, Skill> = {
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   whirlwind: {
     id: 'whirlwind',
     name: '회오리 베기',
@@ -1018,7 +1030,7 @@ export const defaultSkills: Record<string, Skill> = {
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   heal: {
     id: 'heal',
     name: '치유',
@@ -1066,7 +1078,7 @@ export const defaultSkills: Record<string, Skill> = {
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   powerBuff: {
     id: 'powerBuff',
     name: '전투 강화',
@@ -1117,9 +1129,9 @@ export const defaultSkills: Record<string, Skill> = {
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   // ===== 새로운 5가지 이펙트 타입 스킬들 =====
-  
+
   // 투사체 스킬 (6개)
   arrowSingle: {
     id: 'arrowSingle',
@@ -1140,13 +1152,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_arrow_single,
-    projectile: { type: 'arrow', speed: 400, size: 8, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'shoot', castScale: 1.0, impactAnimation: 'hit', impactDuration: 200, cameraShake: 2 },
+    projectile: {
+      type: 'arrow',
+      speed: 400,
+      size: 8,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'shoot',
+      castScale: 1.0,
+      impactAnimation: 'hit',
+      impactDuration: 200,
+      cameraShake: 2,
+    },
     sound: { castSound: 'arrow', impactSound: 'hit', volume: 0.6 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   arrowMulti: {
     id: 'arrowMulti',
     name: '다중 화살',
@@ -1166,13 +1192,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_arrow_multi,
-    projectile: { type: 'arrow', speed: 400, size: 8, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'shoot', castScale: 1.1, impactAnimation: 'hit', impactDuration: 200, cameraShake: 3 },
+    projectile: {
+      type: 'arrow',
+      speed: 400,
+      size: 8,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'shoot',
+      castScale: 1.1,
+      impactAnimation: 'hit',
+      impactDuration: 200,
+      cameraShake: 3,
+    },
     sound: { castSound: 'arrow', impactSound: 'hit', volume: 0.7 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   fireball: {
     id: 'fireball',
     name: '파이어볼',
@@ -1192,13 +1232,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_fireball,
-    projectile: { type: 'fireball', speed: 300, size: 12, piercing: false, homing: false, trail: true, trailLength: 20 },
-    animation: { castAnimation: 'charge', castScale: 1.3, impactAnimation: 'explosion', impactDuration: 400, cameraShake: 6 },
+    projectile: {
+      type: 'fireball',
+      speed: 300,
+      size: 12,
+      piercing: false,
+      homing: false,
+      trail: true,
+      trailLength: 20,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.3,
+      impactAnimation: 'explosion',
+      impactDuration: 400,
+      cameraShake: 6,
+    },
     sound: { castSound: 'fire', impactSound: 'explosion', volume: 0.8 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   fireballHoming: {
     id: 'fireballHoming',
     name: '유도 파이어볼',
@@ -1218,13 +1272,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_fireball_homing,
-    projectile: { type: 'fireball', speed: 250, size: 12, piercing: false, homing: true, trail: true, trailLength: 20 },
-    animation: { castAnimation: 'charge', castScale: 1.3, impactAnimation: 'explosion', impactDuration: 400, cameraShake: 5 },
+    projectile: {
+      type: 'fireball',
+      speed: 250,
+      size: 12,
+      piercing: false,
+      homing: true,
+      trail: true,
+      trailLength: 20,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.3,
+      impactAnimation: 'explosion',
+      impactDuration: 400,
+      cameraShake: 5,
+    },
     sound: { castSound: 'fire', impactSound: 'explosion', volume: 0.8 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   radialBurst: {
     id: 'radialBurst',
     name: '방사형 폭발',
@@ -1244,13 +1312,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_radial_burst,
-    projectile: { type: 'energy', speed: 350, size: 10, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'charge', castScale: 1.4, impactAnimation: 'burst', impactDuration: 300, cameraShake: 7 },
+    projectile: {
+      type: 'energy',
+      speed: 350,
+      size: 10,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.4,
+      impactAnimation: 'burst',
+      impactDuration: 300,
+      cameraShake: 7,
+    },
     sound: { castSound: 'energy', impactSound: 'hit', volume: 0.9 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   coneSpread: {
     id: 'coneSpread',
     name: '부채꼴 발사',
@@ -1270,13 +1352,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.projectile_cone_spread,
-    projectile: { type: 'energy', speed: 400, size: 8, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'shoot', castScale: 1.2, impactAnimation: 'hit', impactDuration: 200, cameraShake: 4 },
+    projectile: {
+      type: 'energy',
+      speed: 400,
+      size: 8,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'shoot',
+      castScale: 1.2,
+      impactAnimation: 'hit',
+      impactDuration: 200,
+      cameraShake: 4,
+    },
     sound: { castSound: 'energy', impactSound: 'hit', volume: 0.7 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   // 궤적 스킬 (3개)
   slashTrail: {
     id: 'slashTrail',
@@ -1297,13 +1393,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.trail_slash,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'slash', castScale: 1.1, impactAnimation: 'cut', impactDuration: 200, cameraShake: 3 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'slash',
+      castScale: 1.1,
+      impactAnimation: 'cut',
+      impactDuration: 200,
+      cameraShake: 3,
+    },
     sound: { castSound: 'swing', impactSound: 'slash', volume: 0.6 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   thrustTrail: {
     id: 'thrustTrail',
     name: '찌르기 궤적',
@@ -1323,13 +1433,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.trail_thrust,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'thrust', castScale: 1.0, impactAnimation: 'pierce', impactDuration: 150, cameraShake: 2 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'thrust',
+      castScale: 1.0,
+      impactAnimation: 'pierce',
+      impactDuration: 150,
+      cameraShake: 2,
+    },
     sound: { castSound: 'swing', impactSound: 'pierce', volume: 0.5 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   spinTrail: {
     id: 'spinTrail',
     name: '회전 베기',
@@ -1349,13 +1473,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.trail_spin,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'spin', castScale: 1.3, impactAnimation: 'whirl', impactDuration: 400, cameraShake: 5 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'spin',
+      castScale: 1.3,
+      impactAnimation: 'whirl',
+      impactDuration: 400,
+      cameraShake: 5,
+    },
     sound: { castSound: 'whoosh', impactSound: 'slash', volume: 0.8 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   // 번개 스킬 (2개)
   lightningChain: {
     id: 'lightningChain',
@@ -1376,13 +1514,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.lightning_chain,
-    projectile: { type: 'lightning', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'charge', castScale: 1.2, impactAnimation: 'spark', impactDuration: 300, cameraShake: 4 },
+    projectile: {
+      type: 'lightning',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.2,
+      impactAnimation: 'spark',
+      impactDuration: 300,
+      cameraShake: 4,
+    },
     sound: { castSound: 'thunder', impactSound: 'zap', volume: 0.7 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   lightningStrike: {
     id: 'lightningStrike',
     name: '낙뢰',
@@ -1402,13 +1554,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.lightning_strike,
-    projectile: { type: 'lightning', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'charge', castScale: 1.4, impactAnimation: 'explosion', impactDuration: 500, cameraShake: 8 },
+    projectile: {
+      type: 'lightning',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.4,
+      impactAnimation: 'explosion',
+      impactDuration: 500,
+      cameraShake: 8,
+    },
     sound: { castSound: 'thunder', impactSound: 'explosion', volume: 0.9 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   // 링 스킬 (3개)
   ringSingle: {
     id: 'ringSingle',
@@ -1429,13 +1595,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.ring_single,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'stomp', castScale: 1.2, impactAnimation: 'shockwave', impactDuration: 400, cameraShake: 5 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'stomp',
+      castScale: 1.2,
+      impactAnimation: 'shockwave',
+      impactDuration: 400,
+      cameraShake: 5,
+    },
     sound: { castSound: 'impact', impactSound: 'boom', volume: 0.7 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   ringConcentric: {
     id: 'ringConcentric',
     name: '동심원 충격',
@@ -1455,13 +1635,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.ring_concentric,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'stomp', castScale: 1.4, impactAnimation: 'ripple', impactDuration: 800, cameraShake: 6 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'stomp',
+      castScale: 1.4,
+      impactAnimation: 'ripple',
+      impactDuration: 800,
+      cameraShake: 6,
+    },
     sound: { castSound: 'impact', impactSound: 'boom', volume: 0.8 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   ringExplosion: {
     id: 'ringExplosion',
     name: '폭발 링',
@@ -1481,13 +1675,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.ring_explosion,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'charge', castScale: 1.5, impactAnimation: 'explosion', impactDuration: 600, cameraShake: 9 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.5,
+      impactAnimation: 'explosion',
+      impactDuration: 600,
+      cameraShake: 9,
+    },
     sound: { castSound: 'charge', impactSound: 'explosion', volume: 1.0 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   // 글로우 스킬 (3개)
   glowHeal: {
     id: 'glowHeal',
@@ -1508,13 +1716,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 0,
     buffEffect: {},
     visual: EFFECT_PRESETS.glow_heal,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'glow', castScale: 1.2, impactAnimation: 'heal', impactDuration: 800, cameraShake: 0 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'glow',
+      castScale: 1.2,
+      impactAnimation: 'heal',
+      impactDuration: 800,
+      cameraShake: 0,
+    },
     sound: { castSound: 'chime', impactSound: 'heal', volume: 0.6 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   glowBuff: {
     id: 'glowBuff',
     name: '신성한 축복',
@@ -1534,13 +1756,27 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 8000,
     buffEffect: { attack: 25, defense: 25 },
     visual: EFFECT_PRESETS.glow_buff,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'glow', castScale: 1.3, impactAnimation: 'buff', impactDuration: 600, cameraShake: 0 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'glow',
+      castScale: 1.3,
+      impactAnimation: 'buff',
+      impactDuration: 600,
+      cameraShake: 0,
+    },
     sound: { castSound: 'blessing', impactSound: 'buff', volume: 0.7 },
     currentCooldown: 0,
     isOnCooldown: false,
   },
-  
+
   glowPower: {
     id: 'glowPower',
     name: '전투의 기운',
@@ -1560,8 +1796,22 @@ export const defaultSkills: Record<string, Skill> = {
     buffDuration: 12000,
     buffEffect: { attack: 40, attackSpeed: 20 },
     visual: EFFECT_PRESETS.glow_power,
-    projectile: { type: 'none', speed: 0, size: 0, piercing: false, homing: false, trail: false, trailLength: 0 },
-    animation: { castAnimation: 'charge', castScale: 1.4, impactAnimation: 'buff', impactDuration: 700, cameraShake: 3 },
+    projectile: {
+      type: 'none',
+      speed: 0,
+      size: 0,
+      piercing: false,
+      homing: false,
+      trail: false,
+      trailLength: 0,
+    },
+    animation: {
+      castAnimation: 'charge',
+      castScale: 1.4,
+      impactAnimation: 'buff',
+      impactDuration: 700,
+      cameraShake: 3,
+    },
     sound: { castSound: 'power', impactSound: 'buff', volume: 0.8 },
     currentCooldown: 0,
     isOnCooldown: false,
@@ -1573,9 +1823,9 @@ export const defaultSkills: Record<string, Skill> = {
  */
 export function updateSkillCooldown(skill: Skill, deltaTime: number): Skill {
   if (!skill.isOnCooldown) return skill;
-  
+
   const newCooldown = Math.max(0, skill.currentCooldown - deltaTime * 1000);
-  
+
   return {
     ...skill,
     currentCooldown: newCooldown,
@@ -1587,7 +1837,11 @@ export function updateSkillCooldown(skill: Skill, deltaTime: number): Skill {
  * castTime으로부터 기본 timing 구조 생성
  * 기본 비율: windup 30%, execution 40%, recovery 30%
  */
-export function generateTiming(castTime: number): { windup: number; execution: number; recovery: number } {
+export function generateTiming(castTime: number): {
+  windup: number;
+  execution: number;
+  recovery: number;
+} {
   if (castTime === 0) {
     return { windup: 0, execution: 100, recovery: 0 }; // 즉시 실행
   }
@@ -1604,11 +1858,11 @@ export function canUseSkill(skill: Skill, currentSP: number): { canUse: boolean;
   if (skill.isOnCooldown) {
     return { canUse: false, reason: '쿨타임 중입니다' };
   }
-  
+
   if (currentSP < skill.spCost) {
     return { canUse: false, reason: 'SP가 부족합니다' };
   }
-  
+
   return { canUse: true };
 }
 
@@ -1626,7 +1880,10 @@ export function useSkill(skill: Skill): Skill {
 /**
  * 기본 공격 슬롯 설정
  */
-export function getDefaultBasicAttackSlot(attackType: 'melee' | 'ranged' = 'melee', skillId?: string): BasicAttackSlot {
+export function getDefaultBasicAttackSlot(
+  attackType: 'melee' | 'ranged' = 'melee',
+  skillId?: string,
+): BasicAttackSlot {
   // skillId가 지정된 경우 해당 스킬을 찾음
   let skill;
   if (skillId && defaultSkills[skillId]) {
@@ -1635,11 +1892,12 @@ export function getDefaultBasicAttackSlot(attackType: 'melee' | 'ranged' = 'mele
     skill = { ...defaultBasicAttacks[skillId as keyof typeof defaultBasicAttacks] };
   } else {
     // 기본값
-    skill = attackType === 'melee' 
-      ? { ...defaultBasicAttacks.meleeBasic }
-      : { ...defaultBasicAttacks.rangedBasic };
+    skill =
+      attackType === 'melee'
+        ? { ...defaultBasicAttacks.meleeBasic }
+        : { ...defaultBasicAttacks.rangedBasic };
   }
-  
+
   return {
     skill,
     keyBinding: 'click',
@@ -2094,11 +2352,11 @@ export function createSkill(
   name: string,
   description: string,
   type: SkillType,
-  customizations?: Partial<Skill>
+  customizations?: Partial<Skill>,
 ): Skill {
   const template = SKILL_TEMPLATES[type];
   const id = `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   return {
     id,
     name,
@@ -2113,7 +2371,7 @@ export function createSkill(
  */
 export function cloneSkill(skill: Skill, newName?: string): Skill {
   const id = `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+
   return {
     ...skill,
     id,
@@ -2128,31 +2386,31 @@ export function cloneSkill(skill: Skill, newName?: string): Skill {
  */
 export function validateSkill(skill: Partial<Skill>): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (!skill.name || skill.name.trim().length === 0) {
     errors.push('스킬 이름은 필수입니다');
   }
-  
+
   if (!skill.description || skill.description.trim().length === 0) {
     errors.push('스킬 설명은 필수입니다');
   }
-  
+
   if (!skill.type) {
     errors.push('스킬 타입은 필수입니다');
   }
-  
+
   if (skill.spCost !== undefined && skill.spCost < 0) {
     errors.push('SP 소모량은 0 이상이어야 합니다');
   }
-  
+
   if (skill.cooldown !== undefined && skill.cooldown < 0) {
     errors.push('쿨타임은 0 이상이어야 합니다');
   }
-  
+
   if (skill.damageMultiplier !== undefined && skill.damageMultiplier < 0) {
     errors.push('데미지 배율은 0 이상이어야 합니다');
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -2165,7 +2423,7 @@ export function validateSkill(skill: Partial<Skill>): { valid: boolean; errors: 
  */
 export function calculateSkillDamage(
   skill: Skill,
-  attackerStats: { attack: number; defense: number; magic: number; speed: number }
+  attackerStats: { attack: number; defense: number; magic: number; speed: number },
 ): number {
   // damageFormula가 없으면 0 반환
   if (!skill.damageFormula) {

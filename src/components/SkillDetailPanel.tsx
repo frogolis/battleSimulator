@@ -37,31 +37,22 @@ export function SkillDetailPanel({
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0"
-              style={{ 
+              style={{
                 backgroundColor: skill.visual.color,
-                boxShadow: `0 0 15px ${skill.visual.color}50`
+                boxShadow: `0 0 15px ${skill.visual.color}50`,
               }}
             >
-              <div className="text-white">
-                {getIcon(skill.iconName)}
-              </div>
+              <div className="text-white">{getIcon(skill.iconName)}</div>
             </div>
             <div>
               <CardTitle className="text-lg">{skill.name}</CardTitle>
-              <CardDescription className="text-sm">
-                {skill.description}
-              </CardDescription>
+              <CardDescription className="text-sm">{skill.description}</CardDescription>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onDuplicate(skill)}
-              className="h-9"
-            >
+            <Button size="sm" variant="outline" onClick={() => onDuplicate(skill)} className="h-9">
               <Copy className="w-4 h-4 mr-2" />
               복제
             </Button>
@@ -85,8 +76,10 @@ export function SkillDetailPanel({
         <div className="grid grid-cols-2 gap-4 h-full">
           {/* 왼쪽: 스킬효과 */}
           <div className="flex flex-col pr-2 overflow-hidden min-h-0">
-            <h2 className="text-base font-semibold text-slate-800 pb-1.5 border-b mb-2 flex-shrink-0">스킬효과</h2>
-            
+            <h2 className="text-base font-semibold text-slate-800 pb-1.5 border-b mb-2 flex-shrink-0">
+              스킬효과
+            </h2>
+
             <div className="flex-1 overflow-auto min-h-0 space-y-2.5">
               <div>
                 <h3 className="text-sm font-semibold mb-2 text-slate-700">기본 성능</h3>
@@ -102,7 +95,9 @@ export function SkillDetailPanel({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">쿨타임: {(skill.cooldown / 1000).toFixed(1)}초</Label>
+                    <Label className="text-xs">
+                      쿨타임: {(skill.cooldown / 1000).toFixed(1)}초
+                    </Label>
                     <Slider
                       value={[skill.cooldown]}
                       onValueChange={([value]) => onUpdate(skill.id, { cooldown: value })}
@@ -137,7 +132,9 @@ export function SkillDetailPanel({
               <div>
                 <h3 className="text-sm font-semibold mb-2 text-slate-700">효과 설정</h3>
                 <div className="space-y-2">
-                  <div className="text-xs text-slate-600 mb-1">유효 영역에 도달한 캐릭터에게 적용할 효과</div>
+                  <div className="text-xs text-slate-600 mb-1">
+                    유효 영역에 도달한 캐릭터에게 적용할 효과
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
                       <Label className="text-xs text-slate-700">능력치</Label>
@@ -214,8 +211,8 @@ export function SkillDetailPanel({
                         {skill.damageFormula.stat === 'attack' && '공격력'}
                         {skill.damageFormula.stat === 'magic' && '마력'}
                         {skill.damageFormula.stat === 'defense' && '방어력'}
-                        {skill.damageFormula.stat === 'speed' && '속도'}
-                        {' '}{skill.damageFormula.operator === '*' ? '×' : '+'}{' '}
+                        {skill.damageFormula.stat === 'speed' && '속도'}{' '}
+                        {skill.damageFormula.operator === '*' ? '×' : '+'}{' '}
                         {skill.damageFormula.value}
                       </span>
                     </div>
@@ -256,14 +253,14 @@ export function SkillDetailPanel({
           {/* 오른쪽: 그래픽 (탭으로 구성) */}
           <div className="overflow-hidden pl-2 border-l border-slate-200 flex flex-col min-h-0">
             <h2 className="text-base font-semibold text-slate-800 pb-1.5 border-b mb-2">그래픽</h2>
-            
+
             <Tabs defaultValue="visual" className="flex-1 flex flex-col min-h-0">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="visual">시각 효과</TabsTrigger>
                 <TabsTrigger value="projectile">투사체</TabsTrigger>
                 <TabsTrigger value="animation">애니메이션</TabsTrigger>
               </TabsList>
-              
+
               <div className="flex-1 overflow-auto min-h-0 mt-2">
                 <TabsContent value="visual" className="m-0 space-y-2">
                   <div className="space-y-1.5">
@@ -366,7 +363,9 @@ export function SkillDetailPanel({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">발광 강도: {skill.visual.glowIntensity.toFixed(1)}</Label>
+                    <Label className="text-xs">
+                      발광 강도: {skill.visual.glowIntensity.toFixed(1)}
+                    </Label>
                     <Slider
                       value={[skill.visual.glowIntensity * 100]}
                       onValueChange={([value]) =>
@@ -438,7 +437,9 @@ export function SkillDetailPanel({
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">지속시간: {((skill.projectile as any).duration / 1000).toFixed(1)}초</Label>
+                        <Label className="text-xs">
+                          지속시간: {((skill.projectile as any).duration / 1000).toFixed(1)}초
+                        </Label>
                         <Slider
                           value={[(skill.projectile as any).duration || 2000]}
                           onValueChange={([value]) =>
@@ -513,7 +514,9 @@ export function SkillDetailPanel({
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">시전 크기: {skill.animation.castScale.toFixed(1)}x</Label>
+                    <Label className="text-xs">
+                      시전 크기: {skill.animation.castScale.toFixed(1)}x
+                    </Label>
                     <Slider
                       value={[skill.animation.castScale * 100]}
                       onValueChange={([value]) =>

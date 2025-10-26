@@ -68,15 +68,19 @@ export function PlayerDatasetViewer({
     delete: 80,
   });
 
-  const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
+  const [resizing, setResizing] = useState<{
+    column: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const handleAddRow = () => {
     // 레벨 1로 새 행 생성, 능력치는 자동 계산
     const firstType = characterTypes[0];
-    
+
     // 타입의 기본 스킬 목록
     const defaultSkillIds = firstType?.defaultSkillIds || ['powerSlash', 'whirlwind'];
-    
+
     const baseRow: DataRow = {
       t: dataset.length * 0.1,
       x: 300,
@@ -128,16 +132,23 @@ export function PlayerDatasetViewer({
       player_skill_4_sp_cost: 50,
       player_skill_4_cast_time: 500,
     };
-    
+
     // 첫 번째 타입의 기본 레벨과 크기로 능력치 자동 계산
     const defaultLevel = firstType?.defaultLevel || 1;
     const defaultSize = firstType?.defaultSize || 20;
-    const newRow = updateDataRowWithLevel(baseRow, true, playerLevelConfig, defaultLevel, defaultSize, firstType);
-    
+    const newRow = updateDataRowWithLevel(
+      baseRow,
+      true,
+      playerLevelConfig,
+      defaultLevel,
+      defaultSize,
+      firstType,
+    );
+
     const newDataset = [...dataset, newRow];
     setDataset(newDataset);
     setCurrentTick(newDataset.length - 1);
-    
+
     toast.success(`✅ 플레이어 설정이 추가되었습니다! (행 ${newDataset.length - 1})`);
   };
 
@@ -165,19 +176,26 @@ export function PlayerDatasetViewer({
   const handleCellUpdate = (rowIndex: number, field: string, value: any) => {
     const newDataset = [...dataset];
     const row = newDataset[rowIndex];
-    
+
     // 레벨, 크기, 타입 변경 시 능력치 재계산
     if (field === 'player_level' || field === 'player_size' || field === 'player_attack_type') {
       const level = field === 'player_level' ? value : row.player_level;
       const size = field === 'player_size' ? value : row.player_size;
       const typeId = field === 'player_attack_type' ? value : row.player_attack_type;
-      
+
       // 타입 정보 찾기
-      const typeInfo = characterTypes.find(t => t.id === typeId);
-      
+      const typeInfo = characterTypes.find((t) => t.id === typeId);
+
       // 능력치 재계산
-      const updatedRow = updateDataRowWithLevel(row, true, playerLevelConfig, level, size, typeInfo);
-      
+      const updatedRow = updateDataRowWithLevel(
+        row,
+        true,
+        playerLevelConfig,
+        level,
+        size,
+        typeInfo,
+      );
+
       // 타입 변경 시 기본 레벨, 크기, 기본 공격, 스킬도 변경
       if (field === 'player_attack_type' && typeInfo) {
         const defaultSkillIds = typeInfo.defaultSkillIds || [];
@@ -185,7 +203,14 @@ export function PlayerDatasetViewer({
         const currentLevel = row.player_level || typeInfo.defaultLevel || 1;
         const currentSize = row.player_size || typeInfo.defaultSize || 20;
         // 현재 레벨과 크기로 능력치만 재계산
-        const typeBasedRow = updateDataRowWithLevel(row, true, playerLevelConfig, currentLevel, currentSize, typeInfo);
+        const typeBasedRow = updateDataRowWithLevel(
+          row,
+          true,
+          playerLevelConfig,
+          currentLevel,
+          currentSize,
+          typeInfo,
+        );
         newDataset[rowIndex] = {
           ...typeBasedRow,
           [field]: value,
@@ -200,7 +225,9 @@ export function PlayerDatasetViewer({
           player_skill_3_id: defaultSkillIds[2] || '',
           player_skill_4_id: defaultSkillIds[3] || '',
         };
-        toast.info(`🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`);
+        toast.info(
+          `🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`,
+        );
       } else {
         newDataset[rowIndex] = {
           ...updatedRow,
@@ -215,7 +242,7 @@ export function PlayerDatasetViewer({
         [field]: value,
       };
     }
-    
+
     setDataset(newDataset);
   };
 
@@ -249,7 +276,7 @@ export function PlayerDatasetViewer({
       if (!resizing) return;
       const diff = e.clientX - resizing.startX;
       const newWidth = Math.max(50, resizing.startWidth + diff);
-      setColumnWidths(prev => ({
+      setColumnWidths((prev) => ({
         ...prev,
         [resizing.column]: newWidth,
       }));
@@ -268,29 +295,40 @@ export function PlayerDatasetViewer({
     };
   }, [resizing]);
 
-  const renderEditableCell = (rowIndex: number, field: string, value: any, suffix = '', isReadOnly = false) => {
+  const renderEditableCell = (
+    rowIndex: number,
+    field: string,
+    value: any,
+    suffix = '',
+    isReadOnly = false,
+  ) => {
     const isEditing = editingCell?.row === rowIndex && editingCell?.field === field;
 
     // 읽기 전용 필드 (레벨에 의해 자동 계산됨)
     if (isReadOnly) {
-      const displayValue = value?.toFixed ? (field.includes('attack_speed') ? value.toFixed(1) : value) : value || '-';
+      const displayValue = value?.toFixed
+        ? field.includes('attack_speed')
+          ? value.toFixed(1)
+          : value
+        : value || '-';
       return (
         <div
           className="px-2 py-1 text-center truncate bg-slate-100 text-slate-600"
           title={`${displayValue}${displayValue !== '-' ? suffix : ''} (레벨에 의해 자동 계산)`}
         >
-          {displayValue}{displayValue !== '-' ? suffix : ''}
+          {displayValue}
+          {displayValue !== '-' ? suffix : ''}
         </div>
       );
     }
 
     if (field === 'player_attack_type') {
-      const currentType = value as CharacterType || 'melee';
-      const typeInfo = characterTypes.find(t => t.id === currentType);
-      
+      const currentType = (value as CharacterType) || 'melee';
+      const typeInfo = characterTypes.find((t) => t.id === currentType);
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -310,7 +348,7 @@ export function PlayerDatasetViewer({
               <span className={typeInfo?.color}>{typeInfo?.name || currentType}</span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-64 p-3 z-50"
             align="start"
             side="bottom"
@@ -335,7 +373,7 @@ export function PlayerDatasetViewer({
               <Select
                 value={currentType}
                 onValueChange={(newValue) => {
-                  const selectedType = characterTypes.find(t => t.id === newValue);
+                  const selectedType = characterTypes.find((t) => t.id === newValue);
                   const newDataset = [...dataset];
                   newDataset[rowIndex] = {
                     ...newDataset[rowIndex],
@@ -351,7 +389,7 @@ export function PlayerDatasetViewer({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
-                  {characterTypes.map(type => (
+                  {characterTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       <div className="flex items-center gap-2">
                         <span className={type.color}>{type.name}</span>
@@ -370,23 +408,25 @@ export function PlayerDatasetViewer({
     // 기본 공격 스킬 선택 (player_basic_attack_id)
     if (field === 'player_basic_attack_id') {
       const row = dataset[rowIndex];
-      const currentSkillId = value as string || 'meleeBasic';
+      const currentSkillId = (value as string) || 'meleeBasic';
       const currentSkill = skillConfigs[currentSkillId];
-      
+
       // 기본 공격용 스킬만 필터링 (skillConfigs에서 category === 'basicAttack'인 것들)
-      const basicAttackSkills = Object.values(skillConfigs).filter(skill => skill.category === 'basicAttack');
-      
+      const basicAttackSkills = Object.values(skillConfigs).filter(
+        (skill) => skill.category === 'basicAttack',
+      );
+
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = row.player_basic_attack_range as number || 100;
-      const width = row.player_basic_attack_width as number || 120;
-      const damage = row.player_basic_attack_damage as number || 1.0;
-      const cooldown = row.player_basic_attack_cooldown as number || 1000;
-      const spCost = row.player_basic_attack_sp_cost as number || 0;
-      const castTime = row.player_basic_attack_cast_time as number || 300;
-      
+      const range = (row.player_basic_attack_range as number) || 100;
+      const width = (row.player_basic_attack_width as number) || 120;
+      const damage = (row.player_basic_attack_damage as number) || 1.0;
+      const cooldown = (row.player_basic_attack_cooldown as number) || 1000;
+      const spCost = (row.player_basic_attack_sp_cost as number) || 0;
+      const castTime = (row.player_basic_attack_cast_time as number) || 300;
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -406,7 +446,7 @@ export function PlayerDatasetViewer({
               <span className="text-purple-700">{currentSkill?.name || currentSkillId}</span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-80 p-4 z-50"
             align="start"
             side="bottom"
@@ -428,7 +468,7 @@ export function PlayerDatasetViewer({
                   <X className="h-3 w-3" />
                 </Button>
               </div>
-              
+
               {/* 스킬 선택 */}
               <div className="space-y-1">
                 <Label className="text-xs">공격 타입</Label>
@@ -457,7 +497,7 @@ export function PlayerDatasetViewer({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {basicAttackSkills.map(skill => (
+                    {basicAttackSkills.map((skill) => (
                       <SelectItem key={skill.id} value={skill.id}>
                         {skill.name}
                       </SelectItem>
@@ -465,14 +505,16 @@ export function PlayerDatasetViewer({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {/* 파라미터 편집 */}
               <div className="space-y-2 border-t pt-3">
                 {/* 범위 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">{range}px</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {range}px
+                    </Badge>
                   </div>
                   <Slider
                     value={[range]}
@@ -494,12 +536,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 넓이 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">{width}°</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {width}°
+                    </Badge>
                   </div>
                   <Slider
                     value={[width]}
@@ -521,12 +565,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 데미지 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>데미지 배율</Label>
-                    <Badge variant="secondary" className="h-5">{damage.toFixed(1)}x</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {damage.toFixed(1)}x
+                    </Badge>
                   </div>
                   <Slider
                     value={[damage * 10]}
@@ -548,12 +594,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 쿨타임 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">{(cooldown / 1000).toFixed(1)}초</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {(cooldown / 1000).toFixed(1)}초
+                    </Badge>
                   </div>
                   <Slider
                     value={[cooldown / 100]}
@@ -575,12 +623,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* SP 소모 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">{spCost}</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {spCost}
+                    </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
@@ -602,12 +652,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 시전 시간 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>시전 시간</Label>
-                    <Badge variant="secondary" className="h-5">{castTime}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {castTime}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[castTime / 10]}
@@ -640,24 +692,26 @@ export function PlayerDatasetViewer({
     if (field.match(/player_skill_[1-4]_id$/)) {
       const slotNum = field.split('_')[2];
       const row = dataset[rowIndex];
-      
-      const currentSkillId = value as string || 'powerSlash';
+
+      const currentSkillId = (value as string) || 'powerSlash';
       const currentSkill = skillConfigs[currentSkillId];
-      
+
       // 일반 스킬만 필터링
-      const normalSkills = Object.values(skillConfigs).filter(skill => skill.category === 'skill');
-      
+      const normalSkills = Object.values(skillConfigs).filter(
+        (skill) => skill.category === 'skill',
+      );
+
       // 현재 슬롯의 파라미터 값 가져오기
-      const range = row[`player_skill_${slotNum}_range` as keyof DataRow] as number || 100;
-      const width = row[`player_skill_${slotNum}_width` as keyof DataRow] as number || 120;
-      const damage = row[`player_skill_${slotNum}_damage` as keyof DataRow] as number || 1.5;
-      const cooldown = row[`player_skill_${slotNum}_cooldown` as keyof DataRow] as number || 3000;
-      const spCost = row[`player_skill_${slotNum}_sp_cost` as keyof DataRow] as number || 20;
-      const castTime = row[`player_skill_${slotNum}_cast_time` as keyof DataRow] as number || 500;
-      
+      const range = (row[`player_skill_${slotNum}_range` as keyof DataRow] as number) || 100;
+      const width = (row[`player_skill_${slotNum}_width` as keyof DataRow] as number) || 120;
+      const damage = (row[`player_skill_${slotNum}_damage` as keyof DataRow] as number) || 1.5;
+      const cooldown = (row[`player_skill_${slotNum}_cooldown` as keyof DataRow] as number) || 3000;
+      const spCost = (row[`player_skill_${slotNum}_sp_cost` as keyof DataRow] as number) || 20;
+      const castTime = (row[`player_skill_${slotNum}_cast_time` as keyof DataRow] as number) || 500;
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -677,7 +731,7 @@ export function PlayerDatasetViewer({
               <span className="text-purple-700">{currentSkill?.name || currentSkillId}</span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-80 p-4 z-50"
             align="start"
             side="bottom"
@@ -699,7 +753,7 @@ export function PlayerDatasetViewer({
                   <X className="h-3 w-3" />
                 </Button>
               </div>
-              
+
               {/* 스킬 선택 */}
               <div className="space-y-1">
                 <Label className="text-xs">스킬</Label>
@@ -728,7 +782,7 @@ export function PlayerDatasetViewer({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {normalSkills.map(skill => (
+                    {normalSkills.map((skill) => (
                       <SelectItem key={skill.id} value={skill.id}>
                         {skill.name}
                       </SelectItem>
@@ -736,14 +790,16 @@ export function PlayerDatasetViewer({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {/* 파라미터 편집 */}
               <div className="space-y-2 border-t pt-3">
                 {/* 범위 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">{range}px</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {range}px
+                    </Badge>
                   </div>
                   <Slider
                     value={[range]}
@@ -761,12 +817,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 넓이 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">{width}°</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {width}°
+                    </Badge>
                   </div>
                   <Slider
                     value={[width]}
@@ -784,12 +842,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 데미지 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>데미지</Label>
-                    <Badge variant="secondary" className="h-5">{damage}x</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {damage}x
+                    </Badge>
                   </div>
                   <Slider
                     value={[damage]}
@@ -807,12 +867,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 쿨타임 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">{cooldown}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {cooldown}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[cooldown]}
@@ -830,12 +892,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* SP 소모 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">{spCost}SP</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {spCost}SP
+                    </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
@@ -853,12 +917,14 @@ export function PlayerDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 시전시간 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>시전시간</Label>
-                    <Badge variant="secondary" className="h-5">{castTime}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {castTime}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[castTime]}
@@ -883,11 +949,15 @@ export function PlayerDatasetViewer({
       );
     }
 
-    const displayValue = value?.toFixed ? (field.includes('attack_speed') ? value.toFixed(1) : value) : value || '-';
-    
+    const displayValue = value?.toFixed
+      ? field.includes('attack_speed')
+        ? value.toFixed(1)
+        : value
+      : value || '-';
+
     return (
-      <Popover 
-        open={isEditing} 
+      <Popover
+        open={isEditing}
         onOpenChange={(open) => {
           if (open) {
             setEditingCell({ row: rowIndex, field });
@@ -904,10 +974,11 @@ export function PlayerDatasetViewer({
             }}
             title={`${displayValue}${displayValue !== '-' ? suffix : ''}`}
           >
-            {displayValue}{displayValue !== '-' ? suffix : ''}
+            {displayValue}
+            {displayValue !== '-' ? suffix : ''}
           </div>
         </PopoverTrigger>
-        <PopoverContent 
+        <PopoverContent
           className="w-56 p-4 bg-blue-50 border-blue-400 z-50"
           align="start"
           side="bottom"
@@ -916,7 +987,10 @@ export function PlayerDatasetViewer({
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Badge variant="secondary">{displayValue}{suffix}</Badge>
+              <Badge variant="secondary">
+                {displayValue}
+                {suffix}
+              </Badge>
               <Button
                 size="sm"
                 variant="ghost"
@@ -958,23 +1032,29 @@ export function PlayerDatasetViewer({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card className="overflow-visible">
-        <CardHeader className={!isOpen ? "pb-6" : ""}>
+        <CardHeader className={!isOpen ? 'pb-6' : ''}>
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between cursor-pointer">
               <CardTitle className="flex items-center gap-2">
-                {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                {isOpen ? (
+                  <ChevronDown className="w-5 h-5" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
                 플레이어 데이터셋
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{dataset.length}개 행</Badge>
                 {currentTick < dataset.length && (
-                  <Badge variant="default" className="bg-blue-600">행 {currentTick} 선택됨</Badge>
+                  <Badge variant="default" className="bg-blue-600">
+                    행 {currentTick} 선택됨
+                  </Badge>
                 )}
               </div>
             </div>
           </CollapsibleTrigger>
         </CardHeader>
-        
+
         <CollapsibleContent>
           <CardContent>
             <div className="border rounded-lg overflow-visible">
@@ -983,7 +1063,11 @@ export function PlayerDatasetViewer({
                   <thead>
                     {/* 첫 번째 행: 카테고리 */}
                     <tr className="border-b bg-muted/70">
-                      <th className="text-center border-r p-1 text-xs" rowSpan={2} style={{ width: columnWidths.index }}>
+                      <th
+                        className="text-center border-r p-1 text-xs"
+                        rowSpan={2}
+                        style={{ width: columnWidths.index }}
+                      >
                         <div className="truncate">#</div>
                       </th>
                       <th className="text-center border-r p-1 text-xs bg-blue-50" colSpan={3}>
@@ -995,73 +1079,125 @@ export function PlayerDatasetViewer({
                       <th className="text-center border-r p-1 text-xs bg-purple-50" colSpan={5}>
                         <div className="truncate">스킬 정보</div>
                       </th>
-                      <th className="text-center p-1 text-xs" rowSpan={2} style={{ width: columnWidths.delete }}>
+                      <th
+                        className="text-center p-1 text-xs"
+                        rowSpan={2}
+                        style={{ width: columnWidths.delete }}
+                      >
                         <div className="truncate">삭제</div>
                       </th>
                     </tr>
                     {/* 두 번째 행: 개별 컬럼 */}
                     <tr className="border-b bg-muted/50">
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_attack_type }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_attack_type }}
+                      >
                         <div className="truncate">타입</div>
                         <ResizeHandle column="player_attack_type" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_level }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_level }}
+                      >
                         <div className="truncate">LV</div>
                         <ResizeHandle column="player_level" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_size }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_size }}
+                      >
                         <div className="truncate">크기</div>
                         <ResizeHandle column="player_size" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_hp }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_hp }}
+                      >
                         <div className="truncate">HP</div>
                         <ResizeHandle column="player_hp" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_sp }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_sp }}
+                      >
                         <div className="truncate">SP</div>
                         <ResizeHandle column="player_sp" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_speed }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_speed }}
+                      >
                         <div className="truncate">속도</div>
                         <ResizeHandle column="player_speed" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_attack }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_attack }}
+                      >
                         <div className="truncate">공격력</div>
                         <ResizeHandle column="player_attack" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_defense }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_defense }}
+                      >
                         <div className="truncate">방어력</div>
                         <ResizeHandle column="player_defense" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_attack_speed }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_attack_speed }}
+                      >
                         <div className="truncate">공속</div>
                         <ResizeHandle column="player_attack_speed" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_accuracy }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_accuracy }}
+                      >
                         <div className="truncate">명중</div>
                         <ResizeHandle column="player_accuracy" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_critical_rate }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_critical_rate }}
+                      >
                         <div className="truncate">크리</div>
                         <ResizeHandle column="player_critical_rate" />
                       </th>
-                      <th className="relative text-center border-r p-2 bg-purple-100" style={{ width: columnWidths.player_basic_attack }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-purple-100"
+                        style={{ width: columnWidths.player_basic_attack }}
+                      >
                         <div className="truncate">기본 공격</div>
                         <ResizeHandle column="player_basic_attack" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_skill_1 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_skill_1 }}
+                      >
                         <div className="truncate">스킬 1</div>
                         <ResizeHandle column="player_skill_1" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_skill_2 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_skill_2 }}
+                      >
                         <div className="truncate">스킬 2</div>
                         <ResizeHandle column="player_skill_2" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_skill_3 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_skill_3 }}
+                      >
                         <div className="truncate">스킬 3</div>
                         <ResizeHandle column="player_skill_3" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.player_skill_4 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.player_skill_4 }}
+                      >
                         <div className="truncate">스킬 4</div>
                         <ResizeHandle column="player_skill_4" />
                       </th>
@@ -1072,64 +1208,164 @@ export function PlayerDatasetViewer({
                       <tr
                         key={index}
                         className={`border-b cursor-pointer transition-colors ${
-                          index === currentTick 
-                            ? 'bg-blue-200 hover:bg-blue-250 border-blue-400 border-l-4' 
+                          index === currentTick
+                            ? 'bg-blue-200 hover:bg-blue-250 border-blue-400 border-l-4'
                             : 'hover:bg-slate-50 border-l-4 border-transparent'
                         }`}
                         onClick={() => handleRowClick(index)}
                       >
-                        <td className="text-center border-r p-2" style={{ width: columnWidths.index }}>
+                        <td
+                          className="text-center border-r p-2"
+                          style={{ width: columnWidths.index }}
+                        >
                           <div className="truncate">{index}</div>
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_attack_type }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_attack_type }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_attack_type', row.player_attack_type)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_level }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_level }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_level', row.player_level)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_size }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_size }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_size', row.player_size)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_hp }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_hp }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_hp', row.player_hp)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_sp }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_sp }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_sp', row.player_sp)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_speed }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_speed }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_speed', row.player_speed)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_attack }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_attack }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_attack', row.player_attack)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_defense }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_defense }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_defense', row.player_defense)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_attack_speed }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_attack_speed', row.player_attack_speed)}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_attack_speed }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_attack_speed',
+                            row.player_attack_speed,
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_accuracy }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_accuracy }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'player_accuracy', row.player_accuracy, '%')}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_critical_rate }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_critical_rate', row.player_critical_rate, '%')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_critical_rate }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_critical_rate',
+                            row.player_critical_rate,
+                            '%',
+                          )}
                         </td>
-                        <td className="border-r p-1 bg-purple-50" style={{ width: columnWidths.player_basic_attack }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_basic_attack_id', row.player_basic_attack_id || 'meleeBasic')}
+                        <td
+                          className="border-r p-1 bg-purple-50"
+                          style={{ width: columnWidths.player_basic_attack }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_basic_attack_id',
+                            row.player_basic_attack_id || 'meleeBasic',
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_skill_1 }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_skill_1_id', row.player_skill_1_id || 'powerSlash')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_skill_1 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_skill_1_id',
+                            row.player_skill_1_id || 'powerSlash',
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_skill_2 }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_skill_2_id', row.player_skill_2_id || 'whirlwind')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_skill_2 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_skill_2_id',
+                            row.player_skill_2_id || 'whirlwind',
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_skill_3 }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_skill_3_id', row.player_skill_3_id || 'heal')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_skill_3 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_skill_3_id',
+                            row.player_skill_3_id || 'heal',
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.player_skill_4 }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'player_skill_4_id', row.player_skill_4_id || 'powerBuff')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.player_skill_4 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'player_skill_4_id',
+                            row.player_skill_4_id || 'powerBuff',
+                          )}
                         </td>
-                        <td className="text-center p-1" style={{ width: columnWidths.delete }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="text-center p-1"
+                          style={{ width: columnWidths.delete }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1145,7 +1381,7 @@ export function PlayerDatasetViewer({
                 </table>
               </div>
             </div>
-            
+
             {/* Action buttons at bottom */}
             <div className="flex gap-2 mt-4">
               <Button
@@ -1156,11 +1392,7 @@ export function PlayerDatasetViewer({
                 <Download className="w-4 h-4 mr-2" />
                 선택한 행 불러오기 (행 {currentTick})
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleAddRow}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={handleAddRow} className="flex-1">
                 <Plus className="w-4 h-4 mr-2" />
                 현재 설정 추가
               </Button>

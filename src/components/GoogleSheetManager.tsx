@@ -7,11 +7,11 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Separator } from './ui/separator';
-import { 
-  FileSpreadsheet, 
-  ExternalLink, 
-  Upload, 
-  AlertCircle, 
+import {
+  FileSpreadsheet,
+  ExternalLink,
+  Upload,
+  AlertCircle,
   CheckCircle2,
   Link2,
   Trash2,
@@ -19,10 +19,16 @@ import {
   Package,
   Copy,
   Code,
-  Download
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
-import { writeToGoogleSheet, getStoredWebAppUrl, setStoredWebAppUrl, getStoredApiKey, setStoredApiKey } from '../lib/googleSheetsLoader';
+import {
+  writeToGoogleSheet,
+  getStoredWebAppUrl,
+  setStoredWebAppUrl,
+  getStoredApiKey,
+  setStoredApiKey,
+} from '../lib/googleSheetsLoader';
 import { LevelConfig, generateExpChartDataWithSegments } from '../lib/levelSystem';
 import { CharacterConfig } from './CharacterSettings';
 import { MonsterTypeStats } from './MonsterTypeDefinition';
@@ -42,7 +48,7 @@ interface SheetConnection {
   lastSync?: Date;
 }
 
-type DataType = 
+type DataType =
   | 'player_stats'
   | 'player_levels'
   | 'monster_stats'
@@ -59,7 +65,7 @@ interface GoogleSheetManagerProps {
   playerDataset?: DataRow[];
   onPlayerConfigImport?: (config: CharacterConfig) => void;
   onPlayerLevelConfigImport?: (config: LevelConfig) => void;
-  
+
   // Monster data
   monsterConfig?: CharacterConfig;
   monsterLevelConfig?: LevelConfig;
@@ -68,7 +74,7 @@ interface GoogleSheetManagerProps {
   onMonsterConfigImport?: (config: CharacterConfig) => void;
   onMonsterLevelConfigImport?: (config: LevelConfig) => void;
   onMonsterTypeStatsImport?: (stats: Record<string, MonsterTypeStats>) => void;
-  
+
   // Skills & Items
   skillConfigs?: Record<string, Skill>;
   skillSlots?: SkillSlot[];
@@ -78,7 +84,7 @@ interface GoogleSheetManagerProps {
   onSkillConfigsImport?: (skills: Record<string, Skill>) => void;
   onSkillSlotsImport?: (slots: SkillSlot[]) => void;
   onItemSlotsImport?: (slots: ItemSlot[]) => void;
-  
+
   // Character Types
   characterTypes?: CharacterTypeInfo[];
   onCharacterTypesImport?: (types: CharacterTypeInfo[]) => void;
@@ -143,10 +149,10 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/');
       const spreadsheetId = pathParts[pathParts.indexOf('d') + 1];
-      
+
       const gidMatch = url.match(/[#&]gid=([0-9]+)/);
       const gid = gidMatch ? gidMatch[1] : '0';
-      
+
       if (spreadsheetId) {
         return { spreadsheetId, gid };
       }
@@ -171,7 +177,9 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
 
     const newConnection: SheetConnection = {
       id: `sheet_${Date.now()}`,
-      name: newSheetName.trim() || `${DATA_TYPE_LABELS[newDataType]} ${connections.filter(c => c.dataType === newDataType).length + 1}`,
+      name:
+        newSheetName.trim() ||
+        `${DATA_TYPE_LABELS[newDataType]} ${connections.filter((c) => c.dataType === newDataType).length + 1}`,
       url: newSheetUrl,
       spreadsheetId: parsed.spreadsheetId,
       gid: parsed.gid,
@@ -180,7 +188,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
 
     const updated = [...connections, newConnection];
     saveConnections(updated);
-    
+
     setNewSheetUrl('');
     setNewSheetName('');
     toast.success(`✅ ${newConnection.name} 연결이 추가되었습니다`);
@@ -188,27 +196,27 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
 
   // 연결 삭제
   const handleDeleteConnection = (id: string) => {
-    const updated = connections.filter(c => c.id !== id);
+    const updated = connections.filter((c) => c.id !== id);
     saveConnections(updated);
     toast.info('🗑️ 연결이 삭제되었습니다');
   };
 
   // CSV 파싱
   const parseCSV = (csvText: string): Record<string, any>[] => {
-    const lines = csvText.split('\n').filter(line => line.trim());
+    const lines = csvText.split('\n').filter((line) => line.trim());
     if (lines.length < 2) return [];
-    
-    const headers = lines[0].split(',').map(h => h.trim());
+
+    const headers = lines[0].split(',').map((h) => h.trim());
     const data: Record<string, any>[] = [];
-    
+
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim());
+      const values = lines[i].split(',').map((v) => v.trim());
       const row: Record<string, any> = {};
-      
+
       headers.forEach((header, idx) => {
         const value = values[idx];
         if (!value) return;
-        
+
         const numValue = parseFloat(value);
         if (!isNaN(numValue)) {
           row[header] = numValue;
@@ -216,54 +224,57 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
           row[header] = value;
         }
       });
-      
+
       data.push(row);
     }
-    
+
     return data;
   };
 
   // 시트에서 데이터 불러오기
   const handleLoadFromSheet = async (connection: SheetConnection) => {
     setIsLoading(true);
-    
+
     try {
       const csvUrl = `https://docs.google.com/spreadsheets/d/${connection.spreadsheetId}/export?format=csv&gid=${connection.gid}`;
-      
+
       const response = await fetch(csvUrl);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const csvText = await response.text();
       const data = parseCSV(csvText);
-      
+
       // 마지막 동기화 시간 업데이트
-      const updated = connections.map(c => 
-        c.id === connection.id 
-          ? { ...c, lastSync: new Date() }
-          : c
+      const updated = connections.map((c) =>
+        c.id === connection.id ? { ...c, lastSync: new Date() } : c,
       );
       saveConnections(updated);
-      
+
       toast.success(`✅ ${connection.name}에서 ${data.length}개 행을 불러왔습니다`);
     } catch (error) {
       console.error('Error loading sheet:', error);
-      toast.error(`데이터 로드 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+      toast.error(
+        `데이터 로드 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   // 엑셀 다운로드 헬퍼 함수
-  const downloadExcel = (filename: string, sheets: { name: string; headers: string[]; data: any[][] }[]) => {
+  const downloadExcel = (
+    filename: string,
+    sheets: { name: string; headers: string[]; data: any[][] }[],
+  ) => {
     const workbook = XLSX.utils.book_new();
 
-    sheets.forEach(sheet => {
+    sheets.forEach((sheet) => {
       // 헤더와 데이터를 합쳐서 워크시트 생성
       const wsData = [sheet.headers, ...sheet.data];
       const worksheet = XLSX.utils.aoa_to_sheet(wsData);
-      
+
       // 시트 이름은 최대 31자까지 가능하고 특수문자 제한이 있음
       const sanitizedName = sheet.name.substring(0, 31).replace(/[:\\\/\?\*\[\]]/g, '_');
       XLSX.utils.book_append_sheet(workbook, worksheet, sanitizedName);
@@ -271,7 +282,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
 
     // 엑셀 파일로 저장
     XLSX.writeFile(workbook, filename);
-    
+
     toast.success(`✅ ${filename} 다운로드 완료!`);
   };
 
@@ -284,18 +295,41 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
 
     const maxLevel = props.playerLevelConfig.maxLevel || 100;
     const expData = generateExpChartDataWithSegments(
-      props.playerLevelConfig.expGrowthConfig || { segments: [], bezierSegments: [], useBezier: true },
+      props.playerLevelConfig.expGrowthConfig || {
+        segments: [],
+        bezierSegments: [],
+        useBezier: true,
+      },
       1,
-      maxLevel
+      maxLevel,
     );
 
-    const headers = ['level', 'exp_required', 'cumulative_exp', 'hp', 'sp', 'attack', 'defense', 'speed'];
+    const headers = [
+      'level',
+      'exp_required',
+      'cumulative_exp',
+      'hp',
+      'sp',
+      'attack',
+      'defense',
+      'speed',
+    ];
     const data = expData.map((levelData) => {
-      const hp = props.playerLevelConfig!.baseHp + (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
-      const sp = props.playerLevelConfig!.baseSp + (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
-      const attack = props.playerLevelConfig!.baseAttack + (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
-      const defense = props.playerLevelConfig!.baseDefense + (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
-      const speed = props.playerLevelConfig!.baseSpeed + (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
+      const hp =
+        props.playerLevelConfig!.baseHp +
+        (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
+      const sp =
+        props.playerLevelConfig!.baseSp +
+        (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
+      const attack =
+        props.playerLevelConfig!.baseAttack +
+        (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
+      const defense =
+        props.playerLevelConfig!.baseDefense +
+        (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
+      const speed =
+        props.playerLevelConfig!.baseSpeed +
+        (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
 
       return [
         levelData.level,
@@ -305,7 +339,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
         Math.round(sp),
         Math.round(attack),
         Math.round(defense),
-        Math.round(speed)
+        Math.round(speed),
       ];
     });
 
@@ -324,13 +358,19 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     // 몬스터는 경험치가 필요 없으므로 레벨별 능력치만 계산
     const headers = ['level', 'hp', 'sp', 'attack', 'defense', 'speed'];
     const data = [];
-    
+
     for (let level = 1; level <= maxLevel; level++) {
-      const hp = props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
-      const sp = props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
-      const attack = props.monsterLevelConfig.baseAttack + (level - 1) * props.monsterLevelConfig.attackPerLevel;
-      const defense = props.monsterLevelConfig.baseDefense + (level - 1) * props.monsterLevelConfig.defensePerLevel;
-      const speed = props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
+      const hp =
+        props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
+      const sp =
+        props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
+      const attack =
+        props.monsterLevelConfig.baseAttack + (level - 1) * props.monsterLevelConfig.attackPerLevel;
+      const defense =
+        props.monsterLevelConfig.baseDefense +
+        (level - 1) * props.monsterLevelConfig.defensePerLevel;
+      const speed =
+        props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
 
       data.push([
         level,
@@ -338,7 +378,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
         Math.round(sp),
         Math.round(attack),
         Math.round(defense),
-        Math.round(speed)
+        Math.round(speed),
       ]);
     }
 
@@ -353,12 +393,23 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     }
 
     const headers = [
-      'id', 'name', 'type', 'damageMultiplier', 'healAmount',
-      'buffDuration', 'buffStats', 'spCost', 'cooldown',
-      'castTime', 'range', 'width', 'duration', 'description'
+      'id',
+      'name',
+      'type',
+      'damageMultiplier',
+      'healAmount',
+      'buffDuration',
+      'buffStats',
+      'spCost',
+      'cooldown',
+      'castTime',
+      'range',
+      'width',
+      'duration',
+      'description',
     ];
-    
-    const data = Object.values(props.skillConfigs).map(skill => {
+
+    const data = Object.values(props.skillConfigs).map((skill) => {
       let buffStatsStr = '';
       if (skill.buffStats) {
         try {
@@ -382,7 +433,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
         skill.range,
         skill.width,
         skill.duration ?? '',
-        skill.description || ''
+        skill.description || '',
       ];
     });
 
@@ -397,8 +448,8 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     }
 
     const headers = ['id', 'name', 'type', 'stats', 'weight', 'equipped'];
-    
-    const data = props.itemSlots.map(item => {
+
+    const data = props.itemSlots.map((item) => {
       let statsStr = '';
       if (item.stats) {
         try {
@@ -408,14 +459,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
         }
       }
 
-      return [
-        item.id,
-        item.name,
-        item.type,
-        statsStr,
-        item.weight,
-        item.equipped
-      ];
+      return [item.id, item.name, item.type, statsStr, item.weight, item.equipped];
     });
 
     downloadExcel('items.xlsx', [{ name: 'items', headers, data }]);
@@ -429,13 +473,13 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     }
 
     const allKeys = new Set<string>();
-    props.playerDataset.forEach(row => {
-      Object.keys(row).forEach(key => allKeys.add(key));
+    props.playerDataset.forEach((row) => {
+      Object.keys(row).forEach((key) => allKeys.add(key));
     });
     const headers = Array.from(allKeys).sort();
 
-    const data = props.playerDataset.map(row => {
-      return headers.map(header => {
+    const data = props.playerDataset.map((row) => {
+      return headers.map((header) => {
         const value = (row as any)[header];
         return value !== undefined ? value : '';
       });
@@ -452,13 +496,13 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     }
 
     const allKeys = new Set<string>();
-    props.monsterDataset.forEach(row => {
-      Object.keys(row).forEach(key => allKeys.add(key));
+    props.monsterDataset.forEach((row) => {
+      Object.keys(row).forEach((key) => allKeys.add(key));
     });
     const headers = Array.from(allKeys).sort();
 
-    const data = props.monsterDataset.map(row => {
-      return headers.map(header => {
+    const data = props.monsterDataset.map((row) => {
+      return headers.map((header) => {
         const value = (row as any)[header];
         return value !== undefined ? value : '';
       });
@@ -475,17 +519,40 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     if (props.playerLevelConfig) {
       const maxLevel = props.playerLevelConfig.maxLevel || 100;
       const expData = generateExpChartDataWithSegments(
-        props.playerLevelConfig.expGrowthConfig || { segments: [], bezierSegments: [], useBezier: true },
+        props.playerLevelConfig.expGrowthConfig || {
+          segments: [],
+          bezierSegments: [],
+          useBezier: true,
+        },
         1,
-        maxLevel
+        maxLevel,
       );
-      const headers = ['level', 'exp_required', 'cumulative_exp', 'hp', 'sp', 'attack', 'defense', 'speed'];
+      const headers = [
+        'level',
+        'exp_required',
+        'cumulative_exp',
+        'hp',
+        'sp',
+        'attack',
+        'defense',
+        'speed',
+      ];
       const data = expData.map((levelData) => {
-        const hp = props.playerLevelConfig!.baseHp + (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
-        const sp = props.playerLevelConfig!.baseSp + (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
-        const attack = props.playerLevelConfig!.baseAttack + (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
-        const defense = props.playerLevelConfig!.baseDefense + (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
-        const speed = props.playerLevelConfig!.baseSpeed + (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
+        const hp =
+          props.playerLevelConfig!.baseHp +
+          (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
+        const sp =
+          props.playerLevelConfig!.baseSp +
+          (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
+        const attack =
+          props.playerLevelConfig!.baseAttack +
+          (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
+        const defense =
+          props.playerLevelConfig!.baseDefense +
+          (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
+        const speed =
+          props.playerLevelConfig!.baseSpeed +
+          (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
         return [
           levelData.level,
           levelData.exp,
@@ -494,7 +561,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
           Math.round(sp),
           Math.round(attack),
           Math.round(defense),
-          Math.round(speed)
+          Math.round(speed),
         ];
       });
       sheets.push({ name: 'player_levels', headers, data });
@@ -505,35 +572,53 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
       const maxLevel = props.monsterLevelConfig.maxLevel || 100;
       const headers = ['level', 'hp', 'sp', 'attack', 'defense', 'speed'];
       const data = [];
-      
+
       for (let level = 1; level <= maxLevel; level++) {
-        const hp = props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
-        const sp = props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
-        const attack = props.monsterLevelConfig.baseAttack + (level - 1) * props.monsterLevelConfig.attackPerLevel;
-        const defense = props.monsterLevelConfig.baseDefense + (level - 1) * props.monsterLevelConfig.defensePerLevel;
-        const speed = props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
-        
+        const hp =
+          props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
+        const sp =
+          props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
+        const attack =
+          props.monsterLevelConfig.baseAttack +
+          (level - 1) * props.monsterLevelConfig.attackPerLevel;
+        const defense =
+          props.monsterLevelConfig.baseDefense +
+          (level - 1) * props.monsterLevelConfig.defensePerLevel;
+        const speed =
+          props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
+
         data.push([
           level,
           Math.round(hp),
           Math.round(sp),
           Math.round(attack),
           Math.round(defense),
-          Math.round(speed)
+          Math.round(speed),
         ]);
       }
-      
+
       sheets.push({ name: 'monster_levels', headers, data });
     }
 
     // 스킬
     if (props.skillConfigs && Object.keys(props.skillConfigs).length > 0) {
       const headers = [
-        'id', 'name', 'type', 'damageMultiplier', 'healAmount',
-        'buffDuration', 'buffStats', 'spCost', 'cooldown',
-        'castTime', 'range', 'width', 'duration', 'description'
+        'id',
+        'name',
+        'type',
+        'damageMultiplier',
+        'healAmount',
+        'buffDuration',
+        'buffStats',
+        'spCost',
+        'cooldown',
+        'castTime',
+        'range',
+        'width',
+        'duration',
+        'description',
       ];
-      const data = Object.values(props.skillConfigs).map(skill => {
+      const data = Object.values(props.skillConfigs).map((skill) => {
         let buffStatsStr = '';
         if (skill.buffStats) {
           try {
@@ -556,7 +641,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
           skill.range,
           skill.width,
           skill.duration ?? '',
-          skill.description || ''
+          skill.description || '',
         ];
       });
       sheets.push({ name: 'skills', headers, data });
@@ -565,7 +650,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     // 아이템
     if (props.itemSlots && props.itemSlots.length > 0) {
       const headers = ['id', 'name', 'type', 'stats', 'weight', 'equipped'];
-      const data = props.itemSlots.map(item => {
+      const data = props.itemSlots.map((item) => {
         let statsStr = '';
         if (item.stats) {
           try {
@@ -574,14 +659,7 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
             statsStr = '';
           }
         }
-        return [
-          item.id,
-          item.name,
-          item.type,
-          statsStr,
-          item.weight,
-          item.equipped
-        ];
+        return [item.id, item.name, item.type, statsStr, item.weight, item.equipped];
       });
       sheets.push({ name: 'items', headers, data });
     }
@@ -589,12 +667,12 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     // 플레이어 데이터셋
     if (props.playerDataset && props.playerDataset.length > 0) {
       const allKeys = new Set<string>();
-      props.playerDataset.forEach(row => {
-        Object.keys(row).forEach(key => allKeys.add(key));
+      props.playerDataset.forEach((row) => {
+        Object.keys(row).forEach((key) => allKeys.add(key));
       });
       const headers = Array.from(allKeys).sort();
-      const data = props.playerDataset.map(row => {
-        return headers.map(header => {
+      const data = props.playerDataset.map((row) => {
+        return headers.map((header) => {
           const value = (row as any)[header];
           return value !== undefined ? value : '';
         });
@@ -605,12 +683,12 @@ export function GoogleSheetManager(props: GoogleSheetManagerProps) {
     // 몬스터 데이터셋
     if (props.monsterDataset && props.monsterDataset.length > 0) {
       const allKeys = new Set<string>();
-      props.monsterDataset.forEach(row => {
-        Object.keys(row).forEach(key => allKeys.add(key));
+      props.monsterDataset.forEach((row) => {
+        Object.keys(row).forEach((key) => allKeys.add(key));
       });
       const headers = Array.from(allKeys).sort();
-      const data = props.monsterDataset.map(row => {
-        return headers.map(header => {
+      const data = props.monsterDataset.map((row) => {
+        return headers.map((header) => {
           const value = (row as any)[header];
           return value !== undefined ? value : '';
         });
@@ -753,18 +831,41 @@ function testGenerateKey() {
     try {
       const maxLevel = props.playerLevelConfig.maxLevel || 100;
       const expData = generateExpChartDataWithSegments(
-        props.playerLevelConfig.expGrowthConfig || { segments: [], bezierSegments: [], useBezier: true },
+        props.playerLevelConfig.expGrowthConfig || {
+          segments: [],
+          bezierSegments: [],
+          useBezier: true,
+        },
         1,
-        maxLevel
+        maxLevel,
       );
 
-      const headers = ['level', 'exp_required', 'cumulative_exp', 'hp', 'sp', 'attack', 'defense', 'speed'];
+      const headers = [
+        'level',
+        'exp_required',
+        'cumulative_exp',
+        'hp',
+        'sp',
+        'attack',
+        'defense',
+        'speed',
+      ];
       const data = expData.map((levelData) => {
-        const hp = props.playerLevelConfig!.baseHp + (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
-        const sp = props.playerLevelConfig!.baseSp + (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
-        const attack = props.playerLevelConfig!.baseAttack + (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
-        const defense = props.playerLevelConfig!.baseDefense + (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
-        const speed = props.playerLevelConfig!.baseSpeed + (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
+        const hp =
+          props.playerLevelConfig!.baseHp +
+          (levelData.level - 1) * props.playerLevelConfig!.hpPerLevel;
+        const sp =
+          props.playerLevelConfig!.baseSp +
+          (levelData.level - 1) * props.playerLevelConfig!.spPerLevel;
+        const attack =
+          props.playerLevelConfig!.baseAttack +
+          (levelData.level - 1) * props.playerLevelConfig!.attackPerLevel;
+        const defense =
+          props.playerLevelConfig!.baseDefense +
+          (levelData.level - 1) * props.playerLevelConfig!.defensePerLevel;
+        const speed =
+          props.playerLevelConfig!.baseSpeed +
+          (levelData.level - 1) * props.playerLevelConfig!.speedPerLevel;
 
         return [
           levelData.level,
@@ -774,12 +875,12 @@ function testGenerateKey() {
           Math.round(sp),
           Math.round(attack),
           Math.round(defense),
-          Math.round(speed)
+          Math.round(speed),
         ];
       });
 
       const result = await writeToGoogleSheet(webAppUrl, 'player_levels', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 플레이어 레벨 데이터 (${data.length}개 레벨) 업로드 완료!`);
       } else {
@@ -813,13 +914,20 @@ function testGenerateKey() {
       // 몬스터는 경험치가 필요 없으므로 레벨별 능력치만 계산
       const headers = ['level', 'hp', 'sp', 'attack', 'defense', 'speed'];
       const data = [];
-      
+
       for (let level = 1; level <= maxLevel; level++) {
-        const hp = props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
-        const sp = props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
-        const attack = props.monsterLevelConfig.baseAttack + (level - 1) * props.monsterLevelConfig.attackPerLevel;
-        const defense = props.monsterLevelConfig.baseDefense + (level - 1) * props.monsterLevelConfig.defensePerLevel;
-        const speed = props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
+        const hp =
+          props.monsterLevelConfig.baseHp + (level - 1) * props.monsterLevelConfig.hpPerLevel;
+        const sp =
+          props.monsterLevelConfig.baseSp + (level - 1) * props.monsterLevelConfig.spPerLevel;
+        const attack =
+          props.monsterLevelConfig.baseAttack +
+          (level - 1) * props.monsterLevelConfig.attackPerLevel;
+        const defense =
+          props.monsterLevelConfig.baseDefense +
+          (level - 1) * props.monsterLevelConfig.defensePerLevel;
+        const speed =
+          props.monsterLevelConfig.baseSpeed + (level - 1) * props.monsterLevelConfig.speedPerLevel;
 
         data.push([
           level,
@@ -827,12 +935,12 @@ function testGenerateKey() {
           Math.round(sp),
           Math.round(attack),
           Math.round(defense),
-          Math.round(speed)
+          Math.round(speed),
         ]);
       }
 
       const result = await writeToGoogleSheet(webAppUrl, 'monster_levels', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 몬스터 레벨 데이터 (${data.length}개 레벨) 업로드 완료!`);
       } else {
@@ -862,12 +970,23 @@ function testGenerateKey() {
 
     try {
       const headers = [
-        'id', 'name', 'type', 'damageMultiplier', 'healAmount',
-        'buffDuration', 'buffStats', 'spCost', 'cooldown',
-        'castTime', 'range', 'width', 'duration', 'description'
+        'id',
+        'name',
+        'type',
+        'damageMultiplier',
+        'healAmount',
+        'buffDuration',
+        'buffStats',
+        'spCost',
+        'cooldown',
+        'castTime',
+        'range',
+        'width',
+        'duration',
+        'description',
       ];
-      
-      const data = Object.values(props.skillConfigs).map(skill => {
+
+      const data = Object.values(props.skillConfigs).map((skill) => {
         let buffStatsStr = '';
         if (skill.buffStats) {
           try {
@@ -891,12 +1010,12 @@ function testGenerateKey() {
           skill.range,
           skill.width,
           skill.duration ?? '',
-          skill.description || ''
+          skill.description || '',
         ];
       });
 
       const result = await writeToGoogleSheet(webAppUrl, 'skills', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 스킬 데이터 (${data.length}개) 업로드 완료!`);
       } else {
@@ -926,8 +1045,8 @@ function testGenerateKey() {
 
     try {
       const headers = ['id', 'name', 'type', 'stats', 'weight', 'equipped'];
-      
-      const data = props.itemSlots.map(item => {
+
+      const data = props.itemSlots.map((item) => {
         let statsStr = '';
         if (item.stats) {
           try {
@@ -937,18 +1056,11 @@ function testGenerateKey() {
           }
         }
 
-        return [
-          item.id,
-          item.name,
-          item.type,
-          statsStr,
-          item.weight,
-          item.equipped
-        ];
+        return [item.id, item.name, item.type, statsStr, item.weight, item.equipped];
       });
 
       const result = await writeToGoogleSheet(webAppUrl, 'items', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 아이템 데이터 (${data.length}개) 업로드 완료!`);
       } else {
@@ -979,20 +1091,20 @@ function testGenerateKey() {
     try {
       // 데이터셋의 모든 필드를 헤더로 추출
       const allKeys = new Set<string>();
-      props.playerDataset.forEach(row => {
-        Object.keys(row).forEach(key => allKeys.add(key));
+      props.playerDataset.forEach((row) => {
+        Object.keys(row).forEach((key) => allKeys.add(key));
       });
       const headers = Array.from(allKeys).sort();
 
-      const data = props.playerDataset.map(row => {
-        return headers.map(header => {
+      const data = props.playerDataset.map((row) => {
+        return headers.map((header) => {
           const value = (row as any)[header];
           return value !== undefined ? value : '';
         });
       });
 
       const result = await writeToGoogleSheet(webAppUrl, 'player_dataset', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 플레이어 데이터셋 (${data.length}개 행) 업로드 완료!`);
       } else {
@@ -1023,20 +1135,20 @@ function testGenerateKey() {
     try {
       // 데이터셋의 모든 필드를 헤더로 추출
       const allKeys = new Set<string>();
-      props.monsterDataset.forEach(row => {
-        Object.keys(row).forEach(key => allKeys.add(key));
+      props.monsterDataset.forEach((row) => {
+        Object.keys(row).forEach((key) => allKeys.add(key));
       });
       const headers = Array.from(allKeys).sort();
 
-      const data = props.monsterDataset.map(row => {
-        return headers.map(header => {
+      const data = props.monsterDataset.map((row) => {
+        return headers.map((header) => {
           const value = (row as any)[header];
           return value !== undefined ? value : '';
         });
       });
 
       const result = await writeToGoogleSheet(webAppUrl, 'monster_dataset', headers, data, apiKey);
-      
+
       if (result.success) {
         toast.success(`✅ 몬스터 데이터셋 (${data.length}개 행) 업로드 완료!`);
       } else {
@@ -1140,13 +1252,16 @@ function testGenerateKey() {
   };
 
   // 데이터 타입별로 연결 그룹화
-  const connectionsByType = connections.reduce((acc, conn) => {
-    if (!acc[conn.dataType]) {
-      acc[conn.dataType] = [];
-    }
-    acc[conn.dataType].push(conn);
-    return acc;
-  }, {} as Record<DataType, SheetConnection[]>);
+  const connectionsByType = connections.reduce(
+    (acc, conn) => {
+      if (!acc[conn.dataType]) {
+        acc[conn.dataType] = [];
+      }
+      acc[conn.dataType].push(conn);
+      return acc;
+    },
+    {} as Record<DataType, SheetConnection[]>,
+  );
 
   return (
     <Card>
@@ -1157,9 +1272,7 @@ function testGenerateKey() {
               <FileSpreadsheet className="w-5 h-5" />
               Google Sheets 연동
             </CardTitle>
-            <CardDescription>
-              게임 데이터를 구글 시트로 관리하고 업로드하세요
-            </CardDescription>
+            <CardDescription>게임 데이터를 구글 시트로 관리하고 업로드하세요</CardDescription>
           </div>
           <Badge variant="outline" className="gap-1">
             <Package className="w-3 h-3" />
@@ -1167,7 +1280,7 @@ function testGenerateKey() {
           </Badge>
         </div>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* 1. 시트 연결 관리 */}
         <div className="space-y-4">
@@ -1179,7 +1292,7 @@ function testGenerateKey() {
           {/* 새 연결 추가 */}
           <div className="space-y-3 p-4 border rounded-lg bg-slate-50">
             <h4 className="text-sm font-medium">새 시트 연결 추가</h4>
-            
+
             <div className="space-y-2">
               <Label htmlFor="sheet-type" className="text-xs">
                 데이터 타입 *
@@ -1200,7 +1313,7 @@ function testGenerateKey() {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="sheet-name" className="text-xs">
                 연결 이름 (선택사항)
@@ -1212,7 +1325,7 @@ function testGenerateKey() {
                 onChange={(e) => setNewSheetName(e.target.value)}
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="sheet-url" className="text-xs">
                 Google Sheets URL *
@@ -1224,16 +1337,12 @@ function testGenerateKey() {
                 onChange={(e) => setNewSheetUrl(e.target.value)}
               />
             </div>
-            
-            <Button 
-              onClick={handleAddConnection} 
-              size="sm" 
-              className="w-full"
-            >
+
+            <Button onClick={handleAddConnection} size="sm" className="w-full">
               <Link2 className="w-4 h-4 mr-2" />
               연결 추가
             </Button>
-            
+
             <Alert>
               <AlertCircle className="w-4 h-4" />
               <AlertDescription className="text-xs">
@@ -1243,37 +1352,37 @@ function testGenerateKey() {
               </AlertDescription>
             </Alert>
           </div>
-          
+
           {/* 연결 목록 */}
           <div className="space-y-4">
             {Object.entries(DATA_TYPE_LABELS).map(([type, label]) => {
               const conns = connectionsByType[type as DataType] || [];
               if (conns.length === 0) return null;
-              
+
               return (
                 <div key={type} className="space-y-2">
                   <h4 className="text-sm font-medium flex items-center gap-2">
                     {label}
-                    <Badge variant="outline" className="text-xs">{conns.length}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {conns.length}
+                    </Badge>
                   </h4>
-                  
+
                   <div className="space-y-2">
-                    {conns.map(conn => (
-                      <div 
+                    {conns.map((conn) => (
+                      <div
                         key={conn.id}
                         className="p-3 border rounded-lg hover:bg-slate-50 transition-colors"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm truncate">
-                                {conn.name}
-                              </span>
+                              <span className="font-medium text-sm truncate">{conn.name}</span>
                               <Badge variant="secondary" className="text-xs">
                                 GID: {conn.gid}
                               </Badge>
                             </div>
-                            
+
                             {conn.lastSync && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" />
@@ -1281,7 +1390,7 @@ function testGenerateKey() {
                               </p>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
@@ -1291,7 +1400,7 @@ function testGenerateKey() {
                             >
                               <ExternalLink className="w-4 h-4" />
                             </Button>
-                            
+
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1301,7 +1410,7 @@ function testGenerateKey() {
                             >
                               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
                             </Button>
-                            
+
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1318,7 +1427,7 @@ function testGenerateKey() {
                 </div>
               );
             })}
-            
+
             {connections.length === 0 && (
               <Alert>
                 <AlertDescription className="text-xs">
@@ -1342,11 +1451,7 @@ function testGenerateKey() {
           <div className="space-y-3 p-4 border rounded-lg bg-gradient-to-br from-green-50 to-emerald-50">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium">Apps Script Web App 설정</h4>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowGuide(!showGuide)}
-              >
+              <Button variant="ghost" size="sm" onClick={() => setShowGuide(!showGuide)}>
                 <Code className="w-4 h-4 mr-1" />
                 {showGuide ? '가이드 숨기기' : '설정 가이드'}
               </Button>
@@ -1376,15 +1481,23 @@ function testGenerateKey() {
                       <Copy className="w-4 h-4 mr-2" />
                       🔐 API 키 인증 코드 복사
                     </Button>
-                    <p className="text-muted-foreground">복사한 코드를 Apps Script 에디터에 붙여넣기</p>
+                    <p className="text-muted-foreground">
+                      복사한 코드를 Apps Script 에디터에 붙여넣기
+                    </p>
                   </div>
                   <div>
                     <p className="font-medium mb-1">4단계: API 키 생성 및 설정</p>
                     <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                      <li>Apps Script 에디터에서 <code className="bg-slate-200 px-1 rounded">testGenerateKey</code> 함수 선택</li>
+                      <li>
+                        Apps Script 에디터에서{' '}
+                        <code className="bg-slate-200 px-1 rounded">testGenerateKey</code> 함수 선택
+                      </li>
                       <li>실행 버튼 클릭 (재생 ▶️ 아이콘)</li>
                       <li>생성된 API 키를 복사</li>
-                      <li>코드 상단의 <code className="bg-slate-200 px-1 rounded">API_KEY</code> 값에 붙여넣기</li>
+                      <li>
+                        코드 상단의 <code className="bg-slate-200 px-1 rounded">API_KEY</code> 값에
+                        붙여넣기
+                      </li>
                       <li>저장 (Ctrl+S 또는 Cmd+S)</li>
                     </ul>
                   </div>
@@ -1400,12 +1513,14 @@ function testGenerateKey() {
                   </div>
                   <div>
                     <p className="font-medium mb-1">6단계: URL과 API 키 입력</p>
-                    <p className="text-muted-foreground">복사한 Web App URL과 설정한 API 키를 아래 입력란에 붙여넣고 저장</p>
+                    <p className="text-muted-foreground">
+                      복사한 Web App URL과 설정한 API 키를 아래 입력란에 붙여넣고 저장
+                    </p>
                   </div>
                 </AlertDescription>
               </Alert>
             )}
-            
+
             <div className="space-y-2">
               <Label htmlFor="api-key" className="text-xs">
                 🔐 API 키 *
@@ -1424,7 +1539,9 @@ function testGenerateKey() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                💡 Apps Script의 <code className="bg-slate-200 px-1 rounded">testGenerateKey()</code> 함수로 생성하거나 직접 입력
+                💡 Apps Script의{' '}
+                <code className="bg-slate-200 px-1 rounded">testGenerateKey()</code> 함수로
+                생성하거나 직접 입력
               </p>
             </div>
 
@@ -1450,16 +1567,18 @@ function testGenerateKey() {
               <Alert>
                 <CheckCircle2 className="w-4 h-4" />
                 <AlertDescription className="text-xs">
-                  ✅ Web App URL과 API 키가 설정되었습니다. 이제 안전하게 데이터를 업로드할 수 있습니다.
+                  ✅ Web App URL과 API 키가 설정되었습니다. 이제 안전하게 데이터를 업로드할 수
+                  있습니다.
                 </AlertDescription>
               </Alert>
             )}
-            
+
             {webAppUrl && !apiKey && (
               <Alert className="border-yellow-200 bg-yellow-50">
                 <AlertCircle className="w-4 h-4 text-yellow-600" />
                 <AlertDescription className="text-xs text-yellow-800">
-                  ⚠️ API 키를 입력하지 않으면 인증 없이 업로드됩니다. 보안을 위해 API 키 설정을 권장합니다.
+                  ⚠️ API 키를 입력하지 않으면 인증 없이 업로드됩니다. 보안을 위해 API 키 설정을
+                  권장합니다.
                 </AlertDescription>
               </Alert>
             )}
@@ -1470,17 +1589,20 @@ function testGenerateKey() {
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium">개별 데이터 업로드</h4>
               <Badge variant="secondary" className="text-xs">
-                {[
-                  props.playerLevelConfig,
-                  props.monsterLevelConfig,
-                  props.skillConfigs && Object.keys(props.skillConfigs).length > 0,
-                  props.itemSlots && props.itemSlots.length > 0,
-                  props.playerDataset && props.playerDataset.length > 0,
-                  props.monsterDataset && props.monsterDataset.length > 0
-                ].filter(Boolean).length}개 사용 가능
+                {
+                  [
+                    props.playerLevelConfig,
+                    props.monsterLevelConfig,
+                    props.skillConfigs && Object.keys(props.skillConfigs).length > 0,
+                    props.itemSlots && props.itemSlots.length > 0,
+                    props.playerDataset && props.playerDataset.length > 0,
+                    props.monsterDataset && props.monsterDataset.length > 0,
+                  ].filter(Boolean).length
+                }
+                개 사용 가능
               </Badge>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-2">
               {/* 레벨별 경험치 데이터 */}
               <Button
@@ -1494,7 +1616,9 @@ function testGenerateKey() {
                 <div className="text-xs text-center">
                   <div className="font-medium">플레이어 레벨</div>
                   <div className="text-muted-foreground text-[10px]">
-                    {props.playerLevelConfig ? `Lv.1~${props.playerLevelConfig.maxLevel || 100}` : '없음'}
+                    {props.playerLevelConfig
+                      ? `Lv.1~${props.playerLevelConfig.maxLevel || 100}`
+                      : '없음'}
                   </div>
                 </div>
               </Button>
@@ -1510,7 +1634,9 @@ function testGenerateKey() {
                 <div className="text-xs text-center">
                   <div className="font-medium">몬스터 레벨</div>
                   <div className="text-muted-foreground text-[10px]">
-                    {props.monsterLevelConfig ? `Lv.1~${props.monsterLevelConfig.maxLevel || 100}` : '없음'}
+                    {props.monsterLevelConfig
+                      ? `Lv.1~${props.monsterLevelConfig.maxLevel || 100}`
+                      : '없음'}
                   </div>
                 </div>
               </Button>
@@ -1518,7 +1644,12 @@ function testGenerateKey() {
               {/* 스킬 효과 데이터 */}
               <Button
                 onClick={handleUploadSkills}
-                disabled={isUploading || !webAppUrl || !props.skillConfigs || Object.keys(props.skillConfigs).length === 0}
+                disabled={
+                  isUploading ||
+                  !webAppUrl ||
+                  !props.skillConfigs ||
+                  Object.keys(props.skillConfigs).length === 0
+                }
                 variant="outline"
                 className="h-auto py-3 flex-col gap-1"
                 size="sm"
@@ -1535,7 +1666,9 @@ function testGenerateKey() {
               {/* 아이템 설정 */}
               <Button
                 onClick={handleUploadItems}
-                disabled={isUploading || !webAppUrl || !props.itemSlots || props.itemSlots.length === 0}
+                disabled={
+                  isUploading || !webAppUrl || !props.itemSlots || props.itemSlots.length === 0
+                }
                 variant="outline"
                 className="h-auto py-3 flex-col gap-1"
                 size="sm"
@@ -1552,7 +1685,12 @@ function testGenerateKey() {
               {/* 플레이어 데이터셋 */}
               <Button
                 onClick={handleUploadPlayerDataset}
-                disabled={isUploading || !webAppUrl || !props.playerDataset || props.playerDataset.length === 0}
+                disabled={
+                  isUploading ||
+                  !webAppUrl ||
+                  !props.playerDataset ||
+                  props.playerDataset.length === 0
+                }
                 variant="outline"
                 className="h-auto py-3 flex-col gap-1"
                 size="sm"
@@ -1569,7 +1707,12 @@ function testGenerateKey() {
               {/* 몬스터 데이터셋 */}
               <Button
                 onClick={handleUploadMonsterDataset}
-                disabled={isUploading || !webAppUrl || !props.monsterDataset || props.monsterDataset.length === 0}
+                disabled={
+                  isUploading ||
+                  !webAppUrl ||
+                  !props.monsterDataset ||
+                  props.monsterDataset.length === 0
+                }
                 variant="outline"
                 className="h-auto py-3 flex-col gap-1"
                 size="sm"
@@ -1609,8 +1752,8 @@ function testGenerateKey() {
               <AlertCircle className="w-4 h-4" />
               <AlertDescription className="text-xs">
                 <strong>주의:</strong> 업로드하면 시트의 기존 데이터가 덮어쓰기됩니다.
-                <br />
-                각 데이터는 별도의 시트에 저장됩니다: player_levels, monster_levels, skills, items, player_dataset, monster_dataset
+                <br />각 데이터는 별도의 시트에 저장됩니다: player_levels, monster_levels, skills,
+                items, player_dataset, monster_dataset
               </AlertDescription>
             </Alert>
           </div>
@@ -1630,9 +1773,12 @@ function testGenerateKey() {
             <AlertDescription className="text-xs">
               <strong>Apps Script 설정이 어렵나요?</strong>
               <br />
-              엑셀 파일(.xlsx)을 다운로드하여 구글 시트에서 <strong>"파일 → 가져오기 → 업로드"</strong> 메뉴로 직접 가져올 수 있습니다.
+              엑셀 파일(.xlsx)을 다운로드하여 구글 시트에서{' '}
+              <strong>"파일 → 가져오기 → 업로드"</strong> 메뉴로 직접 가져올 수 있습니다.
               <br />
-              <strong className="text-green-700">💡 팁: "모든 데이터 다운로드"하면 하나의 엑셀 파일에 모든 시트가 포함됩니다!</strong>
+              <strong className="text-green-700">
+                💡 팁: "모든 데이터 다운로드"하면 하나의 엑셀 파일에 모든 시트가 포함됩니다!
+              </strong>
             </AlertDescription>
           </Alert>
 
@@ -1643,7 +1789,7 @@ function testGenerateKey() {
                 .xlsx 형식
               </Badge>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-2">
               {/* 레벨별 경험치 데이터 */}
               <Button
@@ -1657,7 +1803,9 @@ function testGenerateKey() {
                 <div className="text-xs text-center">
                   <div className="font-medium">플레이어 레벨</div>
                   <div className="text-muted-foreground text-[10px]">
-                    {props.playerLevelConfig ? `Lv.1~${props.playerLevelConfig.maxLevel || 100}` : '없음'}
+                    {props.playerLevelConfig
+                      ? `Lv.1~${props.playerLevelConfig.maxLevel || 100}`
+                      : '없음'}
                   </div>
                 </div>
               </Button>
@@ -1673,7 +1821,9 @@ function testGenerateKey() {
                 <div className="text-xs text-center">
                   <div className="font-medium">몬스터 레벨</div>
                   <div className="text-muted-foreground text-[10px]">
-                    {props.monsterLevelConfig ? `Lv.1~${props.monsterLevelConfig.maxLevel || 100}` : '없음'}
+                    {props.monsterLevelConfig
+                      ? `Lv.1~${props.monsterLevelConfig.maxLevel || 100}`
+                      : '없음'}
                   </div>
                 </div>
               </Button>
@@ -1767,13 +1917,23 @@ function testGenerateKey() {
                 </div>
                 <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
                   <li>구글 시트 열기</li>
-                  <li><strong>파일 → 가져오기</strong> 메뉴 선택</li>
-                  <li><strong>업로드</strong> 탭에서 다운로드한 .xlsx 파일 선택</li>
-                  <li>가져오기 위치: <strong>"새 스프레드시트 만들기"</strong> 또는 <strong>"새 시트 삽입"</strong> 선택</li>
-                  <li><strong>데이터 가져오기</strong> 클릭</li>
+                  <li>
+                    <strong>파일 → 가져오기</strong> 메뉴 선택
+                  </li>
+                  <li>
+                    <strong>업로드</strong> 탭에서 다운로드한 .xlsx 파일 선택
+                  </li>
+                  <li>
+                    가져오기 위치: <strong>"새 스프레드시트 만들기"</strong> 또는{' '}
+                    <strong>"새 시트 삽입"</strong> 선택
+                  </li>
+                  <li>
+                    <strong>데이터 가져오기</strong> 클릭
+                  </li>
                 </ol>
                 <div className="mt-2 text-green-700">
-                  <strong>💡 "모든 데이터" 다운로드 시:</strong> 하나의 엑셀 파일에 6개 시트가 모두 포함되어 관리가 편리합니다!
+                  <strong>💡 "모든 데이터" 다운로드 시:</strong> 하나의 엑셀 파일에 6개 시트가 모두
+                  포함되어 관리가 편리합니다!
                 </div>
               </AlertDescription>
             </Alert>

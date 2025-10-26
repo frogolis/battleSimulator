@@ -2,12 +2,12 @@
  * 비주얼 포뮬라 빌더를 위한 타입 정의
  */
 
-export type BlockType = 
-  | 'variable'    // 변수: LEVEL, BASE
-  | 'operator'    // 연산자: +, -, *, /, ^
-  | 'function'    // 함수: MIN, MAX, ROUND, FLOOR, CEIL, IF
-  | 'constant'    // 상수: 숫자
-  | 'container';  // 컨테이너: IF 조건문, 함수 파라미터
+export type BlockType =
+  | 'variable' // 변수: LEVEL, BASE
+  | 'operator' // 연산자: +, -, *, /, ^
+  | 'function' // 함수: MIN, MAX, ROUND, FLOOR, CEIL, IF
+  | 'constant' // 상수: 숫자
+  | 'container'; // 컨테이너: IF 조건문, 함수 파라미터
 
 export interface FormulaBlock {
   id: string;
@@ -32,7 +32,7 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
   switch (block.type) {
     case 'constant':
       return Number(block.value) || 0;
-    
+
     case 'variable':
       if (block.value === 'LEVEL') {
         return level;
@@ -40,25 +40,31 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
         return baseValue;
       }
       return 0;
-    
+
     case 'operator':
       if (!block.children || block.children.length < 2) return 0;
       const left = blockToExpression(block.children[0], level, baseValue);
       const right = blockToExpression(block.children[1], level, baseValue);
-      
+
       switch (block.operator) {
-        case '+': return left + right;
-        case '-': return left - right;
-        case '*': return left * right;
-        case '/': return right !== 0 ? left / right : 0;
-        case '^': return Math.pow(left, right);
-        default: return 0;
+        case '+':
+          return left + right;
+        case '-':
+          return left - right;
+        case '*':
+          return left * right;
+        case '/':
+          return right !== 0 ? left / right : 0;
+        case '^':
+          return Math.pow(left, right);
+        default:
+          return 0;
       }
-    
+
     case 'function':
       if (!block.children) return 0;
-      const params = block.children.map(child => blockToExpression(child, level, baseValue));
-      
+      const params = block.children.map((child) => blockToExpression(child, level, baseValue));
+
       switch (block.functionName) {
         case 'MIN':
           return Math.min(...params);
@@ -78,11 +84,11 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
           return Math.pow(params[0] || 0, params[1] || 0);
         case 'IF':
           // IF(condition > 0, trueValue, falseValue)
-          return (params[0] || 0) > 0 ? (params[1] || 0) : (params[2] || 0);
+          return (params[0] || 0) > 0 ? params[1] || 0 : params[2] || 0;
         default:
           return 0;
       }
-    
+
     default:
       return 0;
   }
@@ -95,19 +101,19 @@ export function blockToText(block: FormulaBlock): string {
   switch (block.type) {
     case 'constant':
       return String(block.value);
-    
+
     case 'variable':
       return String(block.value);
-    
+
     case 'operator':
       if (!block.children || block.children.length < 2) return '';
       return `(${blockToText(block.children[0])} ${block.operator} ${blockToText(block.children[1])})`;
-    
+
     case 'function':
       if (!block.children) return `${block.functionName}()`;
-      const params = block.children.map(child => blockToText(child)).join(', ');
+      const params = block.children.map((child) => blockToText(child)).join(', ');
       return `${block.functionName}(${params})`;
-    
+
     default:
       return '';
   }
@@ -121,7 +127,7 @@ export function textToBlocks(expression: string): FormulaBlock | null {
   // 더 복잡한 파서가 필요하면 추후 구현
   try {
     const trimmed = expression.trim();
-    
+
     // 숫자 체크
     const num = parseFloat(trimmed);
     if (!isNaN(num)) {
@@ -131,7 +137,7 @@ export function textToBlocks(expression: string): FormulaBlock | null {
         value: num,
       };
     }
-    
+
     // 변수 체크
     if (trimmed === 'LEVEL' || trimmed === 'BASE') {
       return {
@@ -140,7 +146,7 @@ export function textToBlocks(expression: string): FormulaBlock | null {
         value: trimmed,
       };
     }
-    
+
     return null;
   } catch (error) {
     return null;
@@ -171,7 +177,7 @@ export const blockTemplates: FormulaBlock[] = [
     value: 'BASE',
     color: '#8b5cf6',
   },
-  
+
   // 상수
   {
     id: 'template_number',
@@ -179,7 +185,7 @@ export const blockTemplates: FormulaBlock[] = [
     value: 0,
     color: '#10b981',
   },
-  
+
   // 연산자
   {
     id: 'template_add',
@@ -211,7 +217,7 @@ export const blockTemplates: FormulaBlock[] = [
     ],
     color: '#f59e0b',
   },
-  
+
   // 함수
   {
     id: 'template_min',
@@ -237,18 +243,14 @@ export const blockTemplates: FormulaBlock[] = [
     id: 'template_round',
     type: 'function',
     functionName: 'ROUND',
-    children: [
-      { id: generateBlockId(), type: 'constant', value: 0 },
-    ],
+    children: [{ id: generateBlockId(), type: 'constant', value: 0 }],
     color: '#ec4899',
   },
   {
     id: 'template_floor',
     type: 'function',
     functionName: 'FLOOR',
-    children: [
-      { id: generateBlockId(), type: 'constant', value: 0 },
-    ],
+    children: [{ id: generateBlockId(), type: 'constant', value: 0 }],
     color: '#ec4899',
   },
 ];

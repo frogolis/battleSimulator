@@ -5,27 +5,31 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { LevelConfig } from '../lib/levelSystem';
-import { Heart, Shield, Sparkles, Swords, TrendingUp, Spline, Check, Users, Zap } from 'lucide-react';
+import {
+  Heart,
+  Shield,
+  Sparkles,
+  Swords,
+  TrendingUp,
+  Spline,
+  Check,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
 import { ExpCurveEditor } from './ExpCurveEditor';
 import { CharacterTypeInfo } from '../lib/characterTypes';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface SimulatorSettingsProps {
   playerLevelConfig: LevelConfig;
   onPlayerLevelConfigChange: (config: LevelConfig) => void;
-  
+
   monsterLevelConfig: LevelConfig;
   onMonsterLevelConfigChange: (config: LevelConfig) => void;
-  
+
   characterTypes: CharacterTypeInfo[];
   onCharacterTypesChange: (types: CharacterTypeInfo[]) => void;
 }
@@ -40,16 +44,18 @@ export function SimulatorSettings({
 }: SimulatorSettingsProps) {
   // 선택된 캐릭터 타입
   const [selectedTypeId, setSelectedTypeId] = useState<string>(characterTypes[0]?.id || 'warrior');
-  const selectedType = characterTypes.find(t => t.id === selectedTypeId);
-  
+  const selectedType = characterTypes.find((t) => t.id === selectedTypeId);
+
   // 렌더링할 레벨 범위
   const tableStartLevel = 1;
   const tableEndLevel = 20;
 
   // 플레이어 최대 레벨 상태
   const [playerTempMaxLevel, setPlayerTempMaxLevel] = useState(playerLevelConfig.maxLevel || 100);
-  const [playerAppliedMaxLevel, setPlayerAppliedMaxLevel] = useState(playerLevelConfig.maxLevel || 100);
-  
+  const [playerAppliedMaxLevel, setPlayerAppliedMaxLevel] = useState(
+    playerLevelConfig.maxLevel || 100,
+  );
+
   // 포뮬러 미리보기 함수
   const evaluateFormulaPreview = (formula: string | undefined, level: number): string => {
     if (!formula || formula.trim() === '') {
@@ -73,14 +79,20 @@ export function SimulatorSettings({
         .replace(/\^/g, '**');
 
       const result = Function(`"use strict"; return (${expression})`)();
-      return typeof result === 'number' && !isNaN(result) ? String(Math.round(result * 10) / 10) : '오류';
+      return typeof result === 'number' && !isNaN(result)
+        ? String(Math.round(result * 10) / 10)
+        : '오류';
     } catch (error) {
       return '오류';
     }
   };
-  
+
   // 타입별 능력치 테이블 생성
-  const generateTypeStatsTable = (type: CharacterTypeInfo, startLevel: number, endLevel: number) => {
+  const generateTypeStatsTable = (
+    type: CharacterTypeInfo,
+    startLevel: number,
+    endLevel: number,
+  ) => {
     const result = [];
     for (let level = startLevel; level <= endLevel; level++) {
       result.push({
@@ -97,13 +109,13 @@ export function SimulatorSettings({
     }
     return result;
   };
-  
+
   // 선택된 타입의 능력치 업데이트
   const handleUpdateTypeFormula = (formulaKey: string, value: string) => {
     if (!selectedType) return;
 
     onCharacterTypesChange(
-      characterTypes.map(t =>
+      characterTypes.map((t) =>
         t.id === selectedTypeId
           ? {
               ...t,
@@ -112,13 +124,15 @@ export function SimulatorSettings({
                 [formulaKey]: value,
               },
             }
-          : t
-      )
+          : t,
+      ),
     );
   };
 
   // 선택된 타입의 능력치 테이블
-  const typeStatsTable = selectedType ? generateTypeStatsTable(selectedType, tableStartLevel, tableEndLevel) : [];
+  const typeStatsTable = selectedType
+    ? generateTypeStatsTable(selectedType, tableStartLevel, tableEndLevel)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -131,9 +145,7 @@ export function SimulatorSettings({
             </div>
             플레이어 경험치 곡선 설정
           </CardTitle>
-          <CardDescription>
-            베지어 곡선 기반으로 레벨별 경험치 구간을 설정합니다.
-          </CardDescription>
+          <CardDescription>베지어 곡선 기반으로 레벨별 경험치 구간을 설정합니다.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* 최대 레벨 설정 */}
@@ -153,7 +165,10 @@ export function SimulatorSettings({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     setPlayerAppliedMaxLevel(playerTempMaxLevel);
-                    onPlayerLevelConfigChange({ ...playerLevelConfig, maxLevel: playerTempMaxLevel });
+                    onPlayerLevelConfigChange({
+                      ...playerLevelConfig,
+                      maxLevel: playerTempMaxLevel,
+                    });
                   }
                 }}
                 min={1}
@@ -187,12 +202,18 @@ export function SimulatorSettings({
             </div>
 
             <ExpCurveEditor
-              config={playerLevelConfig.expGrowthConfig || { segments: [], bezierSegments: [], useBezier: true }}
+              config={
+                playerLevelConfig.expGrowthConfig || {
+                  segments: [],
+                  bezierSegments: [],
+                  useBezier: true,
+                }
+              }
               maxLevel={playerAppliedMaxLevel}
               onChange={(expConfig) => {
                 onPlayerLevelConfigChange({
                   ...playerLevelConfig,
-                  expGrowthConfig: { ...expConfig, useBezier: true }
+                  expGrowthConfig: { ...expConfig, useBezier: true },
                 });
               }}
             />
@@ -280,7 +301,7 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.hpFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.hpFormula, 1)} | 
+                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.hpFormula, 1)} |
                           Lv10: {evaluateFormulaPreview(selectedType.statFormulas.hpFormula, 10)}
                         </span>
                       )}
@@ -301,7 +322,7 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.spFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.spFormula, 1)} | 
+                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.spFormula, 1)} |
                           Lv10: {evaluateFormulaPreview(selectedType.statFormulas.spFormula, 10)}
                         </span>
                       )}
@@ -322,8 +343,9 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.attackFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.attackFormula, 1)} | 
-                          Lv10: {evaluateFormulaPreview(selectedType.statFormulas.attackFormula, 10)}
+                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.attackFormula, 1)}{' '}
+                          | Lv10:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.attackFormula, 10)}
                         </span>
                       )}
                     </div>
@@ -343,8 +365,9 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.defenseFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.defenseFormula, 1)} | 
-                          Lv10: {evaluateFormulaPreview(selectedType.statFormulas.defenseFormula, 10)}
+                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.defenseFormula, 1)}{' '}
+                          | Lv10:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.defenseFormula, 10)}
                         </span>
                       )}
                     </div>
@@ -364,8 +387,10 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.moveSpeedFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.moveSpeedFormula, 1)} | 
-                          Lv10: {evaluateFormulaPreview(selectedType.statFormulas.moveSpeedFormula, 10)}
+                          Lv1:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.moveSpeedFormula, 1)} |
+                          Lv10:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.moveSpeedFormula, 10)}
                         </span>
                       )}
                     </div>
@@ -385,14 +410,18 @@ export function SimulatorSettings({
                       </Label>
                       {selectedType.statFormulas?.attackSpeedFormula && (
                         <span className="text-xs text-muted-foreground">
-                          Lv1: {evaluateFormulaPreview(selectedType.statFormulas.attackSpeedFormula, 1)} | 
-                          Lv10: {evaluateFormulaPreview(selectedType.statFormulas.attackSpeedFormula, 10)}
+                          Lv1:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.attackSpeedFormula, 1)}{' '}
+                          | Lv10:{' '}
+                          {evaluateFormulaPreview(selectedType.statFormulas.attackSpeedFormula, 10)}
                         </span>
                       )}
                     </div>
                     <Input
                       value={selectedType.statFormulas?.attackSpeedFormula || ''}
-                      onChange={(e) => handleUpdateTypeFormula('attackSpeedFormula', e.target.value)}
+                      onChange={(e) =>
+                        handleUpdateTypeFormula('attackSpeedFormula', e.target.value)
+                      }
                       placeholder="예: 1.0 (고정) 또는 1.0 + level * 0.05"
                       className="h-9"
                     />
@@ -420,14 +449,30 @@ export function SimulatorSettings({
                         {typeStatsTable.map((row) => (
                           <TableRow key={row.level}>
                             <TableCell className="text-center text-xs">{row.level}</TableCell>
-                            <TableCell className="text-center text-xs text-red-600">{row.hp}</TableCell>
-                            <TableCell className="text-center text-xs text-cyan-600">{row.sp}</TableCell>
-                            <TableCell className="text-center text-xs text-orange-600">{row.attack}</TableCell>
-                            <TableCell className="text-center text-xs text-blue-600">{row.defense}</TableCell>
-                            <TableCell className="text-center text-xs text-yellow-600">{row.moveSpeed}</TableCell>
-                            <TableCell className="text-center text-xs text-green-600">{row.attackSpeed}</TableCell>
-                            <TableCell className="text-center text-xs text-purple-600">{row.accuracy}</TableCell>
-                            <TableCell className="text-center text-xs text-pink-600">{row.criticalRate}</TableCell>
+                            <TableCell className="text-center text-xs text-red-600">
+                              {row.hp}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-cyan-600">
+                              {row.sp}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-orange-600">
+                              {row.attack}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-blue-600">
+                              {row.defense}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-yellow-600">
+                              {row.moveSpeed}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-green-600">
+                              {row.attackSpeed}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-purple-600">
+                              {row.accuracy}
+                            </TableCell>
+                            <TableCell className="text-center text-xs text-pink-600">
+                              {row.criticalRate}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

@@ -7,12 +7,12 @@ export interface DataRow {
   is_attack: number;
   is_miss: number;
   is_crit: number;
-  
+
   // Player config fields
   // 독립 변수 (사용자가 직접 설정)
   player_level?: number;
   player_size?: number;
-  
+
   // 종속 변수 (레벨에 의해 자동 계산)
   player_hp?: number;
   player_sp?: number;
@@ -25,7 +25,7 @@ export interface DataRow {
   player_attack_range?: number;
   player_attack_width?: number;
   player_attack_type?: string;
-  
+
   // 기본 공격 (마우스 클릭 공격)
   player_basic_attack_id?: string;
   player_basic_attack_range?: number;
@@ -34,7 +34,7 @@ export interface DataRow {
   player_basic_attack_cooldown?: number;
   player_basic_attack_sp_cost?: number;
   player_basic_attack_cast_time?: number;
-  
+
   // 스킬 슬롯 정보 (4개의 스킬 슬롯)
   // 스킬 슬롯 1
   player_skill_1_id?: string;
@@ -44,7 +44,7 @@ export interface DataRow {
   player_skill_1_cooldown?: number;
   player_skill_1_sp_cost?: number;
   player_skill_1_cast_time?: number;
-  
+
   // 스킬 슬롯 2
   player_skill_2_id?: string;
   player_skill_2_range?: number;
@@ -53,7 +53,7 @@ export interface DataRow {
   player_skill_2_cooldown?: number;
   player_skill_2_sp_cost?: number;
   player_skill_2_cast_time?: number;
-  
+
   // 스킬 슬롯 3
   player_skill_3_id?: string;
   player_skill_3_range?: number;
@@ -62,7 +62,7 @@ export interface DataRow {
   player_skill_3_cooldown?: number;
   player_skill_3_sp_cost?: number;
   player_skill_3_cast_time?: number;
-  
+
   // 스킬 슬롯 4
   player_skill_4_id?: string;
   player_skill_4_range?: number;
@@ -71,12 +71,12 @@ export interface DataRow {
   player_skill_4_cooldown?: number;
   player_skill_4_sp_cost?: number;
   player_skill_4_cast_time?: number;
-  
+
   // Monster config fields
   // 독립 변수
   monster_level?: number;
   monster_size?: number;
-  
+
   // 종속 변수
   monster_hp?: number;
   monster_sp?: number;
@@ -89,20 +89,20 @@ export interface DataRow {
   monster_attack_range?: number;
   monster_attack_width?: number;
   monster_attack_type?: string;
-  
+
   // 몬스터 외형/이름 정보
   monster_name?: string;
   monster_color?: string;
   monster_spawn_weight?: number; // 리스폰 가중치 (1:다 시뮬레이터용)
-  
+
   // 몬스터 AI 설정 (레거시)
   monster_ai_type?: string; // 'aggressive' | 'defensive' | 'balanced' | 'passive' (deprecated)
   monster_ai_aggro_range?: number; // 어그로 범위 (deprecated)
   monster_ai_skill_priority?: string; // 'damage' | 'control' | 'survival' | 'balanced' (deprecated)
-  
+
   // 몬스터 AI 패턴 (새 시스템)
   monster_ai_patterns?: string; // JSON 문자열 형태의 AIPatternConfig
-  
+
   // 기본 공격 (마우스 클릭 공격 / AI 기본 공격)
   monster_basic_attack_id?: string;
   monster_basic_attack_range?: number;
@@ -111,7 +111,7 @@ export interface DataRow {
   monster_basic_attack_cooldown?: number;
   monster_basic_attack_sp_cost?: number;
   monster_basic_attack_cast_time?: number;
-  
+
   // 스킬 슬롯 정보 (4개의 스킬 슬롯)
   // 스킬 슬롯 1
   monster_skill_1_id?: string;
@@ -121,7 +121,7 @@ export interface DataRow {
   monster_skill_1_cooldown?: number;
   monster_skill_1_sp_cost?: number;
   monster_skill_1_cast_time?: number;
-  
+
   // 스킬 슬롯 2
   monster_skill_2_id?: string;
   monster_skill_2_range?: number;
@@ -130,7 +130,7 @@ export interface DataRow {
   monster_skill_2_cooldown?: number;
   monster_skill_2_sp_cost?: number;
   monster_skill_2_cast_time?: number;
-  
+
   // 스킬 슬롯 3
   monster_skill_3_id?: string;
   monster_skill_3_range?: number;
@@ -139,7 +139,7 @@ export interface DataRow {
   monster_skill_3_cooldown?: number;
   monster_skill_3_sp_cost?: number;
   monster_skill_3_cast_time?: number;
-  
+
   // 스킬 슬롯 4
   monster_skill_4_id?: string;
   monster_skill_4_range?: number;
@@ -150,7 +150,11 @@ export interface DataRow {
   monster_skill_4_cast_time?: number;
 }
 
-import { calculatePlayerStats, calculateMonsterStats, calculateStatsWithFormula } from './levelBasedStats';
+import {
+  calculatePlayerStats,
+  calculateMonsterStats,
+  calculateStatsWithFormula,
+} from './levelBasedStats';
 import { defaultPlayerLevelConfig, defaultMonsterLevelConfig } from './levelSystem';
 import { defaultAIPatternConfig } from './monsterAI';
 import { DEFAULT_CHARACTER_TYPES } from './characterTypes';
@@ -160,11 +164,11 @@ const firstType = DEFAULT_CHARACTER_TYPES[0];
 
 // 레벨 1 플레이어 스탯 계산 (첫 번째 타입의 기본값 사용)
 const playerStats = calculateStatsWithFormula(
-  firstType?.defaultLevel || 1, 
-  firstType?.defaultSize || 20, 
+  firstType?.defaultLevel || 1,
+  firstType?.defaultSize || 20,
   defaultPlayerLevelConfig,
   firstType,
-  true
+  true,
 );
 
 // 레벨 1 몬스터 스탯 계산 (첫 번째 타입의 기본값 사용)
@@ -173,7 +177,7 @@ const monsterStats = calculateStatsWithFormula(
   firstType?.defaultSize || 24,
   defaultMonsterLevelConfig,
   firstType,
-  false
+  false,
 );
 
 // Initial empty dataset with one example row
@@ -302,7 +306,7 @@ export const mockDataset: DataRow[] = [
     monster_skill_4_cooldown: 15000,
     monster_skill_4_sp_cost: 50,
     monster_skill_4_cast_time: 500,
-  }
+  },
 ];
 
 export { mockDataset as default };

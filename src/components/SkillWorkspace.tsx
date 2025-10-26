@@ -61,13 +61,13 @@ export function SkillWorkspace({
   const deleteSkill = (skillId: string) => {
     const { [skillId]: removed, ...remainingSkills } = skills;
     onSkillsChange(remainingSkills);
-    
+
     // 선택된 스킬이 삭제되면 다른 스킬 선택
     if (selectedSkillId === skillId) {
       const remaining = Object.values(remainingSkills);
       setSelectedSkillId(remaining.length > 0 ? remaining[0].id : null);
     }
-    
+
     toast.success(`🗑️ "${removed.name}" 스킬이 삭제되었습니다!`);
   };
 

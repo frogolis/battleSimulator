@@ -23,7 +23,7 @@ export function initializePlayer(
   canvasWidth: number,
   canvasHeight: number,
   testMode: boolean = false,
-  basicAttack?: any
+  basicAttack?: any,
 ): CharacterState {
   return {
     position: testMode ? { x: 0, y: 0 } : { x: canvasWidth / 2, y: canvasHeight / 2 },
@@ -72,9 +72,7 @@ export function createMonster(params: MonsterInitParams): MonsterState {
   const monsterColor = monsterData?.monster_color || '#ff6b6b';
 
   // AI 패턴 로드
-  const aiPatternConfig = monsterData
-    ? loadMonsterAIPattern(monsterData)
-    : defaultAIPatternConfig;
+  const aiPatternConfig = monsterData ? loadMonsterAIPattern(monsterData) : defaultAIPatternConfig;
   const aiConfig = monsterData
     ? loadMonsterAI(monsterData)
     : {
@@ -94,9 +92,7 @@ export function createMonster(params: MonsterInitParams): MonsterState {
       };
 
   // 기본 공격 로드
-  const monsterBasicAttackData = monsterData
-    ? loadMonsterBasicAttack(monsterData)
-    : null;
+  const monsterBasicAttackData = monsterData ? loadMonsterBasicAttack(monsterData) : null;
 
   const monsterBasicAttackSlot = monsterBasicAttackData
     ? {
@@ -232,7 +228,7 @@ export function createMonsters(params: MonsterBatchInitParams): MonsterState[] {
         monsterData,
         skillConfigs,
         monsterLevelConfig,
-      })
+      }),
     );
   }
 
@@ -242,10 +238,7 @@ export function createMonsters(params: MonsterBatchInitParams): MonsterState[] {
 /**
  * 플레이어 기본 공격 업데이트
  */
-export function updatePlayerBasicAttack(
-  player: CharacterState,
-  basicAttack: any
-): void {
+export function updatePlayerBasicAttack(player: CharacterState, basicAttack: any): void {
   if (!basicAttack) return;
 
   if (!player.basicAttack) {
@@ -272,10 +265,7 @@ export function updatePlayerBasicAttack(
 /**
  * 몬스터 기본 공격 업데이트 (배치)
  */
-export function updateMonsterBasicAttacks(
-  monsters: MonsterState[],
-  basicAttack: any
-): void {
+export function updateMonsterBasicAttacks(monsters: MonsterState[], basicAttack: any): void {
   if (!basicAttack) return;
 
   monsters.forEach((monster) => {

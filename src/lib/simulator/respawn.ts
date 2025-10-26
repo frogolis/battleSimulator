@@ -45,7 +45,7 @@ export function updateRespawnTimers(
   monsters: MonsterState[],
   deltaTime: number,
   config: RespawnConfig,
-  context: RespawnContext
+  context: RespawnContext,
 ): number {
   if (!config.enabled) return 0;
 
@@ -76,7 +76,7 @@ export function updateRespawnTimers(
 export function respawnMonster(
   monster: MonsterState,
   config: RespawnConfig,
-  context: RespawnContext
+  context: RespawnContext,
 ): void {
   // 가중치 기반 선택 또는 현재 데이터 행 사용
   const selectedMonster = context.selectMonsterByWeight?.() || null;
@@ -105,7 +105,10 @@ export function respawnMonster(
  * @param monster 사망한 몬스터
  * @param respawnDelay 리스폰 딜레이 (밀리초)
  */
-export function killMonster(monster: MonsterState, respawnDelay: number = DEFAULT_RESPAWN_DELAY): void {
+export function killMonster(
+  monster: MonsterState,
+  respawnDelay: number = DEFAULT_RESPAWN_DELAY,
+): void {
   monster.isDead = true;
   monster.respawnTimer = respawnDelay;
   monster.stats.hp = 0;
@@ -139,7 +142,7 @@ export function countRespawningMonsters(monsters: MonsterState[]): number {
 export function respawnAllDead(
   monsters: MonsterState[],
   config: RespawnConfig,
-  context: RespawnContext
+  context: RespawnContext,
 ): number {
   let count = 0;
   const aliveCount = countAliveMonsters(monsters);

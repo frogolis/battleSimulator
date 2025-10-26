@@ -25,7 +25,7 @@ export function checkCollision(
   pos1: Position,
   size1: number,
   pos2: Position,
-  size2: number
+  size2: number,
 ): boolean {
   const distance = getDistance(pos1, pos2);
   return distance < (size1 + size2) / 2;
@@ -42,7 +42,7 @@ export function calculateDamage(
     stat: 'attack' | 'defense' | 'magic' | 'speed';
     operator: '+' | '*';
     value: number;
-  }
+  },
 ): { damage: number; isCritical: boolean } {
   // Accuracy check
   const hitRoll = Math.random() * 100;
@@ -56,10 +56,10 @@ export function calculateDamage(
 
   // Calculate base damage
   let damage = attacker.stats.attack - defender.stats.defense;
-  
+
   // Apply damage multiplier
   damage *= damageMultiplier;
-  
+
   // Apply damage formula if provided
   if (damageFormula) {
     let statValue = 0;
@@ -78,14 +78,14 @@ export function calculateDamage(
         statValue = attacker.stats.attackSpeed;
         break;
     }
-    
+
     if (damageFormula.operator === '+') {
       damage += statValue * damageFormula.value;
     } else if (damageFormula.operator === '*') {
       damage += statValue * damageFormula.value;
     }
   }
-  
+
   if (isCritical) {
     damage *= 2;
   }
@@ -97,10 +97,7 @@ export function calculateDamage(
 /**
  * Update projectiles (movement and cleanup)
  */
-export function updateProjectiles(
-  projectiles: Projectile[],
-  deltaTime: number
-): Projectile[] {
+export function updateProjectiles(projectiles: Projectile[], deltaTime: number): Projectile[] {
   return projectiles
     .map((proj) => {
       const distance = PROJECTILE_SPEED * deltaTime;
@@ -131,20 +128,21 @@ export function updateProjectiles(
 export function checkProjectileHit(
   projectile: Projectile,
   character: Character,
-  characterSize: number
+  characterSize: number,
 ): boolean {
   if (character.isDead) return false;
-  return checkCollision(projectile.position, projectile.size * 2, character.position, characterSize);
+  return checkCollision(
+    projectile.position,
+    projectile.size * 2,
+    character.position,
+    characterSize,
+  );
 }
 
 /**
  * Check if character is within attack range
  */
-export function isInAttackRange(
-  attacker: Position,
-  target: Position,
-  range: number
-): boolean {
+export function isInAttackRange(attacker: Position, target: Position, range: number): boolean {
   return getDistance(attacker, target) <= range;
 }
 
@@ -156,7 +154,7 @@ export function isInAttackCone(
   targetPos: Position,
   aimAngle: number,
   coneWidth: number,
-  range: number
+  range: number,
 ): boolean {
   const distance = getDistance(attackerPos, targetPos);
   if (distance > range) return false;
@@ -192,7 +190,7 @@ export function clampToCanvas(position: Position, characterSize: number): Positi
 export function updateMonsterAI(
   monster: Monster,
   playerPosition: Position,
-  currentTime: number
+  currentTime: number,
 ): Monster {
   if (monster.isDead) return monster;
 
@@ -243,7 +241,7 @@ export function moveMonster(
   playerPosition: Position,
   speed: number,
   deltaTime: number,
-  currentTime: number
+  currentTime: number,
 ): Position {
   if (monster.isDead) return monster.position;
 
@@ -303,7 +301,7 @@ export function createProjectile(
   from: Position,
   to: Position,
   owner: 'player' | 'monster',
-  size: number
+  size: number,
 ): Projectile {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
@@ -324,10 +322,7 @@ export function createProjectile(
 /**
  * Initialize character with default stats
  */
-export function initializeCharacter(
-  position: Position,
-  config: CharacterConfig
-): Character {
+export function initializeCharacter(position: Position, config: CharacterConfig): Character {
   return {
     position,
     velocity: { x: 0, y: 0 },
@@ -352,10 +347,7 @@ export function initializeCharacter(
 /**
  * Initialize monster with AI state
  */
-export function initializeMonster(
-  position: Position,
-  config: CharacterConfig
-): Monster {
+export function initializeMonster(position: Position, config: CharacterConfig): Monster {
   return {
     ...initializeCharacter(position, config),
     aiState: 'IDLE',

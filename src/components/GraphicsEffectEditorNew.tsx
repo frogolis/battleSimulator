@@ -2,13 +2,13 @@
  * 새로운 5가지 이펙트 타입을 위한 이펙트 에디터
  */
 
-import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Sparkles, Eye, Layers } from "lucide-react";
-import { EFFECT_PRESETS, EffectPreset } from "../lib/skillSystem";
-import { EffectPreviewCanvasNew } from "./graphics-effects/EffectPreviewCanvasNew";
-import { EffectPresetLibrary } from "./graphics-effects/EffectPresetLibrary";
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Sparkles, Eye, Layers } from 'lucide-react';
+import { EFFECT_PRESETS, EffectPreset } from '../lib/skillSystem';
+import { EffectPreviewCanvasNew } from './graphics-effects/EffectPreviewCanvasNew';
+import { EffectPresetLibrary } from './graphics-effects/EffectPresetLibrary';
 
 interface GraphicsEffectEditorNewProps {
   onPresetSelect?: (preset: EffectPreset) => void;
@@ -92,11 +92,7 @@ export function GraphicsEffectEditorNew({
                   </div>
 
                   {selectedPreset && (
-                    <EffectPreviewCanvasNew
-                      preset={selectedPreset}
-                      width={800}
-                      height={400}
-                    />
+                    <EffectPreviewCanvasNew preset={selectedPreset} width={800} height={400} />
                   )}
 
                   <div className="grid grid-cols-2 gap-4 mt-4">
@@ -116,7 +112,9 @@ export function GraphicsEffectEditorNew({
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">글로우:</span>
-                            <span className="font-mono">{Math.round((selectedPreset?.glowIntensity || 0) * 100)}%</span>
+                            <span className="font-mono">
+                              {Math.round((selectedPreset?.glowIntensity || 0) * 100)}%
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -132,7 +130,9 @@ export function GraphicsEffectEditorNew({
                             <>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">발사 패턴:</span>
-                                <span className="font-mono">{selectedPreset.projectilePattern}</span>
+                                <span className="font-mono">
+                                  {selectedPreset.projectilePattern}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">개수:</span>
@@ -140,11 +140,15 @@ export function GraphicsEffectEditorNew({
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">속도:</span>
-                                <span className="font-mono">{selectedPreset.projectileSpeed} px/s</span>
+                                <span className="font-mono">
+                                  {selectedPreset.projectileSpeed} px/s
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">유도:</span>
-                                <span className="font-mono">{selectedPreset.isHoming ? '활성' : '비활성'}</span>
+                                <span className="font-mono">
+                                  {selectedPreset.isHoming ? '활성' : '비활성'}
+                                </span>
                               </div>
                             </>
                           )}
@@ -153,7 +157,9 @@ export function GraphicsEffectEditorNew({
                             <>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">파티클 수:</span>
-                                <span className="font-mono">{selectedPreset.trailParticleCount}</span>
+                                <span className="font-mono">
+                                  {selectedPreset.trailParticleCount}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">길이:</span>
@@ -170,7 +176,9 @@ export function GraphicsEffectEditorNew({
                             <>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">세그먼트:</span>
-                                <span className="font-mono">{selectedPreset.lightningSegments}</span>
+                                <span className="font-mono">
+                                  {selectedPreset.lightningSegments}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">지터:</span>
@@ -178,7 +186,9 @@ export function GraphicsEffectEditorNew({
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">갈라짐:</span>
-                                <span className="font-mono">{Math.round((selectedPreset.lightningForkChance || 0) * 100)}%</span>
+                                <span className="font-mono">
+                                  {Math.round((selectedPreset.lightningForkChance || 0) * 100)}%
+                                </span>
                               </div>
                             </>
                           )}
@@ -191,7 +201,9 @@ export function GraphicsEffectEditorNew({
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">확장 속도:</span>
-                                <span className="font-mono">{selectedPreset.ringExpansionSpeed} px/s</span>
+                                <span className="font-mono">
+                                  {selectedPreset.ringExpansionSpeed} px/s
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">동심원 개수:</span>
@@ -208,11 +220,15 @@ export function GraphicsEffectEditorNew({
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">파티클 수:</span>
-                                <span className="font-mono">{selectedPreset.glowParticleCount}</span>
+                                <span className="font-mono">
+                                  {selectedPreset.glowParticleCount}
+                                </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-slate-400">상승 속도:</span>
-                                <span className="font-mono">{selectedPreset.glowRiseSpeed} px/s</span>
+                                <span className="font-mono">
+                                  {selectedPreset.glowRiseSpeed} px/s
+                                </span>
                               </div>
                             </>
                           )}

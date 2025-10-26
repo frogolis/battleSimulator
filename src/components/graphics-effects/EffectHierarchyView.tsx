@@ -1,17 +1,17 @@
-import React from "react";
-import { Badge } from "../ui/badge";
-import { Label } from "../ui/label";
-import { Slider } from "../ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { Input } from "../ui/input";
-import { Switch } from "../ui/switch";
-import { Button } from "../ui/button";
-import { ScrollArea } from "../ui/scroll-area";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
-import { ChevronDown, ChevronRight, Layers, Plus } from "lucide-react";
-import { EffectShape, ProjectileType, ParticleUpdateStrategy } from "../../lib/simulator/particles";
-import { AdditionalEffectsPanel, createInitialEffects } from "./AdditionalEffectsPanel";
-import { toast } from "sonner";
+import React from 'react';
+import { Badge } from '../ui/badge';
+import { Label } from '../ui/label';
+import { Slider } from '../ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Input } from '../ui/input';
+import { Switch } from '../ui/switch';
+import { Button } from '../ui/button';
+import { ScrollArea } from '../ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+import { ChevronDown, ChevronRight, Layers, Plus } from 'lucide-react';
+import { EffectShape, ProjectileType, ParticleUpdateStrategy } from '../../lib/simulator/particles';
+import { AdditionalEffectsPanel, createInitialEffects } from './AdditionalEffectsPanel';
+import { toast } from 'sonner';
 
 interface GraphicsEffectConfig {
   particleCount: number;
@@ -93,9 +93,15 @@ export function EffectHierarchyView({
           상위 요소가 하위 요소의 기반이 됩니다. 각 레벨을 확장하여 세부 설정을 조정하세요.
         </p>
         <div className="space-y-1 text-xs">
-          <div><span className="text-blue-400">레벨 1:</span> 이펙트 카테고리 (궤적/발사체/영역/대상)</div>
-          <div><span className="text-green-400">레벨 2:</span> 애니메이션 패턴 (직선/유도/곡선/상승 등)</div>
-          <div><span className="text-purple-400">레벨 3:</span> 파티클 세부 설정 (형태/색상/크기)</div>
+          <div>
+            <span className="text-blue-400">레벨 1:</span> 이펙트 카테고리 (궤적/발사체/영역/대상)
+          </div>
+          <div>
+            <span className="text-green-400">레벨 2:</span> 애니메이션 패턴 (직선/유도/곡선/상승 등)
+          </div>
+          <div>
+            <span className="text-purple-400">레벨 3:</span> 파티클 세부 설정 (형태/색상/크기)
+          </div>
         </div>
       </div>
 
@@ -106,7 +112,11 @@ export function EffectHierarchyView({
             <div className="border border-blue-500 rounded-lg bg-blue-500/5">
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-blue-500/10 transition-colors">
                 <div className="flex items-center gap-2">
-                  {openSections.core ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {openSections.core ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                   <Badge className="bg-blue-600">레벨 1</Badge>
                   <span className="font-semibold">이펙트 카테고리</span>
                   <span className="text-xs text-slate-400">(궤적/발사체/영역/대상 선택)</span>
@@ -162,11 +172,18 @@ export function EffectHierarchyView({
           </Collapsible>
 
           {/* 레벨 2: 파티클 시스템 */}
-          <Collapsible open={openSections.particle} onOpenChange={() => onToggleSection('particle')}>
+          <Collapsible
+            open={openSections.particle}
+            onOpenChange={() => onToggleSection('particle')}
+          >
             <div className="border border-green-500 rounded-lg bg-green-500/5 ml-6">
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-green-500/10 transition-colors">
                 <div className="flex items-center gap-2">
-                  {openSections.particle ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {openSections.particle ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                   <Badge className="bg-green-600">레벨 2</Badge>
                   <span className="font-semibold">애니메이션 패턴</span>
                   <span className="text-xs text-slate-400">(직선/유도/곡선/상승 등)</span>
@@ -177,7 +194,9 @@ export function EffectHierarchyView({
                   <Label>움직임 패턴</Label>
                   <Select
                     value={config.particleStrategy}
-                    onValueChange={(value: ParticleUpdateStrategy) => onConfigUpdate({ particleStrategy: value })}
+                    onValueChange={(value: ParticleUpdateStrategy) =>
+                      onConfigUpdate({ particleStrategy: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -237,11 +256,18 @@ export function EffectHierarchyView({
           </Collapsible>
 
           {/* 레벨 2: 투사체 설정 */}
-          <Collapsible open={openSections.projectile} onOpenChange={() => onToggleSection('projectile')}>
+          <Collapsible
+            open={openSections.projectile}
+            onOpenChange={() => onToggleSection('projectile')}
+          >
             <div className="border border-yellow-500 rounded-lg bg-yellow-500/5 ml-6">
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-yellow-500/10 transition-colors">
                 <div className="flex items-center gap-2">
-                  {openSections.projectile ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {openSections.projectile ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                   <Badge className="bg-yellow-600">레벨 3</Badge>
                   <span className="font-semibold">파티클 세부 설정</span>
                   <span className="text-xs text-slate-400">(형태/색상/크기)</span>
@@ -252,7 +278,9 @@ export function EffectHierarchyView({
                   <Label>투사체 타입</Label>
                   <Select
                     value={config.projectileType}
-                    onValueChange={(value: ProjectileType) => onConfigUpdate({ projectileType: value })}
+                    onValueChange={(value: ProjectileType) =>
+                      onConfigUpdate({ projectileType: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -328,19 +356,32 @@ export function EffectHierarchyView({
           </Collapsible>
 
           {/* 레벨 3: 추가 효과 */}
-          <Collapsible open={openSections.additional} onOpenChange={() => onToggleSection('additional')}>
+          <Collapsible
+            open={openSections.additional}
+            onOpenChange={() => onToggleSection('additional')}
+          >
             <div className="border border-purple-500 rounded-lg bg-purple-500/5 ml-12">
               <CollapsibleTrigger className="flex items-center justify-between w-full p-3 hover:bg-purple-500/10 transition-colors">
                 <div className="flex items-center gap-2">
-                  {openSections.additional ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  {openSections.additional ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
                   <Badge className="bg-purple-600">레벨 4</Badge>
                   <span className="font-semibold">추가 효과</span>
-                  <span className="text-xs text-slate-400">(선택적 결합 - 카메라/글로우/플래시 등)</span>
+                  <span className="text-xs text-slate-400">
+                    (선택적 결합 - 카메라/글로우/플래시 등)
+                  </span>
                 </div>
-                <Button size="sm" variant="ghost" onClick={(e) => {
-                  e.stopPropagation();
-                  toast.info('효과 목록에서 선택하여 추가하세요');
-                }}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.info('효과 목록에서 선택하여 추가하세요');
+                  }}
+                >
                   <Plus className="h-4 w-4" />
                 </Button>
               </CollapsibleTrigger>

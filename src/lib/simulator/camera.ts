@@ -25,7 +25,7 @@ export interface CameraConfig {
 export function worldToScreen(
   worldPos: Position,
   cameraPos: Position,
-  config: CameraConfig
+  config: CameraConfig,
 ): Position {
   const centerX = config.canvasWidth / 2;
   const centerY = config.canvasHeight / 2;
@@ -46,7 +46,7 @@ export function worldToScreen(
 export function screenToWorld(
   screenPos: Position,
   cameraPos: Position,
-  config: CameraConfig
+  config: CameraConfig,
 ): Position {
   const centerX = config.canvasWidth / 2;
   const centerY = config.canvasHeight / 2;
@@ -71,12 +71,12 @@ export function canvasToWorld(
   canvasY: number,
   cameraPos: Position,
   config: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): Position {
   if (testMode) {
     return screenToWorld({ x: canvasX, y: canvasY }, cameraPos, config);
   }
-  
+
   // 일반 모드에서는 캔버스 좌표 = 월드 좌표
   return { x: canvasX, y: canvasY };
 }
@@ -127,7 +127,7 @@ export function applyShake(position: Position, shakeOffset: Position): Position 
 export function smoothFollow(
   currentPos: Position,
   targetPos: Position,
-  smoothness: number = 0.1
+  smoothness: number = 0.1,
 ): Position {
   return {
     x: currentPos.x + (targetPos.x - currentPos.x) * smoothness,
@@ -147,10 +147,10 @@ export function isOnScreen(
   worldPos: Position,
   cameraPos: Position,
   config: CameraConfig,
-  margin: number = 100
+  margin: number = 100,
 ): boolean {
   const screenPos = worldToScreen(worldPos, cameraPos, config);
-  
+
   return (
     screenPos.x >= -margin &&
     screenPos.x <= config.canvasWidth + margin &&

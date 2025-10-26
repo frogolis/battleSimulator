@@ -49,7 +49,7 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!listening) return;
     e.preventDefault();
-    
+
     const key = e.key.toLowerCase();
     onBindingsChange({
       ...bindings,
@@ -84,8 +84,7 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Keyboard className="w-5 h-5" />
-              키 설정
+              <Keyboard className="w-5 h-5" />키 설정
             </CardTitle>
             <CardDescription>키보드와 마우스 컨트롤 설정</CardDescription>
           </div>
@@ -145,7 +144,9 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
                   className="w-full"
                   size="sm"
                 >
-                  {listening === 'moveRight' ? '키 입력 대기...' : getKeyDisplay(bindings.moveRight)}
+                  {listening === 'moveRight'
+                    ? '키 입력 대기...'
+                    : getKeyDisplay(bindings.moveRight)}
                 </Button>
               </div>
               <div className="space-y-2">

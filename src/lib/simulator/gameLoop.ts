@@ -14,7 +14,7 @@ import { PROJECTILE_MAX_DISTANCE } from './constants';
  */
 export function updateAttackCooldown(
   character: CharacterState | MonsterState,
-  deltaTime: number
+  deltaTime: number,
 ): void {
   if (character.attackCooldown > 0) {
     character.attackCooldown = Math.max(0, character.attackCooldown - deltaTime);
@@ -30,7 +30,7 @@ export function updateAttackCooldown(
 export function updateKnockback(
   monster: MonsterState,
   deltaTime: number,
-  decayRate: number = 0.9
+  decayRate: number = 0.9,
 ): void {
   const knockbackDuration = 300; // 300ms
   const timeSinceKnockback = Date.now() - monster.knockbackTime;
@@ -54,10 +54,7 @@ export function updateKnockback(
  * @param projectile 투사체
  * @param deltaTime 경과 시간 (초)
  */
-export function updateProjectilePosition(
-  projectile: Projectile,
-  deltaTime: number
-): void {
+export function updateProjectilePosition(projectile: Projectile, deltaTime: number): void {
   projectile.position.x += projectile.velocity.x * deltaTime;
   projectile.position.y += projectile.velocity.y * deltaTime;
 
@@ -78,7 +75,7 @@ export function updateHomingProjectile(
   projectile: Projectile,
   target: Position,
   homingStrength: number = 0.1,
-  deltaTime: number
+  deltaTime: number,
 ): void {
   if (!projectile.isHoming) return;
 
@@ -88,8 +85,7 @@ export function updateHomingProjectile(
 
   if (distance > 0) {
     const currentSpeed = Math.sqrt(
-      projectile.velocity.x * projectile.velocity.x +
-      projectile.velocity.y * projectile.velocity.y
+      projectile.velocity.x * projectile.velocity.x + projectile.velocity.y * projectile.velocity.y,
     );
 
     // 타겟 방향으로 속도 조정
@@ -111,7 +107,7 @@ export function updateHomingProjectile(
 export function isProjectileValid(
   projectile: Projectile,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
 ): boolean {
   // 화면 밖으로 나갔는지 체크
   if (
@@ -136,10 +132,7 @@ export function isProjectileValid(
  * @param particle 파티클
  * @param deltaTime 경과 시간 (밀리초)
  */
-export function updateParticle(
-  particle: SkillParticle,
-  deltaTime: number
-): void {
+export function updateParticle(particle: SkillParticle, deltaTime: number): void {
   particle.x += particle.vx;
   particle.y += particle.vy;
   particle.life -= deltaTime;
@@ -162,14 +155,11 @@ export function isParticleValid(particle: SkillParticle): boolean {
  */
 export function checkPlayerProjectileCollision(
   player: CharacterState,
-  projectile: Projectile
+  projectile: Projectile,
 ): boolean {
-  return checkCollision(
-    player.position,
-    { size: player.stats.size },
-    projectile.position,
-    { size: projectile.size }
-  );
+  return checkCollision(player.position, { size: player.stats.size }, projectile.position, {
+    size: projectile.size,
+  });
 }
 
 /**
@@ -180,16 +170,13 @@ export function checkPlayerProjectileCollision(
  */
 export function checkMonsterProjectileCollision(
   monster: MonsterState,
-  projectile: Projectile
+  projectile: Projectile,
 ): boolean {
   if (monster.isDead) return false;
 
-  return checkCollision(
-    monster.position,
-    { size: monster.stats.size },
-    projectile.position,
-    { size: projectile.size }
-  );
+  return checkCollision(monster.position, { size: monster.stats.size }, projectile.position, {
+    size: projectile.size,
+  });
 }
 
 /**
@@ -200,7 +187,7 @@ export function checkMonsterProjectileCollision(
  */
 export function checkMonsterParticleCollision(
   monster: MonsterState,
-  particle: SkillParticle
+  particle: SkillParticle,
 ): boolean {
   if (monster.isDead || particle.hasHit) return false;
 
@@ -211,7 +198,7 @@ export function checkMonsterParticleCollision(
     monster.position,
     { size: monster.stats.size },
     { x: particle.x, y: particle.y },
-    { size: particle.size }
+    { size: particle.size },
   );
 }
 
@@ -223,7 +210,7 @@ export function checkMonsterParticleCollision(
  */
 export function checkPlayerParticleCollision(
   player: CharacterState,
-  particle: SkillParticle
+  particle: SkillParticle,
 ): boolean {
   if (particle.hasHit) return false;
 
@@ -234,7 +221,7 @@ export function checkPlayerParticleCollision(
     player.position,
     { size: player.stats.size },
     { x: particle.x, y: particle.y },
-    { size: particle.size }
+    { size: particle.size },
   );
 }
 
@@ -252,7 +239,7 @@ export function checkMeleeAttackHit(
   playerAngle: number,
   monsterPos: Position,
   attackRange: number,
-  attackArc: number
+  attackArc: number,
 ): boolean {
   const dx = monsterPos.x - playerPos.x;
   const dy = monsterPos.y - playerPos.y;
@@ -278,13 +265,10 @@ export function checkMeleeAttackHit(
  * @param currentTime 현재 시간
  * @returns [새 FPS 값, deltaTime (초)]
  */
-export function calculateFPS(
-  lastFrameTime: number,
-  currentTime: number
-): [number, number] {
+export function calculateFPS(lastFrameTime: number, currentTime: number): [number, number] {
   const deltaTime = (currentTime - lastFrameTime) / 1000; // 초 단위
   const fps = deltaTime > 0 ? Math.round(1 / deltaTime) : 60;
-  
+
   return [fps, deltaTime];
 }
 
@@ -309,7 +293,7 @@ export function safeNumber(value: number, defaultValue: number = 0): number {
  */
 export function safePosition(
   position: Position,
-  defaultPosition: Position = { x: 0, y: 0 }
+  defaultPosition: Position = { x: 0, y: 0 },
 ): Position {
   return {
     x: safeNumber(position.x, defaultPosition.x),

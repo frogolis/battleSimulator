@@ -4,13 +4,28 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Skill, BasicAttackSlot, SkillSlot } from '../lib/skillSystem';
-import { FlaskConical, Sparkles, RotateCcw, Info, Sword, Target, Plus, Edit2, Copy, Trash2 } from 'lucide-react';
+import {
+  FlaskConical,
+  Sparkles,
+  RotateCcw,
+  Info,
+  Sword,
+  Target,
+  Plus,
+  Edit2,
+  Copy,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import * as LucideIcons from 'lucide-react';
 import { MultiMonsterSimulator } from './MultiMonsterSimulator';
 import { CharacterConfig } from './CharacterSettings';
 import { KeyBindings, defaultBindings } from './KeyBindingSettings';
-import { LevelConfig, defaultPlayerLevelConfig, defaultMonsterLevelConfig } from '../lib/levelSystem';
+import {
+  LevelConfig,
+  defaultPlayerLevelConfig,
+  defaultMonsterLevelConfig,
+} from '../lib/levelSystem';
 import { ItemSlot } from '../lib/itemSystem';
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -71,10 +86,10 @@ const DEFAULT_TEST_MONSTER_CONFIG: CharacterConfig = {
 const SIMULATOR_WIDTH = 800;
 const SIMULATOR_HEIGHT = 640;
 
-export function SkillTestLab({ 
-  skills, 
-  playerBasicAttack, 
-  monsterBasicAttack, 
+export function SkillTestLab({
+  skills,
+  playerBasicAttack,
+  monsterBasicAttack,
   selectedSkillId,
   selectedBasicAttackId = 'meleeBasic',
   selectedType = 'basic',
@@ -86,16 +101,15 @@ export function SkillTestLab({
   onDeleteSkill,
   onDuplicateSkill,
 }: SkillTestLabProps) {
-
   // Zoom state for skill simulator
   const [zoom, setZoom] = useState(3.0);
 
   // 모든 스킬 목록 (skills props에서 가져옴)
   const allSkillsList = Object.values(skills);
-  
+
   // 태그 기반으로 스킬 분류 (기본 공격 / 스킬)
-  const basicAttacksList = allSkillsList.filter(s => s.tags?.includes('basicAttack'));
-  const regularSkillsList = allSkillsList.filter(s => s.tags?.includes('skill'));
+  const basicAttacksList = allSkillsList.filter((s) => s.tags?.includes('basicAttack'));
+  const regularSkillsList = allSkillsList.filter((s) => s.tags?.includes('skill'));
 
   // 선택된 기본 공격 가져오기
   const selectedBasicAttack = skills[selectedBasicAttackId];
@@ -107,7 +121,7 @@ export function SkillTestLab({
   const getPlayerConfig = (): CharacterConfig => {
     // 선택된 기본 공격의 타입에 따라 설정
     const isMelee = selectedBasicAttack?.id === 'meleeBasic';
-    
+
     if (isMelee) {
       return {
         ...DEFAULT_TEST_PLAYER_CONFIG,
@@ -135,13 +149,15 @@ export function SkillTestLab({
   const convertToSkillSlots = (): SkillSlot[] => {
     if (selectedSkill) {
       // 선택된 스킬을 Space 키 바인딩으로 배치
-      return [{
-        slotNumber: 1,
-        skill: selectedSkill,
-        keyBinding: ' ', // Space 키
-      }];
+      return [
+        {
+          slotNumber: 1,
+          skill: selectedSkill,
+          keyBinding: ' ', // Space 키
+        },
+      ];
     }
-    
+
     return [];
   };
 
@@ -192,7 +208,10 @@ export function SkillTestLab({
       </CardHeader>
       <CardContent className="flex-1 overflow-hidden p-3 min-h-0 flex gap-3">
         {/* 왼쪽: MultiMonsterSimulator */}
-        <div className="flex-shrink-0 flex flex-col" style={{ width: SIMULATOR_WIDTH, height: SIMULATOR_HEIGHT + 90 }}>
+        <div
+          className="flex-shrink-0 flex flex-col"
+          style={{ width: SIMULATOR_WIDTH, height: SIMULATOR_HEIGHT + 90 }}
+        >
           <div className="flex flex-col gap-2.5 h-full">
             <div className="border-2 border-slate-700 rounded-lg overflow-hidden bg-slate-900">
               <MultiMonsterSimulator
@@ -224,7 +243,7 @@ export function SkillTestLab({
             {/* 조작 방법 설명 */}
             <div className="px-3 py-1.5 bg-slate-100 border border-slate-300 rounded-md flex-shrink-0">
               <p className="text-[10px] text-slate-700 text-center">
-                <span className="font-semibold text-slate-800">근접 공격 테스트:</span> 마우스 클릭 
+                <span className="font-semibold text-slate-800">근접 공격 테스트:</span> 마우스 클릭
                 <span className="mx-2 text-slate-400">|</span>
                 <span className="font-semibold text-slate-800">스킬 테스트:</span> Space 키
               </p>
@@ -234,9 +253,7 @@ export function SkillTestLab({
             <div className="flex items-center justify-between gap-2 p-2 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg flex-shrink-0">
               <div className="flex items-center gap-1.5 text-[10px] text-purple-700">
                 <Info className="w-3 h-3 flex-shrink-0" />
-                <p>
-                  {selectedBasicAttack.name} ~ 마우스클릭 ~ WASD 이동
-                </p>
+                <p>{selectedBasicAttack.name} ~ 마우스클릭 ~ WASD 이동</p>
               </div>
               {selectedSkill ? (
                 <div className="flex items-center gap-2 px-2 py-1 bg-white border border-purple-300 rounded-md">
@@ -255,18 +272,16 @@ export function SkillTestLab({
         </div>
 
         {/* 오른쪽: 스킬 라이브러리 */}
-        <div className="flex-1 flex flex-col min-w-[300px] border-2 border-purple-200 rounded-lg bg-white overflow-hidden" style={{ height: SIMULATOR_HEIGHT + 90 }}>
+        <div
+          className="flex-1 flex flex-col min-w-[300px] border-2 border-purple-200 rounded-lg bg-white overflow-hidden"
+          style={{ height: SIMULATOR_HEIGHT + 90 }}
+        >
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center gap-2 px-2 pt-2 pb-2 bg-gradient-to-r from-purple-50 to-blue-50 border-b-2 border-purple-100">
               <Sparkles className="w-4 h-4 text-purple-600" />
               <h3 className="text-sm font-semibold text-purple-700">스킬 라이브러리</h3>
               <div className="flex-1"></div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onAddSkill}
-                className="h-7 text-xs"
-              >
+              <Button size="sm" variant="outline" onClick={onAddSkill} className="h-7 text-xs">
                 <Plus className="w-3 h-3 mr-1" />
                 스킬 추가
               </Button>
@@ -294,9 +309,10 @@ export function SkillTestLab({
                         key={skill.id}
                         className={`
                           p-2.5 rounded-lg border transition-all cursor-pointer
-                          ${selectedBasicAttackId === skill.id
-                            ? 'border-orange-400 bg-orange-50 shadow-md'
-                            : 'border-slate-200 bg-white hover:border-orange-200 hover:shadow-sm'
+                          ${
+                            selectedBasicAttackId === skill.id
+                              ? 'border-orange-400 bg-orange-50 shadow-md'
+                              : 'border-slate-200 bg-white hover:border-orange-200 hover:shadow-sm'
                           }
                           hover:scale-[1.02] active:scale-[0.98]
                         `}
@@ -308,54 +324,57 @@ export function SkillTestLab({
                       >
                         <div className="flex items-center gap-2.5">
                           {/* 아이콘 */}
-                          <div 
+                          <div
                             className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0"
-                            style={{ 
+                            style={{
                               backgroundColor: skill.visual.color,
-                              boxShadow: `0 0 10px ${skill.visual.color}50`
+                              boxShadow: `0 0 10px ${skill.visual.color}50`,
                             }}
                           >
-                            <div className="text-white">
-                              {getIcon(skill.iconName)}
-                            </div>
+                            <div className="text-white">{getIcon(skill.iconName)}</div>
                           </div>
 
                           {/* 정보 */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <h4 className="text-xs font-medium text-slate-900">
-                                {skill.name}
-                              </h4>
+                              <h4 className="text-xs font-medium text-slate-900">{skill.name}</h4>
                               {/* 타입별 배지 */}
                               {skill.tags?.includes('melee') && (
-                                <Badge variant="outline" className="text-[8px] px-1 py-0 bg-orange-50 border-orange-300 text-orange-700">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[8px] px-1 py-0 bg-orange-50 border-orange-300 text-orange-700"
+                                >
                                   근접
                                 </Badge>
                               )}
                               {skill.tags?.includes('ranged') && (
-                                <Badge variant="outline" className="text-[8px] px-1 py-0 bg-blue-50 border-blue-300 text-blue-700">
+                                <Badge
+                                  variant="outline"
+                                  className="text-[8px] px-1 py-0 bg-blue-50 border-blue-300 text-blue-700"
+                                >
                                   원거리
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-[10px] text-slate-600 mb-1.5">
-                              {skill.description}
-                            </p>
+                            <p className="text-[10px] text-slate-600 mb-1.5">{skill.description}</p>
                             <div className="flex items-center gap-2 text-[9px]">
                               <span className="text-slate-500">사거리: {skill.range}</span>
                               <span className="text-slate-500">범위: {skill.area}°</span>
                               <span className="text-blue-600">{skill.spCost} SP</span>
                               <span className="text-slate-500">
-                                {skill.timing 
-                                  ? (skill.timing.windup + skill.timing.execution + skill.timing.recovery)
-                                  : skill.castTime || 0}ms
+                                {skill.timing
+                                  ? skill.timing.windup +
+                                    skill.timing.execution +
+                                    skill.timing.recovery
+                                  : skill.castTime || 0}
+                                ms
                               </span>
                             </div>
                           </div>
                         </div>
                       </div>
                     ))}
-                    
+
                     {basicAttacksList.length === 0 && (
                       <div className="text-center py-8 text-slate-400">
                         <Sword className="w-10 h-10 mx-auto mb-2 opacity-50" />
@@ -375,9 +394,10 @@ export function SkillTestLab({
                         key={skill.id}
                         className={`
                           p-2.5 rounded-lg border transition-all cursor-pointer
-                          ${selectedSkillId === skill.id
-                            ? 'border-purple-400 bg-purple-50 shadow-md'
-                            : 'border-slate-200 bg-white hover:border-purple-200 hover:shadow-sm'
+                          ${
+                            selectedSkillId === skill.id
+                              ? 'border-purple-400 bg-purple-50 shadow-md'
+                              : 'border-slate-200 bg-white hover:border-purple-200 hover:shadow-sm'
                           }
                           hover:scale-[1.02] active:scale-[0.98]
                         `}
@@ -388,39 +408,38 @@ export function SkillTestLab({
                       >
                         <div className="flex items-center gap-2.5">
                           {/* 아이콘 */}
-                          <div 
+                          <div
                             className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0"
-                            style={{ 
+                            style={{
                               backgroundColor: skill.visual.color,
-                              boxShadow: `0 0 10px ${skill.visual.color}50`
+                              boxShadow: `0 0 10px ${skill.visual.color}50`,
                             }}
                           >
-                            <div className="text-white">
-                              {getIcon(skill.iconName)}
-                            </div>
+                            <div className="text-white">{getIcon(skill.iconName)}</div>
                           </div>
 
                           {/* 정보 */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <h4 className="text-xs font-medium text-slate-900">
-                                {skill.name}
-                              </h4>
-                              <Badge variant="outline" className="text-[8px] px-1 py-0 bg-purple-50 border-purple-300 text-purple-700">
+                              <h4 className="text-xs font-medium text-slate-900">{skill.name}</h4>
+                              <Badge
+                                variant="outline"
+                                className="text-[8px] px-1 py-0 bg-purple-50 border-purple-300 text-purple-700"
+                              >
                                 스킬
                               </Badge>
                             </div>
-                            <p className="text-[10px] text-slate-600 mb-1.5">
-                              {skill.description}
-                            </p>
+                            <p className="text-[10px] text-slate-600 mb-1.5">{skill.description}</p>
                             <div className="flex items-center gap-2 text-[9px]">
                               <span className="text-slate-500">사거리: {skill.range}</span>
                               <span className="text-slate-500">범위: {skill.area}°</span>
                               <span className="text-blue-600">{skill.spCost} SP</span>
-                              <span className="text-slate-500">{(skill.cooldown / 1000).toFixed(1)}s</span>
+                              <span className="text-slate-500">
+                                {(skill.cooldown / 1000).toFixed(1)}s
+                              </span>
                             </div>
                           </div>
-                          
+
                           {/* 액션 버튼들 */}
                           <div className="flex flex-col gap-1 flex-shrink-0">
                             <Button

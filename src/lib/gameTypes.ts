@@ -30,7 +30,7 @@ export interface Character {
   lastAttackTime: number;
   meleeSwingStart: number | null;
   meleeSwingAngle: number;
-  
+
   // 스킬 실행 상태 (선딜-공격-후딜)
   skillPhase: SkillExecutionPhase;
   skillPhaseStartTime: number;
@@ -69,22 +69,22 @@ export interface CharacterConfig {
   // Basic stats (ranges)
   size: StatRange;
   speed: StatRange;
-  
+
   // Combat stats (ranges)
-  attack: StatRange;          // 공격력
-  defense: StatRange;         // 방어력
-  attackSpeed: StatRange;     // 공격 속도 (초당 공격 횟수)
-  accuracy: StatRange;        // 명중률 (0-100%)
-  criticalRate: StatRange;    // 치명타율 (0-100%)
-  
+  attack: StatRange; // 공격력
+  defense: StatRange; // 방어력
+  attackSpeed: StatRange; // 공격 속도 (초당 공격 횟수)
+  accuracy: StatRange; // 명중률 (0-100%)
+  criticalRate: StatRange; // 치명타율 (0-100%)
+
   // Attack properties (ranges)
-  attackRange: StatRange;     // 공격 범위 (거리)
-  attackWidth: StatRange;     // 공격 넓이 (부채꼴 각도, 도 단위)
-  
+  attackRange: StatRange; // 공격 범위 (거리)
+  attackWidth: StatRange; // 공격 넓이 (부채꼴 각도, 도 단위)
+
   typeId: string; // 캐릭터 타입 프리셋 ID (warrior, archer, mage 등)
   // DEPRECATED: attackType은 스킬 시스템으로 이동 (하위 호환성을 위해 유지)
   attackType?: CharacterType;
-  
+
   // Monster spawn settings
   monsterRespawnDelay?: number;
   monsterMaxCount?: number;

@@ -19,8 +19,8 @@ export interface MonsterStats {
   name?: string;
   hp: number;
   maxHp: number;
-  atk?: number;  // 레거시
-  def?: number;  // 레거시
+  atk?: number; // 레거시
+  def?: number; // 레거시
   attack: number;
   defense: number;
   speed: number;
@@ -59,8 +59,8 @@ export const defaultMonsterStats: MonsterStats = {
   name: '고블린',
   hp: 50,
   maxHp: 50,
-  atk: 8,  // 레거시
-  def: 3,  // 레거시
+  atk: 8, // 레거시
+  def: 3, // 레거시
   attack: 8,
   defense: 3,
   speed: 60,
@@ -83,21 +83,19 @@ export function checkCollision(
   pos1: { x: number; y: number },
   size1: number,
   pos2: { x: number; y: number },
-  size2: number
+  size2: number,
 ): boolean {
-  const distance = Math.sqrt(
-    Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2)
-  );
+  const distance = Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2));
   return distance < (size1 + size2) / 2;
 }
 
 export function isInAttackRange(
   attacker: { x: number; y: number },
   target: { x: number; y: number },
-  range: number
+  range: number,
 ): boolean {
   const distance = Math.sqrt(
-    Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.y - target.y, 2)
+    Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.y - target.y, 2),
   );
   return distance <= range;
 }

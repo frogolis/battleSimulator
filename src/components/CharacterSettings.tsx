@@ -56,7 +56,7 @@ export function CharacterSettings({
     }
 
     // ID 중복 체크
-    if (characterTypes.some(t => t.id === newType.id)) {
+    if (characterTypes.some((t) => t.id === newType.id)) {
       toast.error('이미 존재하는 ID입니다.');
       return;
     }
@@ -94,7 +94,7 @@ export function CharacterSettings({
       return;
     }
 
-    onCharacterTypesChange(characterTypes.filter(t => t.id !== id));
+    onCharacterTypesChange(characterTypes.filter((t) => t.id !== id));
     toast.success('캐릭터 타입이 삭제되었습니다.');
   };
 
@@ -105,13 +105,10 @@ export function CharacterSettings({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>캐릭터 타입 관리</CardTitle>
-              <CardDescription>
-                게임에서 사용할 캐릭터 타입을 관리합니다
-              </CardDescription>
+              <CardDescription>게임에서 사용할 캐릭터 타입을 관리합니다</CardDescription>
             </div>
             <Button onClick={() => setIsDialogOpen(true)} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              새 타입 추가
+              <Plus className="w-4 h-4 mr-2" />새 타입 추가
             </Button>
           </div>
         </CardHeader>
@@ -144,7 +141,9 @@ export function CharacterSettings({
                   </Button>
                 )}
                 {(type.id === 'melee' || type.id === 'projectile') && (
-                  <Badge variant="secondary" className="text-xs">기본</Badge>
+                  <Badge variant="secondary" className="text-xs">
+                    기본
+                  </Badge>
                 )}
               </div>
             ))}
@@ -157,9 +156,7 @@ export function CharacterSettings({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>새 캐릭터 타입 추가</DialogTitle>
-            <DialogDescription>
-              새로운 캐릭터 타입의 정보를 입력해주세요
-            </DialogDescription>
+            <DialogDescription>새로운 캐릭터 타입의 정보를 입력해주세요</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -168,9 +165,7 @@ export function CharacterSettings({
                 id="type-id"
                 placeholder="예: magic, tank, healer"
                 value={newType.id}
-                onChange={(e) =>
-                  setNewType({ ...newType, id: e.target.value.toLowerCase() })
-                }
+                onChange={(e) => setNewType({ ...newType, id: e.target.value.toLowerCase() })}
               />
             </div>
             <div className="space-y-2">
@@ -188,9 +183,7 @@ export function CharacterSettings({
                 id="type-description"
                 placeholder="예: 강력한 마법 공격"
                 value={newType.description}
-                onChange={(e) =>
-                  setNewType({ ...newType, description: e.target.value })
-                }
+                onChange={(e) => setNewType({ ...newType, description: e.target.value })}
               />
             </div>
             <div className="space-y-2">

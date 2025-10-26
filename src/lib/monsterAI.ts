@@ -140,15 +140,15 @@ export const defaultAIPatternConfig: AIPatternConfig = {
       action: 'attack',
       conditions: [
         { type: 'distance', operator: '<=', value: -1 }, // -1 = 실제 공격 범위 사용 (동적)
-        { type: 'hp', operator: '>', value: 30 }
+        { type: 'hp', operator: '>', value: 30 },
       ],
-      enabled: true
+      enabled: true,
     },
     {
       action: 'chase',
-      conditions: [],  // 조건 없음 = 항상 추적 (위 패턴이 매칭되지 않으면)
-      enabled: true
-    }
+      conditions: [], // 조건 없음 = 항상 추적 (위 패턴이 매칭되지 않으면)
+      enabled: true,
+    },
   ],
   aggroRange: 9999, // 무제한 추적 범위
   chaseMinDistance: 0, // 0 = 공격 범위까지 다가감 (제한 없음)
@@ -161,7 +161,7 @@ export function createEmptyPattern(): AIPattern {
   return {
     action: 'move',
     conditions: [],
-    enabled: false
+    enabled: false,
   };
 }
 
@@ -208,7 +208,7 @@ export function checkSkillCondition(
   monsterMaxHP: number,
   monsterSP: number,
   monsterMaxSP: number,
-  playerDistance: number
+  playerDistance: number,
 ): boolean {
   if (!condition || condition.type === 'always') return true;
 
@@ -237,13 +237,13 @@ export function checkSkillCondition(
 export function checkPatternConditions(
   conditions: PatternCondition[],
   distance: number,
-  hpPercent: number
+  hpPercent: number,
 ): boolean {
   // 조건이 없으면 항상 true
   if (conditions.length === 0) return true;
 
   // 모든 조건을 만족해야 함 (AND 조건)
-  return conditions.every(condition => {
+  return conditions.every((condition) => {
     const value = condition.type === 'distance' ? distance : hpPercent;
 
     switch (condition.operator) {
@@ -269,7 +269,7 @@ export function evaluateAIPatterns(
   config: AIPatternConfig,
   distance: number,
   monsterHP: number,
-  monsterMaxHP: number
+  monsterMaxHP: number,
 ): { action: PatternAction; skillSlot?: number; skillId?: string } | null {
   const hpPercent = (monsterHP / monsterMaxHP) * 100;
 
@@ -281,9 +281,9 @@ export function evaluateAIPatterns(
     if (checkPatternConditions(pattern.conditions, distance, hpPercent)) {
       // 스킬 액션이면 스킬 ID 반환
       if (pattern.action === 'skill') {
-        return { 
-          action: pattern.action, 
-          skillId: pattern.skillId // 스킬 ID 포함
+        return {
+          action: pattern.action,
+          skillId: pattern.skillId, // 스킬 ID 포함
         };
       }
 
@@ -291,7 +291,7 @@ export function evaluateAIPatterns(
       if (pattern.action === 'attack') {
         return {
           action: pattern.action,
-          skillId: pattern.skillId // 기본 공격 스킬 ID 포함
+          skillId: pattern.skillId, // 기본 공격 스킬 ID 포함
         };
       }
 
@@ -314,7 +314,7 @@ export function decideSkillToUse(
   monsterMaxHP: number,
   monsterSP: number,
   monsterMaxSP: number,
-  skillData: any[] // 각 스킬의 데이터 배열
+  skillData: any[], // 각 스킬의 데이터 배열
 ): number {
   if (availableSkills.length === 0) {
     return 0; // 기본 공격
@@ -323,13 +323,13 @@ export function decideSkillToUse(
   const hpPercent = monsterHP / monsterMaxHP;
 
   // 조건을 만족하는 스킬만 필터링
-  const validSkills = availableSkills.filter(slot => {
+  const validSkills = availableSkills.filter((slot) => {
     const skill = skillData[slot - 1];
     if (!skill || !skill.id) return false; // 스킬이 없으면 제외
-    
+
     // 거리 체크
     if (skill.range > 0 && playerDistance > skill.range) return false;
-    
+
     // 조건 체크
     return checkSkillCondition(
       skill.condition,
@@ -337,7 +337,7 @@ export function decideSkillToUse(
       monsterMaxHP,
       monsterSP,
       monsterMaxSP,
-      playerDistance
+      playerDistance,
     );
   });
 
@@ -351,7 +351,7 @@ export function decideSkillToUse(
       // 가장 높은 데미지의 스킬 선택
       let maxDamage = 0;
       let bestSkill = 0;
-      validSkills.forEach(slot => {
+      validSkills.forEach((slot) => {
         const skill = skillData[slot - 1];
         if (skill && skill.damage > maxDamage) {
           maxDamage = skill.damage;
@@ -364,7 +364,7 @@ export function decideSkillToUse(
       // 가장 넓은 범위의 스킬 선택
       let maxWidth = 0;
       let bestControlSkill = 0;
-      validSkills.forEach(slot => {
+      validSkills.forEach((slot) => {
         const skill = skillData[slot - 1];
         if (skill && skill.width > maxWidth) {
           maxWidth = skill.width;
@@ -376,7 +376,7 @@ export function decideSkillToUse(
     case 'survival':
       // HP가 낮으면 힐/버프 스킬 우선
       if (hpPercent < 0.5) {
-        const healSkill = validSkills.find(slot => {
+        const healSkill = validSkills.find((slot) => {
           const skill = skillData[slot - 1];
           return skill && (skill.id === 'heal' || skill.id === 'powerBuff');
         });
@@ -389,13 +389,13 @@ export function decideSkillToUse(
     default:
       // HP가 낮으면 생존 우선
       if (hpPercent < 0.3) {
-        const healSkill = validSkills.find(slot => {
+        const healSkill = validSkills.find((slot) => {
           const skill = skillData[slot - 1];
           return skill && skill.id === 'heal';
         });
         if (healSkill) return healSkill;
       }
-      
+
       // 우선순위 기반 선택 (첫 번째로 조건을 만족하는 스킬)
       return validSkills[0];
   }
@@ -412,7 +412,7 @@ export function decideMovementDirection(
   playerX: number,
   playerY: number,
   monsterHP: number,
-  monsterMaxHP: number
+  monsterMaxHP: number,
 ): number | null {
   const dx = playerX - monsterX;
   const dy = playerY - monsterY;
@@ -464,11 +464,7 @@ export function decideMovementDirection(
 /**
  * 공격 여부 결정
  */
-export function shouldAttack(
-  aiConfig: AIConfig,
-  distance: number,
-  attackRange: number
-): boolean {
+export function shouldAttack(aiConfig: AIConfig, distance: number, attackRange: number): boolean {
   if (aiConfig.type === 'passive') {
     return false; // 수동적 AI는 공격하지 않음
   }

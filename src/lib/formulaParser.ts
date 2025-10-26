@@ -5,14 +5,7 @@
 import { FormulaBlock, generateBlockId } from './formulaTypes';
 
 // 토큰 타입
-type TokenType = 
-  | 'NUMBER'
-  | 'VARIABLE'
-  | 'FUNCTION'
-  | 'OPERATOR'
-  | 'LPAREN'
-  | 'RPAREN'
-  | 'COMMA';
+type TokenType = 'NUMBER' | 'VARIABLE' | 'FUNCTION' | 'OPERATOR' | 'LPAREN' | 'RPAREN' | 'COMMA';
 
 interface Token {
   type: TokenType;
@@ -26,16 +19,16 @@ interface Token {
 function tokenize(formula: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
-  
+
   while (i < formula.length) {
     const char = formula[i];
-    
+
     // 공백 무시
     if (/\s/.test(char)) {
       i++;
       continue;
     }
-    
+
     // 숫자 (소수 포함)
     if (/\d/.test(char) || (char === '.' && i + 1 < formula.length && /\d/.test(formula[i + 1]))) {
       let num = '';
@@ -46,7 +39,7 @@ function tokenize(formula: string): Token[] {
       tokens.push({ type: 'NUMBER', value: num, position: i - num.length });
       continue;
     }
-    
+
     // 변수 또는 함수 (대문자로 시작)
     if (/[A-Z]/.test(char)) {
       let word = '';
@@ -54,7 +47,7 @@ function tokenize(formula: string): Token[] {
         word += formula[i];
         i++;
       }
-      
+
       // 다음 문자가 ( 이면 함수
       if (i < formula.length && formula[i] === '(') {
         tokens.push({ type: 'FUNCTION', value: word, position: i - word.length });
@@ -63,38 +56,38 @@ function tokenize(formula: string): Token[] {
       }
       continue;
     }
-    
+
     // 연산자
     if ('+-*/^'.includes(char)) {
       tokens.push({ type: 'OPERATOR', value: char, position: i });
       i++;
       continue;
     }
-    
+
     // 괄호
     if (char === '(') {
       tokens.push({ type: 'LPAREN', value: char, position: i });
       i++;
       continue;
     }
-    
+
     if (char === ')') {
       tokens.push({ type: 'RPAREN', value: char, position: i });
       i++;
       continue;
     }
-    
+
     // 쉼표
     if (char === ',') {
       tokens.push({ type: 'COMMA', value: char, position: i });
       i++;
       continue;
     }
-    
+
     // 알 수 없는 문자
     throw new Error(`알 수 없는 문자: ${char} at position ${i}`);
   }
-  
+
   return tokens;
 }
 
@@ -104,20 +97,20 @@ function tokenize(formula: string): Token[] {
 class Parser {
   private tokens: Token[];
   private current: number;
-  
+
   constructor(tokens: Token[]) {
     this.tokens = tokens;
     this.current = 0;
   }
-  
+
   private peek(): Token | null {
     return this.current < this.tokens.length ? this.tokens[this.current] : null;
   }
-  
+
   private consume(): Token {
     return this.tokens[this.current++];
   }
-  
+
   private expect(type: TokenType): Token {
     const token = this.peek();
     if (!token || token.type !== type) {
@@ -125,7 +118,7 @@ class Parser {
     }
     return this.consume();
   }
-  
+
   // 수식 파싱 (최상위)
   parse(): FormulaBlock {
     const result = this.parseExpression();
@@ -134,15 +127,18 @@ class Parser {
     }
     return result;
   }
-  
+
   // 표현식 파싱 (덧셈/뺄셈 우선순위)
   private parseExpression(): FormulaBlock {
     let left = this.parseTerm();
-    
-    while (this.peek()?.type === 'OPERATOR' && (this.peek()!.value === '+' || this.peek()!.value === '-')) {
+
+    while (
+      this.peek()?.type === 'OPERATOR' &&
+      (this.peek()!.value === '+' || this.peek()!.value === '-')
+    ) {
       const operator = this.consume().value as '+' | '-';
       const right = this.parseTerm();
-      
+
       left = {
         id: generateBlockId(),
         type: 'operator',
@@ -151,18 +147,21 @@ class Parser {
         children: [left, right],
       };
     }
-    
+
     return left;
   }
-  
+
   // 항 파싱 (곱셈/나눗셈 우선순위)
   private parseTerm(): FormulaBlock {
     let left = this.parseFactor();
-    
-    while (this.peek()?.type === 'OPERATOR' && (this.peek()!.value === '*' || this.peek()!.value === '/')) {
+
+    while (
+      this.peek()?.type === 'OPERATOR' &&
+      (this.peek()!.value === '*' || this.peek()!.value === '/')
+    ) {
       const operator = this.consume().value as '*' | '/';
       const right = this.parseFactor();
-      
+
       left = {
         id: generateBlockId(),
         type: 'operator',
@@ -171,19 +170,19 @@ class Parser {
         children: [left, right],
       };
     }
-    
+
     return left;
   }
-  
+
   // 인자 파싱 (거듭제곱, 괄호, 변수, 함수, 숫자)
   private parseFactor(): FormulaBlock {
     let base = this.parsePrimary();
-    
+
     // 거듭제곱 (우결합)
     if (this.peek()?.type === 'OPERATOR' && this.peek()!.value === '^') {
       this.consume();
       const exponent = this.parseFactor(); // 재귀적 호출
-      
+
       return {
         id: generateBlockId(),
         type: 'operator',
@@ -192,18 +191,18 @@ class Parser {
         children: [base, exponent],
       };
     }
-    
+
     return base;
   }
-  
+
   // 기본 요소 파싱
   private parsePrimary(): FormulaBlock {
     const token = this.peek();
-    
+
     if (!token) {
       throw new Error('Unexpected end of expression');
     }
-    
+
     // 숫자
     if (token.type === 'NUMBER') {
       this.consume();
@@ -214,7 +213,7 @@ class Parser {
         color: '#10b981',
       };
     }
-    
+
     // 변수
     if (token.type === 'VARIABLE') {
       this.consume();
@@ -225,12 +224,12 @@ class Parser {
         color: '#3b82f6',
       };
     }
-    
+
     // 함수
     if (token.type === 'FUNCTION') {
       return this.parseFunction();
     }
-    
+
     // 괄호로 묶인 표현식
     if (token.type === 'LPAREN') {
       this.consume();
@@ -238,31 +237,31 @@ class Parser {
       this.expect('RPAREN');
       return expr;
     }
-    
+
     throw new Error(`Unexpected token: ${token.type} "${token.value}"`);
   }
-  
+
   // 함수 파싱
   private parseFunction(): FormulaBlock {
     const funcToken = this.expect('FUNCTION');
     const funcName = funcToken.value as any;
-    
+
     this.expect('LPAREN');
-    
+
     // 파라미터 파싱
     const params: FormulaBlock[] = [];
-    
+
     if (this.peek()?.type !== 'RPAREN') {
       params.push(this.parseExpression());
-      
+
       while (this.peek()?.type === 'COMMA') {
         this.consume();
         params.push(this.parseExpression());
       }
     }
-    
+
     this.expect('RPAREN');
-    
+
     return {
       id: generateBlockId(),
       type: 'function',

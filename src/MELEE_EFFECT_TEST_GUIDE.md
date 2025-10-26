@@ -5,10 +5,12 @@
 근접 공격의 **궤적 이펙트**(빨간색 호)가 **범위 UI**(파란색 부채꼴)와 일치하도록 수정했습니다.
 
 ### 이전 문제
+
 - 범위 UI: 스킬의 `range`와 `area` 값 사용 ✓
 - 궤적 이펙트: 프리셋의 고정값 `trailLength` 사용 ✗
 
 ### 수정 후
+
 - 범위 UI: 스킬의 `range`와 `area` 값 사용 ✓
 - 궤적 이펙트: 스킬의 `range`와 `area` 값 사용 ✓
 
@@ -17,6 +19,7 @@
 ### 1. 기본 공격 스킬 설정 확인
 
 기본 공격 스킬에 다음이 설정되어 있는지 확인:
+
 ```typescript
 {
   type: 'melee',
@@ -45,18 +48,21 @@
 ### 3. 값 변경 테스트
 
 #### Test Case 1: 범위(range) 변경
+
 ```
 range: 80 → 파란색 부채꼴과 빨간색 호 모두 작아짐
 range: 120 → 파란색 부채꼴과 빨간색 호 모두 커짐
 ```
 
 #### Test Case 2: 넓이(area) 변경
+
 ```
 area: 90 → 파란색 부채꼴과 빨간색 호 모두 좁아짐 (90도)
 area: 150 → 파란색 부채꼴과 빨간색 호 모두 넓어짐 (150도)
 ```
 
 #### Test Case 3: 동시 변경
+
 ```
 range: 150, area: 180
 → 파란색 부채꼴과 빨간색 호 모두 크고 넓어짐 (반원 모양)
@@ -71,16 +77,19 @@ range: 150, area: 180
 ## 문제 발생 시 체크리스트
 
 ### 궤적 이펙트가 표시되지 않는 경우
+
 - [ ] 기본 공격 스킬에 `visual.effectPresetId`가 설정되어 있는가?
 - [ ] `effectPresetId`가 `trail_slash` 또는 다른 trail 타입인가?
 - [ ] 콘솔에 에러 메시지가 있는가?
 
 ### 궤적 이펙트 크기가 다른 경우
+
 - [ ] `createTrailEffect` 함수가 `skillRange`를 사용하는가?
 - [ ] `createSkillParticles`에서 `skillRange: skill.range`를 전달하는가?
 - [ ] 프리셋의 `trailLength`가 너무 큰 값인가?
 
 ### 궤적 이펙트 각도가 다른 경우
+
 - [ ] `createTrailEffect` 함수가 `skillArea`를 사용하는가?
 - [ ] `createSkillParticles`에서 `skillArea: skill.area`를 전달하는가?
 - [ ] 프리셋의 `trailArcAngle`이 우선되고 있지 않은가?
@@ -88,6 +97,7 @@ range: 150, area: 180
 ## 코드 위치
 
 ### 수정된 파일
+
 1. `/lib/simulator/particles-new.ts`
    - `CreateEffectOptions` 인터페이스에 `skillRange` 추가
    - `createTrailEffect` 함수에서 `skillRange` 사용
@@ -96,6 +106,7 @@ range: 150, area: 180
    - `createSkillParticles` 함수에서 `skillRange: skill.range` 전달
 
 ### 관련 렌더링 코드
+
 - `/components/MultiMonsterSimulator.tsx`
   - 3936-3969줄: 범위 UI (파란색 부채꼴)
   - 3740-3814줄: 스윙 애니메이션

@@ -5,13 +5,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Badge } from './ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Slider } from './ui/slider';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Plus, Trash2, ChevronDown, ChevronRight, X, Download, TrendingUp, Clock, Percent, Target, HelpCircle, Brain } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  X,
+  Download,
+  TrendingUp,
+  Clock,
+  Percent,
+  Target,
+  HelpCircle,
+  Brain,
+} from 'lucide-react';
 import { DataRow } from '../lib/mockData';
 import { CharacterConfig } from './CharacterSettings';
 import { toast } from 'sonner';
@@ -20,7 +40,14 @@ import { CharacterTypeInfo, getCharacterTypeName } from '../lib/characterTypes';
 import { CharacterType } from '../lib/gameTypes';
 import { LevelConfig } from '../lib/levelSystem';
 import { defaultSkills, Skill } from '../lib/skillSystem';
-import { aiTypes, skillPriorities, AIType, SkillPriority, AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
+import {
+  aiTypes,
+  skillPriorities,
+  AIType,
+  SkillPriority,
+  AIPatternConfig,
+  defaultAIPatternConfig,
+} from '../lib/monsterAI';
 import { MonsterAIPatternEditor } from './MonsterAIPatternEditor';
 
 // defaultSkills를 배열로 변환
@@ -67,7 +94,10 @@ export function MonsterDatasetViewer({
 }: MonsterDatasetViewerProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingCell, setEditingCell] = useState<{ row: number; field: string } | null>(null);
-  const [editingAIPattern, setEditingAIPattern] = useState<{ rowIndex: number; config: AIPatternConfig } | null>(null);
+  const [editingAIPattern, setEditingAIPattern] = useState<{
+    rowIndex: number;
+    config: AIPatternConfig;
+  } | null>(null);
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     select: 50,
     index: 60,
@@ -94,15 +124,19 @@ export function MonsterDatasetViewer({
     delete: 80,
   });
 
-  const [resizing, setResizing] = useState<{ column: string; startX: number; startWidth: number } | null>(null);
+  const [resizing, setResizing] = useState<{
+    column: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const handleAddRow = () => {
     // 레벨 1로 새 행 생성, 능력치는 자동 계산
     const firstType = characterTypes[0];
-    
+
     // 타입의 기본 스킬 목록
     const defaultSkillIds = firstType?.defaultSkillIds || ['powerSlash', 'whirlwind'];
-    
+
     const baseRow: DataRow = {
       t: dataset.length * 0.1,
       x: 600,
@@ -161,12 +195,19 @@ export function MonsterDatasetViewer({
       monster_skill_4_sp_cost: 50,
       monster_skill_4_cast_time: 500,
     };
-    
+
     // 첫 번째 타입의 기본 레벨과 크기로 능력치 자동 계산
     const defaultLevel = firstType?.defaultLevel || 1;
     const defaultSize = firstType?.defaultSize || 24;
-    const newRow = monsterLevelConfig 
-      ? updateDataRowWithLevel(baseRow, false, monsterLevelConfig, defaultLevel, defaultSize, firstType)
+    const newRow = monsterLevelConfig
+      ? updateDataRowWithLevel(
+          baseRow,
+          false,
+          monsterLevelConfig,
+          defaultLevel,
+          defaultSize,
+          firstType,
+        )
       : {
           ...baseRow,
           monster_hp: 100,
@@ -178,11 +219,11 @@ export function MonsterDatasetViewer({
           monster_accuracy: 75,
           monster_critical_rate: 15,
         };
-    
+
     const newDataset = [...dataset, newRow];
     setDataset(newDataset);
     setCurrentTick(newDataset.length - 1);
-    
+
     toast.success(`✅ 몬스터 설정이 추가되었습니다! (행 ${newDataset.length - 1})`);
   };
 
@@ -209,7 +250,7 @@ export function MonsterDatasetViewer({
 
   const handleRowSelect = (index: number) => {
     if (!onSelectedRowsChange) return;
-    
+
     const newSelected = new Set(selectedRows);
     if (newSelected.has(index)) {
       newSelected.delete(index);
@@ -224,19 +265,29 @@ export function MonsterDatasetViewer({
   const handleCellUpdate = (rowIndex: number, field: string, value: any) => {
     const newDataset = [...dataset];
     const row = newDataset[rowIndex];
-    
+
     // 레벨, 크기, 타입 변경 시 능력치 재계산
-    if ((field === 'monster_level' || field === 'monster_size' || field === 'monster_attack_type') && monsterLevelConfig) {
+    if (
+      (field === 'monster_level' || field === 'monster_size' || field === 'monster_attack_type') &&
+      monsterLevelConfig
+    ) {
       const newLevel = field === 'monster_level' ? value : row.monster_level;
-      const currentSize = field === 'monster_size' ? value : (row.monster_size || 24);
+      const currentSize = field === 'monster_size' ? value : row.monster_size || 24;
       const typeId = field === 'monster_attack_type' ? value : row.monster_attack_type;
-      
+
       // 타입 정�� 찾기
-      const typeInfo = characterTypes.find(t => t.id === typeId);
-      
+      const typeInfo = characterTypes.find((t) => t.id === typeId);
+
       // 능력치 재계산
-      const updatedRow = updateDataRowWithLevel(row, false, monsterLevelConfig, newLevel, currentSize, typeInfo);
-      
+      const updatedRow = updateDataRowWithLevel(
+        row,
+        false,
+        monsterLevelConfig,
+        newLevel,
+        currentSize,
+        typeInfo,
+      );
+
       // 타입 변경 시 기본 레벨, 크기, 기본 공격, 스킬, AI 패턴도 변경
       if (field === 'monster_attack_type' && typeInfo) {
         const defaultSkillIds = typeInfo.defaultSkillIds || [];
@@ -244,7 +295,14 @@ export function MonsterDatasetViewer({
         const currentLevel = row.monster_level || typeInfo.defaultLevel || 1;
         const currentSize = row.monster_size || typeInfo.defaultSize || 24;
         // 현재 레벨과 크기로 능력치만 재계산
-        const typeBasedRow = updateDataRowWithLevel(row, false, monsterLevelConfig, currentLevel, currentSize, typeInfo);
+        const typeBasedRow = updateDataRowWithLevel(
+          row,
+          false,
+          monsterLevelConfig,
+          currentLevel,
+          currentSize,
+          typeInfo,
+        );
         newDataset[rowIndex] = {
           ...typeBasedRow,
           [field]: value,
@@ -259,9 +317,13 @@ export function MonsterDatasetViewer({
           monster_skill_3_id: defaultSkillIds[2] || '',
           monster_skill_4_id: defaultSkillIds[3] || '',
           // AI 패턴 변경
-          monster_ai_patterns: typeInfo.defaultAIPattern ? JSON.stringify(typeInfo.defaultAIPattern) : row.monster_ai_patterns,
+          monster_ai_patterns: typeInfo.defaultAIPattern
+            ? JSON.stringify(typeInfo.defaultAIPattern)
+            : row.monster_ai_patterns,
         };
-        toast.info(`🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`);
+        toast.info(
+          `🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`,
+        );
       } else {
         newDataset[rowIndex] = {
           ...updatedRow,
@@ -276,20 +338,21 @@ export function MonsterDatasetViewer({
         [field]: value,
       };
     }
-    
+
     setDataset(newDataset);
   };
 
   const handleEditAIPattern = (rowIndex: number) => {
     const row = dataset[rowIndex];
     let config: AIPatternConfig;
-    
+
     try {
       if (row.monster_ai_patterns) {
-        const parsed = typeof row.monster_ai_patterns === 'string' 
-          ? JSON.parse(row.monster_ai_patterns) 
-          : row.monster_ai_patterns;
-        
+        const parsed =
+          typeof row.monster_ai_patterns === 'string'
+            ? JSON.parse(row.monster_ai_patterns)
+            : row.monster_ai_patterns;
+
         // Validate that parsed config has required structure
         if (parsed && typeof parsed === 'object' && Array.isArray(parsed.patterns)) {
           config = {
@@ -299,8 +362,14 @@ export function MonsterDatasetViewer({
               enabled: p.enabled !== false,
               skillId: p.skillId,
             })),
-            aggroRange: typeof parsed.aggroRange === 'number' ? parsed.aggroRange : defaultAIPatternConfig.aggroRange,
-            chaseMinDistance: typeof parsed.chaseMinDistance === 'number' ? parsed.chaseMinDistance : defaultAIPatternConfig.chaseMinDistance,
+            aggroRange:
+              typeof parsed.aggroRange === 'number'
+                ? parsed.aggroRange
+                : defaultAIPatternConfig.aggroRange,
+            chaseMinDistance:
+              typeof parsed.chaseMinDistance === 'number'
+                ? parsed.chaseMinDistance
+                : defaultAIPatternConfig.chaseMinDistance,
           };
         } else {
           console.warn('⚠️ AI 패턴 구조가 잘못되었습니다. 기본값 사용:', parsed);
@@ -314,28 +383,28 @@ export function MonsterDatasetViewer({
       console.error('❌ AI 패턴 파싱 오류:', error, row.monster_name || 'Unknown Monster');
       config = { ...defaultAIPatternConfig };
     }
-    
+
     console.log('✅ AI 패턴 편집기 열기:', config);
-    
+
     // Ensure config is valid before setting state
     if (!config || !config.patterns || !Array.isArray(config.patterns)) {
       console.error('❌ Config가 유효하지 않습니다:', config);
       toast.error('AI 패턴 설정을 불러올 수 없습니다.');
       return;
     }
-    
+
     setEditingAIPattern({ rowIndex, config });
   };
 
   const handleSaveAIPattern = (config: AIPatternConfig) => {
     if (!editingAIPattern) return;
-    
+
     const newDataset = [...dataset];
     newDataset[editingAIPattern.rowIndex] = {
       ...newDataset[editingAIPattern.rowIndex],
       monster_ai_patterns: JSON.stringify(config),
     };
-    
+
     setDataset(newDataset);
     setEditingAIPattern(null);
     toast.success('AI 패턴이 저장되었습니다!');
@@ -377,7 +446,7 @@ export function MonsterDatasetViewer({
       if (!resizing) return;
       const diff = e.clientX - resizing.startX;
       const newWidth = Math.max(50, resizing.startWidth + diff);
-      setColumnWidths(prev => ({
+      setColumnWidths((prev) => ({
         ...prev,
         [resizing.column]: newWidth,
       }));
@@ -398,10 +467,10 @@ export function MonsterDatasetViewer({
 
   const renderNameCell = (rowIndex: number, value: string) => {
     const isEditing = editingCell?.row === rowIndex && editingCell?.field === 'monster_name';
-    
+
     return (
-      <Popover 
-        open={isEditing} 
+      <Popover
+        open={isEditing}
         onOpenChange={(open) => {
           if (open) {
             setEditingCell({ row: rowIndex, field: 'monster_name' });
@@ -419,7 +488,7 @@ export function MonsterDatasetViewer({
             {value}
           </div>
         </PopoverTrigger>
-        <PopoverContent 
+        <PopoverContent
           className="w-56 p-3"
           align="start"
           side="bottom"
@@ -456,10 +525,10 @@ export function MonsterDatasetViewer({
 
   const renderColorCell = (rowIndex: number, value: string) => {
     const isEditing = editingCell?.row === rowIndex && editingCell?.field === 'monster_color';
-    
+
     return (
-      <Popover 
-        open={isEditing} 
+      <Popover
+        open={isEditing}
         onOpenChange={(open) => {
           if (open) {
             setEditingCell({ row: rowIndex, field: 'monster_color' });
@@ -473,14 +542,14 @@ export function MonsterDatasetViewer({
             className="cursor-pointer hover:bg-pink-100 rounded px-2 py-1 flex items-center justify-center gap-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <div 
+            <div
               className="w-5 h-5 rounded border-2 border-white shadow"
               style={{ backgroundColor: value }}
             />
             <span className="text-xs truncate">{value}</span>
           </div>
         </PopoverTrigger>
-        <PopoverContent 
+        <PopoverContent
           className="w-56 p-3"
           align="start"
           side="bottom"
@@ -522,29 +591,40 @@ export function MonsterDatasetViewer({
     );
   };
 
-  const renderEditableCell = (rowIndex: number, field: string, value: any, suffix = '', isReadOnly = false) => {
+  const renderEditableCell = (
+    rowIndex: number,
+    field: string,
+    value: any,
+    suffix = '',
+    isReadOnly = false,
+  ) => {
     const isEditing = editingCell?.row === rowIndex && editingCell?.field === field;
 
     // 읽기 전용 필드 (레벨에 의해 자동 계산됨)
     if (isReadOnly) {
-      const displayValue = value?.toFixed ? (field.includes('attack_speed') ? value.toFixed(1) : value) : value || '-';
+      const displayValue = value?.toFixed
+        ? field.includes('attack_speed')
+          ? value.toFixed(1)
+          : value
+        : value || '-';
       return (
         <div
           className="px-2 py-1 text-center truncate bg-slate-100 text-slate-600"
           title={`${displayValue}${displayValue !== '-' ? suffix : ''} (레벨에 의해 자동 계산)`}
         >
-          {displayValue}{displayValue !== '-' ? suffix : ''}
+          {displayValue}
+          {displayValue !== '-' ? suffix : ''}
         </div>
       );
     }
 
     if (field === 'monster_attack_type') {
-      const currentType = value as CharacterType || 'melee';
-      const typeInfo = characterTypes.find(t => t.id === currentType);
-      
+      const currentType = (value as CharacterType) || 'melee';
+      const typeInfo = characterTypes.find((t) => t.id === currentType);
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -564,7 +644,7 @@ export function MonsterDatasetViewer({
               <span className={typeInfo?.color}>{typeInfo?.name || currentType}</span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-64 p-3"
             align="start"
             side="bottom"
@@ -596,7 +676,7 @@ export function MonsterDatasetViewer({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="max-h-64">
-                  {characterTypes.map(type => (
+                  {characterTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       <div className="flex items-center gap-2">
                         <span className={type.color}>{type.name}</span>
@@ -614,12 +694,12 @@ export function MonsterDatasetViewer({
 
     // AI 타입 선택
     if (field === 'monster_ai_type') {
-      const currentAIType = value as AIType || 'aggressive';
+      const currentAIType = (value as AIType) || 'aggressive';
       const aiInfo = aiTypes[currentAIType];
-      
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -636,10 +716,12 @@ export function MonsterDatasetViewer({
               }}
               title={aiInfo?.name || currentAIType}
             >
-              <span>{aiInfo?.icon} {aiInfo?.name || currentAIType}</span>
+              <span>
+                {aiInfo?.icon} {aiInfo?.name || currentAIType}
+              </span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-64 p-3"
             align="start"
             side="bottom"
@@ -674,7 +756,9 @@ export function MonsterDatasetViewer({
                   {Object.entries(aiTypes).map(([key, type]) => (
                     <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
-                        <span>{type.icon} {type.name}</span>
+                        <span>
+                          {type.icon} {type.name}
+                        </span>
                         <span className="text-xs text-muted-foreground">- {type.description}</span>
                       </div>
                     </SelectItem>
@@ -689,12 +773,12 @@ export function MonsterDatasetViewer({
 
     // 스킬 우선순위 선택
     if (field === 'monster_ai_skill_priority') {
-      const currentPriority = value as SkillPriority || 'damage';
+      const currentPriority = (value as SkillPriority) || 'damage';
       const priorityInfo = skillPriorities[currentPriority];
-      
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -711,10 +795,12 @@ export function MonsterDatasetViewer({
               }}
               title={priorityInfo?.name || currentPriority}
             >
-              <span>{priorityInfo?.icon} {priorityInfo?.name || currentPriority}</span>
+              <span>
+                {priorityInfo?.icon} {priorityInfo?.name || currentPriority}
+              </span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-64 p-3"
             align="start"
             side="bottom"
@@ -749,8 +835,12 @@ export function MonsterDatasetViewer({
                   {Object.entries(skillPriorities).map(([key, priority]) => (
                     <SelectItem key={key} value={key}>
                       <div className="flex items-center gap-2">
-                        <span>{priority.icon} {priority.name}</span>
-                        <span className="text-xs text-muted-foreground">- {priority.description}</span>
+                        <span>
+                          {priority.icon} {priority.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          - {priority.description}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -767,23 +857,23 @@ export function MonsterDatasetViewer({
       const row = dataset[rowIndex];
       const currentSkillId = (row.monster_basic_attack_id as string) || 'meleeBasic';
       const currentSkill = skillConfigs?.[currentSkillId];
-      
+
       // 기본 공격용 스킬만 필터링 (skillConfigs에서 category === 'basicAttack'인 것들)
-      const basicAttackSkills = skillConfigs 
-        ? Object.values(skillConfigs).filter(skill => skill.category === 'basicAttack')
-        : defaultSkillsArray.filter(skill => skill.category === 'basicAttack');
-      
+      const basicAttackSkills = skillConfigs
+        ? Object.values(skillConfigs).filter((skill) => skill.category === 'basicAttack')
+        : defaultSkillsArray.filter((skill) => skill.category === 'basicAttack');
+
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = row.monster_basic_attack_range as number || 100;
-      const width = row.monster_basic_attack_width as number || 120;
-      const damage = row.monster_basic_attack_damage as number || 1.0;
-      const cooldown = row.monster_basic_attack_cooldown as number || 1000;
-      const spCost = row.monster_basic_attack_sp_cost as number || 0;
-      const castTime = row.monster_basic_attack_cast_time as number || 300;
-      
+      const range = (row.monster_basic_attack_range as number) || 100;
+      const width = (row.monster_basic_attack_width as number) || 120;
+      const damage = (row.monster_basic_attack_damage as number) || 1.0;
+      const cooldown = (row.monster_basic_attack_cooldown as number) || 1000;
+      const spCost = (row.monster_basic_attack_sp_cost as number) || 0;
+      const castTime = (row.monster_basic_attack_cast_time as number) || 300;
+
       return (
-        <Popover 
-          open={isEditing} 
+        <Popover
+          open={isEditing}
           onOpenChange={(open) => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
@@ -803,7 +893,7 @@ export function MonsterDatasetViewer({
               <span className="text-purple-700">{currentSkill?.name || currentSkillId}</span>
             </div>
           </PopoverTrigger>
-          <PopoverContent 
+          <PopoverContent
             className="w-80 p-4 z-50"
             align="start"
             side="bottom"
@@ -825,14 +915,16 @@ export function MonsterDatasetViewer({
                   <X className="h-3 w-3" />
                 </Button>
               </div>
-              
+
               {/* 스킬 선택 */}
               <div className="space-y-1">
                 <Label className="text-xs">공격 타입</Label>
                 <Select
                   value={currentSkillId}
                   onValueChange={(newSkillId) => {
-                    const skill = skillConfigs?.[newSkillId] || defaultSkillsArray.find(s => s.id === newSkillId);
+                    const skill =
+                      skillConfigs?.[newSkillId] ||
+                      defaultSkillsArray.find((s) => s.id === newSkillId);
                     if (skill) {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
@@ -854,7 +946,7 @@ export function MonsterDatasetViewer({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
-                    {basicAttackSkills.map(skill => (
+                    {basicAttackSkills.map((skill) => (
                       <SelectItem key={skill.id} value={skill.id}>
                         {skill.name}
                       </SelectItem>
@@ -862,14 +954,16 @@ export function MonsterDatasetViewer({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {/* 파라미터 편집 */}
               <div className="space-y-2 border-t pt-3">
                 {/* 범위 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">{range}px</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {range}px
+                    </Badge>
                   </div>
                   <Slider
                     value={[range]}
@@ -891,12 +985,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 넓이 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">{width}°</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {width}°
+                    </Badge>
                   </div>
                   <Slider
                     value={[width]}
@@ -918,12 +1014,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 데미지 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>데미지 배율</Label>
-                    <Badge variant="secondary" className="h-5">{damage.toFixed(1)}x</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {damage.toFixed(1)}x
+                    </Badge>
                   </div>
                   <Slider
                     value={[damage * 10]}
@@ -941,12 +1039,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 쿨타임 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">{(cooldown / 1000).toFixed(1)}초</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {(cooldown / 1000).toFixed(1)}초
+                    </Badge>
                   </div>
                   <Slider
                     value={[cooldown / 100]}
@@ -964,12 +1064,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* SP 소모 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">{spCost}</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {spCost}
+                    </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
@@ -987,12 +1089,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 시전 시간 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>시전 시간</Label>
-                    <Badge variant="secondary" className="h-5">{castTime}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {castTime}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[castTime / 10]}
@@ -1023,7 +1127,7 @@ export function MonsterDatasetViewer({
       if (slotMatch) {
         const slotNum = parseInt(slotMatch[1]);
         const skillId = dataset[rowIndex][`monster_skill_${slotNum}_id`];
-        const skill = defaultSkillsArray.find(s => s.id === skillId);
+        const skill = defaultSkillsArray.find((s) => s.id === skillId);
         const range = dataset[rowIndex][`monster_skill_${slotNum}_range`] || 0;
         const width = dataset[rowIndex][`monster_skill_${slotNum}_width`] || 0;
         const damage = dataset[rowIndex][`monster_skill_${slotNum}_damage`] || 0;
@@ -1032,15 +1136,15 @@ export function MonsterDatasetViewer({
         const castTime = dataset[rowIndex][`monster_skill_${slotNum}_cast_time`] || 0;
 
         return (
-          <Popover 
-            open={isEditing} 
+          <Popover
+            open={isEditing}
             onOpenChange={(open) => {
               if (open) {
                 setEditingCell({ row: rowIndex, field });
               } else {
                 setEditingCell(null);
-              }}
-            }
+              }
+            }}
           >
             <PopoverTrigger asChild>
               <div
@@ -1050,10 +1154,12 @@ export function MonsterDatasetViewer({
                 }}
                 title={skill?.name || '스킬 없음'}
               >
-                <span className={skill ? 'text-purple-700' : 'text-gray-500'}>{skill?.name || '없음'}</span>
+                <span className={skill ? 'text-purple-700' : 'text-gray-500'}>
+                  {skill?.name || '없음'}
+                </span>
               </div>
             </PopoverTrigger>
-            <PopoverContent 
+            <PopoverContent
               className="w-80 p-4"
               align="start"
               side="bottom"
@@ -1074,7 +1180,7 @@ export function MonsterDatasetViewer({
                     <X className="h-3 w-3" />
                   </Button>
                 </div>
-                
+
                 {/* 스킬 선택 */}
                 <div className="space-y-1">
                   <Label className="text-xs">스킬</Label>
@@ -1090,7 +1196,7 @@ export function MonsterDatasetViewer({
                         };
                         setDataset(newDataset);
                       } else {
-                        const newSkill = defaultSkillsArray.find(s => s.id === newValue);
+                        const newSkill = defaultSkillsArray.find((s) => s.id === newValue);
                         if (newSkill) {
                           const newDataset = [...dataset];
                           newDataset[rowIndex] = {
@@ -1115,7 +1221,7 @@ export function MonsterDatasetViewer({
                       <SelectItem value="none">
                         <span className="text-gray-500 italic">없음</span>
                       </SelectItem>
-                      {defaultSkillsArray.map(s => (
+                      {defaultSkillsArray.map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           <div className="flex items-center gap-2">
                             <span className="text-red-600">{s.name}</span>
@@ -1131,7 +1237,9 @@ export function MonsterDatasetViewer({
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">{range}px</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {range}px
+                    </Badge>
                   </div>
                   <Slider
                     value={[range]}
@@ -1149,12 +1257,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 넓이 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">{width}°</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {width}°
+                    </Badge>
                   </div>
                   <Slider
                     value={[width]}
@@ -1172,12 +1282,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 데미지 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>데미지</Label>
-                    <Badge variant="secondary" className="h-5">{damage}x</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {damage}x
+                    </Badge>
                   </div>
                   <Slider
                     value={[damage]}
@@ -1195,12 +1307,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 쿨타임 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">{cooldown}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {cooldown}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[cooldown]}
@@ -1218,12 +1332,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* SP 소모 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">{spCost}SP</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {spCost}SP
+                    </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
@@ -1241,12 +1357,14 @@ export function MonsterDatasetViewer({
                     className="w-full"
                   />
                 </div>
-                
+
                 {/* 시전시간 */}
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <Label>시전시간</Label>
-                    <Badge variant="secondary" className="h-5">{castTime}ms</Badge>
+                    <Badge variant="secondary" className="h-5">
+                      {castTime}ms
+                    </Badge>
                   </div>
                   <Slider
                     value={[castTime]}
@@ -1271,11 +1389,15 @@ export function MonsterDatasetViewer({
       }
     }
 
-    const displayValue = value?.toFixed ? (field.includes('attack_speed') ? value.toFixed(1) : value) : value || '-';
-    
+    const displayValue = value?.toFixed
+      ? field.includes('attack_speed')
+        ? value.toFixed(1)
+        : value
+      : value || '-';
+
     return (
-      <Popover 
-        open={isEditing} 
+      <Popover
+        open={isEditing}
         onOpenChange={(open) => {
           if (open) {
             setEditingCell({ row: rowIndex, field });
@@ -1292,10 +1414,11 @@ export function MonsterDatasetViewer({
             }}
             title={`${displayValue}${displayValue !== '-' ? suffix : ''}`}
           >
-            {displayValue}{displayValue !== '-' ? suffix : ''}
+            {displayValue}
+            {displayValue !== '-' ? suffix : ''}
           </div>
         </PopoverTrigger>
-        <PopoverContent 
+        <PopoverContent
           className="w-56 p-4 bg-red-50 border-red-400"
           align="start"
           side="bottom"
@@ -1303,7 +1426,10 @@ export function MonsterDatasetViewer({
         >
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Badge variant="secondary">{displayValue}{suffix}</Badge>
+              <Badge variant="secondary">
+                {displayValue}
+                {suffix}
+              </Badge>
               <Button
                 size="sm"
                 variant="ghost"
@@ -1345,26 +1471,34 @@ export function MonsterDatasetViewer({
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Card>
-        <CardHeader className={!isOpen ? "pb-6" : ""}>
+        <CardHeader className={!isOpen ? 'pb-6' : ''}>
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between cursor-pointer">
               <CardTitle className="flex items-center gap-2">
-                {isOpen ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                {isOpen ? (
+                  <ChevronDown className="w-5 h-5" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
                 몬스터 데이터셋
               </CardTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{dataset.length}개 행</Badge>
                 {selectedRows.size > 0 && (
-                  <Badge variant="default" className="bg-purple-600">{selectedRows.size}개 행 선택됨 (1:다 리스폰)</Badge>
+                  <Badge variant="default" className="bg-purple-600">
+                    {selectedRows.size}개 행 선택됨 (1:다 리스폰)
+                  </Badge>
                 )}
                 {currentTick < dataset.length && selectedRows.size === 0 && (
-                  <Badge variant="default" className="bg-red-600">행 {currentTick} 선택됨</Badge>
+                  <Badge variant="default" className="bg-red-600">
+                    행 {currentTick} 선택됨
+                  </Badge>
                 )}
               </div>
             </div>
           </CollapsibleTrigger>
         </CardHeader>
-        
+
         <CollapsibleContent>
           <CardContent className="space-y-4">
             {/* 스폰 설정 영역 */}
@@ -1375,7 +1509,7 @@ export function MonsterDatasetViewer({
                   1:다 몬스터 스폰 설정
                 </h3>
               </div>
-              
+
               <div className="flex items-center gap-6 flex-wrap">
                 {/* 최대 몬스터 수 */}
                 {onMaxMonsterCountChange && (
@@ -1387,7 +1521,9 @@ export function MonsterDatasetViewer({
                     <Input
                       type="number"
                       value={maxMonsterCount}
-                      onChange={(e) => onMaxMonsterCountChange(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) =>
+                        onMaxMonsterCountChange(Math.max(1, parseInt(e.target.value) || 1))
+                      }
                       min={1}
                       max={50}
                       className="h-8 w-20"
@@ -1395,7 +1531,7 @@ export function MonsterDatasetViewer({
                     <span className="text-sm text-muted-foreground">마리</span>
                   </div>
                 )}
-                
+
                 {/* 리스폰 딜레이 */}
                 {onRespawnDelayChange && (
                   <div className="flex items-center gap-2">
@@ -1406,7 +1542,9 @@ export function MonsterDatasetViewer({
                     <Input
                       type="number"
                       value={respawnDelay}
-                      onChange={(e) => onRespawnDelayChange(Math.max(0, parseInt(e.target.value) || 0))}
+                      onChange={(e) =>
+                        onRespawnDelayChange(Math.max(0, parseInt(e.target.value) || 0))
+                      }
                       min={0}
                       max={10000}
                       step={100}
@@ -1415,7 +1553,7 @@ export function MonsterDatasetViewer({
                     <span className="text-sm text-muted-foreground">ms</span>
                   </div>
                 )}
-                
+
                 {/* 가중치 통계 */}
                 <div className="flex items-center gap-4">
                   <Label className="flex items-center gap-2 text-sm whitespace-nowrap">
@@ -1425,7 +1563,9 @@ export function MonsterDatasetViewer({
                   <div className="flex items-center gap-3 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground whitespace-nowrap">선택된 행:</span>
-                      <Badge variant="outline" className="bg-purple-100">{selectedRows.size}개</Badge>
+                      <Badge variant="outline" className="bg-purple-100">
+                        {selectedRows.size}개
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground whitespace-nowrap">총 가중치:</span>
@@ -1438,7 +1578,7 @@ export function MonsterDatasetViewer({
                   </div>
                 </div>
               </div>
-              
+
               {/* 선택된 행별 스폰 확률 표시 */}
               {selectedRows.size > 0 && (
                 <div className="border-t pt-3 space-y-2">
@@ -1446,23 +1586,31 @@ export function MonsterDatasetViewer({
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {Array.from(selectedRows)
                       .sort((a, b) => a - b)
-                      .map(idx => {
+                      .map((idx) => {
                         const row = dataset[idx];
                         const totalWeight = dataset
                           .filter((_, i) => selectedRows.has(i))
                           .reduce((sum, r) => sum + (r.monster_spawn_weight || 1), 0);
-                        const probability = totalWeight > 0 
-                          ? ((row.monster_spawn_weight || 1) / totalWeight * 100).toFixed(1)
-                          : 0;
-                        
+                        const probability =
+                          totalWeight > 0
+                            ? (((row.monster_spawn_weight || 1) / totalWeight) * 100).toFixed(1)
+                            : 0;
+
                         return (
-                          <div key={idx} className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border">
-                            <div 
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border"
+                          >
+                            <div
                               className="w-3 h-3 rounded border"
                               style={{ backgroundColor: row.monster_color || '#ff6b6b' }}
                             />
-                            <span className="truncate flex-1">{row.monster_name || `몬스터 ${idx}`}</span>
-                            <Badge variant="secondary" className="text-xs">{probability}%</Badge>
+                            <span className="truncate flex-1">
+                              {row.monster_name || `몬스터 ${idx}`}
+                            </span>
+                            <Badge variant="secondary" className="text-xs">
+                              {probability}%
+                            </Badge>
                           </div>
                         );
                       })}
@@ -1470,7 +1618,7 @@ export function MonsterDatasetViewer({
                 </div>
               )}
             </div>
-            
+
             {/* 데이터셋 테이블 */}
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto max-h-96">
@@ -1478,10 +1626,18 @@ export function MonsterDatasetViewer({
                   <thead>
                     {/* 첫 번째 행: 그룹 헤더 */}
                     <tr className="border-b bg-muted/50">
-                      <th className="text-center border-r p-1 text-xs bg-purple-50" rowSpan={2} style={{ width: columnWidths.select }}>
+                      <th
+                        className="text-center border-r p-1 text-xs bg-purple-50"
+                        rowSpan={2}
+                        style={{ width: columnWidths.select }}
+                      >
                         <div className="truncate">선택</div>
                       </th>
-                      <th className="text-center border-r p-1 text-xs" rowSpan={2} style={{ width: columnWidths.index }}>
+                      <th
+                        className="text-center border-r p-1 text-xs"
+                        rowSpan={2}
+                        style={{ width: columnWidths.index }}
+                      >
                         <div className="truncate">#</div>
                       </th>
                       <th className="text-center border-r p-1 text-xs bg-blue-50" colSpan={6}>
@@ -1496,89 +1652,153 @@ export function MonsterDatasetViewer({
                       <th className="text-center border-r p-1 text-xs bg-purple-50" colSpan={5}>
                         <div className="truncate">스킬 정보</div>
                       </th>
-                      <th className="text-center p-1 text-xs" rowSpan={2} style={{ width: columnWidths.delete }}>
+                      <th
+                        className="text-center p-1 text-xs"
+                        rowSpan={2}
+                        style={{ width: columnWidths.delete }}
+                      >
                         <div className="truncate">삭제</div>
                       </th>
                     </tr>
                     {/* 두 번째 행: 개별 컬럼 */}
                     <tr className="border-b bg-muted/50">
-                      <th className="relative text-center border-r p-2 bg-amber-50" style={{ width: columnWidths.weight }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-amber-50"
+                        style={{ width: columnWidths.weight }}
+                      >
                         <div className="truncate text-xs">가중치</div>
                         <ResizeHandle column="weight" />
                       </th>
-                      <th className="relative text-center border-r p-2 bg-green-50" style={{ width: columnWidths.monster_name }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-green-50"
+                        style={{ width: columnWidths.monster_name }}
+                      >
                         <div className="truncate text-xs">이름</div>
                         <ResizeHandle column="monster_name" />
                       </th>
-                      <th className="relative text-center border-r p-2 bg-pink-50" style={{ width: columnWidths.monster_color }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-pink-50"
+                        style={{ width: columnWidths.monster_color }}
+                      >
                         <div className="truncate text-xs">색상</div>
                         <ResizeHandle column="monster_color" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_attack_type }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_attack_type }}
+                      >
                         <div className="truncate">타입</div>
                         <ResizeHandle column="monster_attack_type" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_level }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_level }}
+                      >
                         <div className="truncate">LV</div>
                         <ResizeHandle column="monster_level" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_size }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_size }}
+                      >
                         <div className="truncate">크기</div>
                         <ResizeHandle column="monster_size" />
                       </th>
-                      <th className="relative text-center border-r p-2 bg-orange-50" style={{ width: columnWidths.monster_ai_patterns }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-orange-50"
+                        style={{ width: columnWidths.monster_ai_patterns }}
+                      >
                         <div className="truncate text-xs">AI 패턴</div>
                         <ResizeHandle column="monster_ai_patterns" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_hp }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_hp }}
+                      >
                         <div className="truncate">HP</div>
                         <ResizeHandle column="monster_hp" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_sp }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_sp }}
+                      >
                         <div className="truncate">SP</div>
                         <ResizeHandle column="monster_sp" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_speed }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_speed }}
+                      >
                         <div className="truncate">속도</div>
                         <ResizeHandle column="monster_speed" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_attack }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_attack }}
+                      >
                         <div className="truncate">공격력</div>
                         <ResizeHandle column="monster_attack" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_defense }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_defense }}
+                      >
                         <div className="truncate">방어력</div>
                         <ResizeHandle column="monster_defense" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_attack_speed }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_attack_speed }}
+                      >
                         <div className="truncate">공속</div>
                         <ResizeHandle column="monster_attack_speed" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_accuracy }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_accuracy }}
+                      >
                         <div className="truncate">명중</div>
                         <ResizeHandle column="monster_accuracy" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_critical_rate }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_critical_rate }}
+                      >
                         <div className="truncate">크리</div>
                         <ResizeHandle column="monster_critical_rate" />
                       </th>
-                      <th className="relative text-center border-r p-2 bg-purple-100" style={{ width: columnWidths.monster_basic_attack }}>
+                      <th
+                        className="relative text-center border-r p-2 bg-purple-100"
+                        style={{ width: columnWidths.monster_basic_attack }}
+                      >
                         <div className="truncate text-xs">기본 공격</div>
                         <ResizeHandle column="monster_basic_attack" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_skill_1 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_skill_1 }}
+                      >
                         <div className="truncate text-xs">스킬 1</div>
                         <ResizeHandle column="monster_skill_1" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_skill_2 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_skill_2 }}
+                      >
                         <div className="truncate text-xs">스킬 2</div>
                         <ResizeHandle column="monster_skill_2" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_skill_3 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_skill_3 }}
+                      >
                         <div className="truncate text-xs">스킬 3</div>
                         <ResizeHandle column="monster_skill_3" />
                       </th>
-                      <th className="relative text-center border-r p-2" style={{ width: columnWidths.monster_skill_4 }}>
+                      <th
+                        className="relative text-center border-r p-2"
+                        style={{ width: columnWidths.monster_skill_4 }}
+                      >
                         <div className="truncate text-xs">스킬 4</div>
                         <ResizeHandle column="monster_skill_4" />
                       </th>
@@ -1591,13 +1811,17 @@ export function MonsterDatasetViewer({
                         className={`border-b cursor-pointer transition-colors ${
                           selectedRows.has(index)
                             ? 'bg-purple-100 hover:bg-purple-150 border-purple-400 border-l-4'
-                            : index === currentTick 
-                              ? 'bg-red-200 hover:bg-red-250 border-red-400 border-l-4' 
+                            : index === currentTick
+                              ? 'bg-red-200 hover:bg-red-250 border-red-400 border-l-4'
                               : 'hover:bg-slate-50 border-l-4 border-transparent'
                         }`}
                         onClick={() => handleRowClick(index)}
                       >
-                        <td className="text-center border-r p-2" style={{ width: columnWidths.select }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="text-center border-r p-2"
+                          style={{ width: columnWidths.select }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <input
                             type="checkbox"
                             checked={selectedRows.has(index)}
@@ -1605,28 +1829,67 @@ export function MonsterDatasetViewer({
                             className="w-4 h-4 cursor-pointer"
                           />
                         </td>
-                        <td className="text-center border-r p-2" style={{ width: columnWidths.index }}>
+                        <td
+                          className="text-center border-r p-2"
+                          style={{ width: columnWidths.index }}
+                        >
                           <div className="truncate">{index}</div>
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.weight }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'monster_spawn_weight', row.monster_spawn_weight || 1)}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.weight }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'monster_spawn_weight',
+                            row.monster_spawn_weight || 1,
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_name }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_name }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderNameCell(index, row.monster_name || `몬스터 ${index}`)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_color }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_color }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderColorCell(index, row.monster_color || '#ff6b6b')}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_attack_type }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'monster_attack_type', row.monster_attack_type)}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_attack_type }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'monster_attack_type',
+                            row.monster_attack_type,
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_level }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_level }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_level', row.monster_level)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_size }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_size }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_size', row.monster_size)}
                         </td>
-                        <td className="border-r p-1 text-center" style={{ width: columnWidths.monster_ai_patterns }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1 text-center"
+                          style={{ width: columnWidths.monster_ai_patterns }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             size="sm"
                             variant="outline"
@@ -1640,46 +1903,115 @@ export function MonsterDatasetViewer({
                             <span className="text-xs">설정</span>
                           </Button>
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_hp }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_hp }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_hp', row.monster_hp)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_sp }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_sp }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_sp', row.monster_sp)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_speed }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_speed }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_speed', row.monster_speed)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_attack }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_attack }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_attack', row.monster_attack)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_defense }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_defense }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_defense', row.monster_defense)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_attack_speed }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'monster_attack_speed', row.monster_attack_speed)}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_attack_speed }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'monster_attack_speed',
+                            row.monster_attack_speed,
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_accuracy }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_accuracy }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_accuracy', row.monster_accuracy, '%')}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_critical_rate }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'monster_critical_rate', row.monster_critical_rate, '%')}
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_critical_rate }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'monster_critical_rate',
+                            row.monster_critical_rate,
+                            '%',
+                          )}
                         </td>
-                        <td className="border-r p-1 bg-purple-50" style={{ width: columnWidths.monster_basic_attack }} onClick={(e) => e.stopPropagation()}>
-                          {renderEditableCell(index, 'monster_basic_attack', row.monster_basic_attack_id)}
+                        <td
+                          className="border-r p-1 bg-purple-50"
+                          style={{ width: columnWidths.monster_basic_attack }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderEditableCell(
+                            index,
+                            'monster_basic_attack',
+                            row.monster_basic_attack_id,
+                          )}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_skill_1 }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_skill_1 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_skill_1', row.monster_skill_1_id)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_skill_2 }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_skill_2 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_skill_2', row.monster_skill_2_id)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_skill_3 }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_skill_3 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_skill_3', row.monster_skill_3_id)}
                         </td>
-                        <td className="border-r p-1" style={{ width: columnWidths.monster_skill_4 }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="border-r p-1"
+                          style={{ width: columnWidths.monster_skill_4 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           {renderEditableCell(index, 'monster_skill_4', row.monster_skill_4_id)}
                         </td>
-                        <td className="text-center p-1" style={{ width: columnWidths.delete }} onClick={(e) => e.stopPropagation()}>
+                        <td
+                          className="text-center p-1"
+                          style={{ width: columnWidths.delete }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1695,7 +2027,7 @@ export function MonsterDatasetViewer({
                 </table>
               </div>
             </div>
-            
+
             {/* Action buttons at bottom */}
             <div className="flex gap-2 mt-4">
               <Button
@@ -1706,11 +2038,7 @@ export function MonsterDatasetViewer({
                 <Download className="w-4 h-4 mr-2" />
                 선택한 행 불러오기 (행 {currentTick})
               </Button>
-              <Button
-                variant="outline"
-                onClick={handleAddRow}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={handleAddRow} className="flex-1">
                 <Plus className="w-4 h-4 mr-2" />
                 현재 설정 추가
               </Button>
@@ -1720,13 +2048,20 @@ export function MonsterDatasetViewer({
       </Card>
 
       {/* AI 패턴 편집 다이얼로그 */}
-      <Dialog open={editingAIPattern !== null} onOpenChange={(open) => !open && setEditingAIPattern(null)}>
+      <Dialog
+        open={editingAIPattern !== null}
+        onOpenChange={(open) => !open && setEditingAIPattern(null)}
+      >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>AI 패턴 설정</DialogTitle>
             <DialogDescription>
               {editingAIPattern && dataset[editingAIPattern.rowIndex] && (
-                <>몬스터: {dataset[editingAIPattern.rowIndex].monster_name || `몬스터 ${editingAIPattern.rowIndex}`}</>
+                <>
+                  몬스터:{' '}
+                  {dataset[editingAIPattern.rowIndex].monster_name ||
+                    `몬스터 ${editingAIPattern.rowIndex}`}
+                </>
               )}
             </DialogDescription>
           </DialogHeader>
@@ -1736,19 +2071,24 @@ export function MonsterDatasetViewer({
               onConfigChange={(newConfig) => {
                 setEditingAIPattern({
                   ...editingAIPattern,
-                  config: newConfig
+                  config: newConfig,
                 });
               }}
-              monsterTypeName={dataset[editingAIPattern.rowIndex]?.monster_name || `몬스터 ${editingAIPattern.rowIndex}`}
+              monsterTypeName={
+                dataset[editingAIPattern.rowIndex]?.monster_name ||
+                `몬스터 ${editingAIPattern.rowIndex}`
+              }
               skillConfigs={skillConfigs}
-              basicAttackId={dataset[editingAIPattern.rowIndex]?.monster_basic_attack_id || 'meleeBasic'}
+              basicAttackId={
+                dataset[editingAIPattern.rowIndex]?.monster_basic_attack_id || 'meleeBasic'
+              }
             />
           )}
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setEditingAIPattern(null)}>
               취소
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (editingAIPattern && editingAIPattern.config) {
                   handleSaveAIPattern(editingAIPattern.config);

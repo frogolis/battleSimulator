@@ -5,11 +5,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Play } from 'lucide-react';
-import { 
-  FormulaBlock, 
-  blockToExpression, 
-  generateBlockId,
-} from '../lib/formulaTypes';
+import { FormulaBlock, blockToExpression, generateBlockId } from '../lib/formulaTypes';
 
 interface StatFormulaBuilderProps {
   statName: string;
@@ -30,7 +26,7 @@ export function StatFormulaBuilder({
   const [multiplier, setMultiplier] = useState('1');
 
   const calculatePreview = (level: number, perLvl: number, mult: number) => {
-    return Math.floor(baseValue + (level * perLvl * mult));
+    return Math.floor(baseValue + level * perLvl * mult);
   };
 
   const applySimpleFormula = () => {
@@ -77,14 +73,10 @@ export function StatFormulaBuilder({
   return (
     <Card className="border-l-4" style={{ borderLeftColor: statColor }}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm flex items-center gap-2">
-          📊 {statName} 성장 공식
-        </CardTitle>
-        <CardDescription className="text-xs">
-          간단한 레벨 성장 공식을 설정하세요
-        </CardDescription>
+        <CardTitle className="text-sm flex items-center gap-2">📊 {statName} 성장 공식</CardTitle>
+        <CardDescription className="text-xs">간단한 레벨 성장 공식을 설정하세요</CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {/* 공식 입력 */}
         <div className="space-y-3">
@@ -150,13 +142,13 @@ export function StatFormulaBuilder({
             미리보기 (레벨 1-10)
           </Label>
           <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(level => {
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => {
               const value = calculatePreview(level, perLvl, mult);
               const prevValue = level > 1 ? calculatePreview(level - 1, perLvl, mult) : baseValue;
               const growth = value - prevValue;
-              
+
               return (
-                <div 
+                <div
                   key={level}
                   className="text-center p-2.5 bg-white border-2 border-slate-200 rounded-lg hover:border-purple-300 transition-colors"
                 >
@@ -165,9 +157,7 @@ export function StatFormulaBuilder({
                     {value}
                   </div>
                   {growth > 0 && (
-                    <div className="text-[10px] text-green-600 font-medium mt-0.5">
-                      +{growth}
-                    </div>
+                    <div className="text-[10px] text-green-600 font-medium mt-0.5">+{growth}</div>
                   )}
                 </div>
               );

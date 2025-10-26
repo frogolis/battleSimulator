@@ -2,10 +2,14 @@
  * 새로운 5가지 이펙트 타입을 위한 미리보기 캔버스
  */
 
-import React, { useEffect, useRef } from "react";
-import { EffectPreset } from "../../lib/skillSystem";
-import { createEffect, updateNewParticles, renderNewParticles } from "../../lib/simulator/particles";
-import { SkillParticle } from "../../lib/simulator/types";
+import React, { useEffect, useRef } from 'react';
+import { EffectPreset } from '../../lib/skillSystem';
+import {
+  createEffect,
+  updateNewParticles,
+  renderNewParticles,
+} from '../../lib/simulator/particles';
+import { SkillParticle } from '../../lib/simulator/types';
 
 interface EffectPreviewCanvasNewProps {
   preset: EffectPreset;
@@ -24,7 +28,7 @@ export function EffectPreviewCanvasNew({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let particles: SkillParticle[] = [];
@@ -55,18 +59,18 @@ export function EffectPreviewCanvasNew({
       lastTime = now;
 
       // 화면 클리어
-      ctx.fillStyle = "#0a0a0a";
+      ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // 중앙 마커 (이펙트 발생 위치)
-      ctx.fillStyle = "#4a5568";
+      ctx.fillStyle = '#4a5568';
       ctx.beginPath();
       ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
       ctx.fill();
 
       // 타겟 마커 (투사체/번개 타겟 위치)
       if (preset.effectType === 'projectile' || preset.effectType === 'lightning') {
-        ctx.fillStyle = "#ed8936";
+        ctx.fillStyle = '#ed8936';
         ctx.beginPath();
         ctx.arc(centerX + 200, centerY, 8, 0, Math.PI * 2);
         ctx.fill();
@@ -81,7 +85,7 @@ export function EffectPreviewCanvasNew({
       // 자동 재생성 (반복 간격)
       spawnTimer += deltaTime;
       const repeatInterval = (preset.repeatInterval || 1000) / 1000;
-      
+
       if (spawnTimer >= repeatInterval) {
         createEffectParticles();
         spawnTimer = 0;
@@ -92,7 +96,7 @@ export function EffectPreviewCanvasNew({
 
     // 초기 이펙트 생성
     createEffectParticles();
-    
+
     // 애니메이션 시작
     animate();
 

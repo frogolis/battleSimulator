@@ -14,65 +14,105 @@ import { CharacterTypeManager } from './components/CharacterTypeManager';
 import { Toaster } from './components/ui/sonner';
 import { DataRow, mockDataset } from './lib/mockData';
 import { toast } from 'sonner';
-import { defaultPlayerLevelConfig, defaultMonsterLevelConfig, LevelConfig } from './lib/levelSystem';
-import { getDefaultSkillSlots, SkillSlot, defaultSkills, Skill, getDefaultBasicAttackSlot, BasicAttackSlot } from './lib/skillSystem';
+import {
+  defaultPlayerLevelConfig,
+  defaultMonsterLevelConfig,
+  LevelConfig,
+} from './lib/levelSystem';
+import {
+  getDefaultSkillSlots,
+  SkillSlot,
+  defaultSkills,
+  Skill,
+  getDefaultBasicAttackSlot,
+  BasicAttackSlot,
+} from './lib/skillSystem';
 import { getDefaultItemSlots, ItemSlot } from './lib/itemSystem';
 import { CharacterType } from './lib/gameTypes';
 import { DEFAULT_CHARACTER_TYPES, CharacterTypeInfo } from './lib/characterTypes';
 import { updateDataRowWithLevel } from './lib/levelBasedStats';
-import { 
-  SidebarProvider, 
-  Sidebar, 
-  SidebarContent, 
-  SidebarGroup, 
-  SidebarGroupContent, 
-  SidebarGroupLabel, 
-  SidebarMenu, 
-  SidebarMenuButton, 
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
 } from './components/ui/sidebar';
-import { Gamepad2, Settings, Database, FileDown, Workflow, Users, Keyboard, UserCircle, TrendingUp, Zap, Package, ChevronRight, User, Skull, Sparkles } from 'lucide-react';
+import {
+  Gamepad2,
+  Settings,
+  Database,
+  FileDown,
+  Workflow,
+  Users,
+  Keyboard,
+  UserCircle,
+  TrendingUp,
+  Zap,
+  Package,
+  ChevronRight,
+  User,
+  Skull,
+  Sparkles,
+} from 'lucide-react';
 import { defaultAIPatternConfig } from './lib/monsterAI';
 import { GraphicsEffectEditor } from './components/GraphicsEffectEditor';
 import { GraphicsEffectEditorNew } from './components/GraphicsEffectEditorNew';
 
-type View = 'simulator' | 'settings-keys' | 'settings-player' | 'settings-monster' | 'settings-level' | 'settings-skills' | 'settings-items' | 'settings-graphics' | 'settings-effects' | 'export' | 'make';
+type View =
+  | 'simulator'
+  | 'settings-keys'
+  | 'settings-player'
+  | 'settings-monster'
+  | 'settings-level'
+  | 'settings-skills'
+  | 'settings-items'
+  | 'settings-graphics'
+  | 'settings-effects'
+  | 'export'
+  | 'make';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('simulator');
   const [currentTick, setCurrentTick] = useState(0);
   const [currentDataRow, setCurrentDataRow] = useState<DataRow | null>(mockDataset[0] || null);
   const [keyBindings, setKeyBindings] = useState<KeyBindings>(defaultBindings);
-  
+
   // Character types state
-  const [characterTypes, setCharacterTypes] = useState<CharacterTypeInfo[]>(DEFAULT_CHARACTER_TYPES);
-  
+  const [characterTypes, setCharacterTypes] =
+    useState<CharacterTypeInfo[]>(DEFAULT_CHARACTER_TYPES);
+
   // Level system state
   const [playerLevelConfig, setPlayerLevelConfig] = useState<LevelConfig>(defaultPlayerLevelConfig);
-  const [monsterLevelConfig, setMonsterLevelConfig] = useState<LevelConfig>(defaultMonsterLevelConfig);
-  
+  const [monsterLevelConfig, setMonsterLevelConfig] =
+    useState<LevelConfig>(defaultMonsterLevelConfig);
+
   // Skill system state
   const [playerBasicAttack, setPlayerBasicAttack] = useState<BasicAttackSlot>(
-    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId)
+    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId),
   );
   const [monsterBasicAttack, setMonsterBasicAttack] = useState<BasicAttackSlot>(
-    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId)
+    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId),
   );
   const [skillSlots, setSkillSlots] = useState<SkillSlot[]>(getDefaultSkillSlots());
   const [skillConfigs, setSkillConfigs] = useState<Record<string, Skill>>(defaultSkills);
-  
+
   // Item system state
   const [itemSlots, setItemSlots] = useState<ItemSlot[]>(getDefaultItemSlots());
-  
+
   // Projectile settings
   const [homingProjectiles, setHomingProjectiles] = useState<boolean>(false);
-  
+
   // Monster spawn settings
   const [maxMonsterCount, setMaxMonsterCount] = useState<number>(5);
   const [respawnDelay, setRespawnDelay] = useState<number>(2000);
-  
+
   // Monster type definitions (프리셋 기반)
   const [monsterTypeStats, setMonsterTypeStats] = useState<Record<string, MonsterTypeStats>>({
     warrior: {
@@ -92,27 +132,29 @@ export default function App() {
       aiPatternConfig: { ...defaultAIPatternConfig },
     },
   });
-  
+
   // Separate datasets for player and monster
   const [playerDataset, setPlayerDataset] = useState<DataRow[]>(
-    mockDataset.filter(row => row.player_size !== undefined)
+    mockDataset.filter((row) => row.player_size !== undefined),
   );
   const [monsterDataset, setMonsterDataset] = useState<DataRow[]>(
-    mockDataset.filter(row => row.monster_size !== undefined).map(row => {
-      // 기존 데이터에 AI 패턴이 없으면 기본 패턴 추가
-      if (!row.monster_ai_patterns) {
-        return {
-          ...row,
-          monster_ai_patterns: JSON.stringify(defaultAIPatternConfig),
-        };
-      }
-      return row;
-    })
+    mockDataset
+      .filter((row) => row.monster_size !== undefined)
+      .map((row) => {
+        // 기존 데이터에 AI 패턴이 없으면 기본 패턴 추가
+        if (!row.monster_ai_patterns) {
+          return {
+            ...row,
+            monster_ai_patterns: JSON.stringify(defaultAIPatternConfig),
+          };
+        }
+        return row;
+      }),
   );
-  
+
   // Monster row selection for multi-spawn (1:다 시뮬레이터)
   const [selectedMonsterRows, setSelectedMonsterRows] = useState<Set<number>>(new Set());
-  
+
   const [playerConfig, setPlayerConfig] = useState<CharacterConfig>({
     size: { min: 18, max: 22 },
     speed: { min: 140, max: 160 },
@@ -149,7 +191,7 @@ export default function App() {
   useEffect(() => {
     const playerRow = playerDataset[currentTick];
     const monsterRow = monsterDataset[currentTick];
-    
+
     // Merge player and monster data for the current tick
     if (playerRow || monsterRow) {
       const mergedRow = {
@@ -163,16 +205,16 @@ export default function App() {
   // 플레이어 레벨 설정(초기값/증가공식) 변경 시 모든 플레이어 데이터 재계산
   useEffect(() => {
     if (playerDataset.length === 0) return;
-    
-    const recalculatedDataset = playerDataset.map(row => {
+
+    const recalculatedDataset = playerDataset.map((row) => {
       if (row.player_level === undefined) return row;
       const level = row.player_level || 1;
       const size = row.player_size || 20;
       const typeId = row.player_attack_type;
-      const typeInfo = characterTypes.find(t => t.id === typeId);
+      const typeInfo = characterTypes.find((t) => t.id === typeId);
       return updateDataRowWithLevel(row, true, playerLevelConfig, level, size, typeInfo);
     });
-    
+
     setPlayerDataset(recalculatedDataset);
     toast.info(`🔄 플레이어 레벨 설정 변경 → ${playerDataset.length}개 행 재계산 완료`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -197,16 +239,16 @@ export default function App() {
   // 몬스터 레벨 설정(초기값/증가공식) 변경 시 모든 몬스터 데이터 재계산
   useEffect(() => {
     if (monsterDataset.length === 0) return;
-    
-    const recalculatedDataset = monsterDataset.map(row => {
+
+    const recalculatedDataset = monsterDataset.map((row) => {
       if (row.monster_level === undefined) return row;
       const level = row.monster_level || 1;
       const size = row.monster_size || 24;
       const typeId = row.monster_attack_type;
-      const typeInfo = characterTypes.find(t => t.id === typeId);
+      const typeInfo = characterTypes.find((t) => t.id === typeId);
       return updateDataRowWithLevel(row, false, monsterLevelConfig, level, size, typeInfo);
     });
-    
+
     setMonsterDataset(recalculatedDataset);
     toast.info(`🔄 몬스터 레벨 설정 변경 → ${monsterDataset.length}개 행 재계산 완료`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,144 +270,204 @@ export default function App() {
     monsterLevelConfig.speedGrowth.b,
   ]);
 
-  const handleApplyPlayerRow = useCallback((row: DataRow) => {
-    if (row.player_size !== undefined) {
-      // Update player level config if level is present in the row
-      if (row.player_level !== undefined) {
-        setPlayerLevelConfig(prev => ({
+  const handleApplyPlayerRow = useCallback(
+    (row: DataRow) => {
+      if (row.player_size !== undefined) {
+        // Update player level config if level is present in the row
+        if (row.player_level !== undefined) {
+          setPlayerLevelConfig((prev) => ({
+            ...prev,
+            currentLevel: row.player_level as number,
+          }));
+        }
+
+        setPlayerConfig((prev) => ({
           ...prev,
-          currentLevel: row.player_level as number,
+          size:
+            row.player_size !== undefined
+              ? { min: row.player_size, max: row.player_size }
+              : prev.size,
+          speed:
+            row.player_speed !== undefined
+              ? { min: row.player_speed, max: row.player_speed }
+              : prev.speed,
+          attack:
+            row.player_attack !== undefined
+              ? { min: row.player_attack, max: row.player_attack }
+              : prev.attack,
+          defense:
+            row.player_defense !== undefined
+              ? { min: row.player_defense, max: row.player_defense }
+              : prev.defense,
+          attackSpeed:
+            row.player_attack_speed !== undefined
+              ? { min: row.player_attack_speed, max: row.player_attack_speed }
+              : prev.attackSpeed,
+          accuracy:
+            row.player_accuracy !== undefined
+              ? { min: row.player_accuracy, max: row.player_accuracy }
+              : prev.accuracy,
+          criticalRate:
+            row.player_critical_rate !== undefined
+              ? { min: row.player_critical_rate, max: row.player_critical_rate }
+              : prev.criticalRate,
+          attackRange:
+            row.player_attack_range !== undefined
+              ? { min: row.player_attack_range, max: row.player_attack_range }
+              : prev.attackRange,
+          attackWidth:
+            row.player_attack_width !== undefined
+              ? { min: row.player_attack_width, max: row.player_attack_width }
+              : prev.attackWidth,
+          attackType: (row.player_attack_type as CharacterType) || prev.attackType,
         }));
-      }
-      
-      setPlayerConfig(prev => ({
-        ...prev,
-        size: row.player_size !== undefined ? { min: row.player_size, max: row.player_size } : prev.size,
-        speed: row.player_speed !== undefined ? { min: row.player_speed, max: row.player_speed } : prev.speed,
-        attack: row.player_attack !== undefined ? { min: row.player_attack, max: row.player_attack } : prev.attack,
-        defense: row.player_defense !== undefined ? { min: row.player_defense, max: row.player_defense } : prev.defense,
-        attackSpeed: row.player_attack_speed !== undefined ? { min: row.player_attack_speed, max: row.player_attack_speed } : prev.attackSpeed,
-        accuracy: row.player_accuracy !== undefined ? { min: row.player_accuracy, max: row.player_accuracy } : prev.accuracy,
-        criticalRate: row.player_critical_rate !== undefined ? { min: row.player_critical_rate, max: row.player_critical_rate } : prev.criticalRate,
-        attackRange: row.player_attack_range !== undefined ? { min: row.player_attack_range, max: row.player_attack_range } : prev.attackRange,
-        attackWidth: row.player_attack_width !== undefined ? { min: row.player_attack_width, max: row.player_attack_width } : prev.attackWidth,
-        attackType: (row.player_attack_type as CharacterType) || prev.attackType,
-      }));
-      
-      // 기본 공격 적용 (데이터셋의 range/width 파라미터 사용)
-      if (row.player_basic_attack_id) {
-        const basicAttackId = row.player_basic_attack_id as string;
-        const basicAttackSkill = skillConfigs[basicAttackId];
-        if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
-          const range = row.player_basic_attack_range as number;
-          const width = row.player_basic_attack_width as number;
-          const damage = row.player_basic_attack_damage as number;
-          const cooldown = row.player_basic_attack_cooldown as number;
-          const spCost = row.player_basic_attack_sp_cost as number;
-          const castTime = row.player_basic_attack_cast_time as number;
-          
-          setPlayerBasicAttack({
-            skill: basicAttackSkill,
-            keyBinding: 'click',
-            range: range !== undefined ? range : basicAttackSkill.range,
-            width: width !== undefined ? width : basicAttackSkill.area,
-            damage: damage !== undefined ? damage : basicAttackSkill.damageMultiplier,
-            cooldown: cooldown !== undefined ? cooldown : basicAttackSkill.cooldown,
-            spCost: spCost !== undefined ? spCost : basicAttackSkill.spCost,
-            castTime: castTime !== undefined ? castTime : basicAttackSkill.castTime,
-          });
+
+        // 기본 공격 적용 (데이터셋의 range/width 파라미터 사용)
+        if (row.player_basic_attack_id) {
+          const basicAttackId = row.player_basic_attack_id as string;
+          const basicAttackSkill = skillConfigs[basicAttackId];
+          if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
+            const range = row.player_basic_attack_range as number;
+            const width = row.player_basic_attack_width as number;
+            const damage = row.player_basic_attack_damage as number;
+            const cooldown = row.player_basic_attack_cooldown as number;
+            const spCost = row.player_basic_attack_sp_cost as number;
+            const castTime = row.player_basic_attack_cast_time as number;
+
+            setPlayerBasicAttack({
+              skill: basicAttackSkill,
+              keyBinding: 'click',
+              range: range !== undefined ? range : basicAttackSkill.range,
+              width: width !== undefined ? width : basicAttackSkill.area,
+              damage: damage !== undefined ? damage : basicAttackSkill.damageMultiplier,
+              cooldown: cooldown !== undefined ? cooldown : basicAttackSkill.cooldown,
+              spCost: spCost !== undefined ? spCost : basicAttackSkill.spCost,
+              castTime: castTime !== undefined ? castTime : basicAttackSkill.castTime,
+            });
+          }
+        }
+
+        // 스킬 슬롯 파라미터 적용
+        const newSkillSlots: SkillSlot[] = [];
+        for (let i = 1; i <= 4; i++) {
+          const skillId = row[`player_skill_${i}_id` as keyof DataRow] as string;
+          if (skillId && defaultSkills[skillId]) {
+            const baseSkill = defaultSkills[skillId];
+            const range = row[`player_skill_${i}_range` as keyof DataRow] as number;
+            const width = row[`player_skill_${i}_width` as keyof DataRow] as number;
+            const damage = row[`player_skill_${i}_damage` as keyof DataRow] as number;
+            const cooldown = row[`player_skill_${i}_cooldown` as keyof DataRow] as number;
+            const spCost = row[`player_skill_${i}_sp_cost` as keyof DataRow] as number;
+            const castTime = row[`player_skill_${i}_cast_time` as keyof DataRow] as number;
+
+            const customSkill: Skill = {
+              ...baseSkill,
+              range: range !== undefined ? range : baseSkill.range,
+              area: width !== undefined ? width : baseSkill.area,
+              damageMultiplier: damage !== undefined ? damage : baseSkill.damageMultiplier,
+              cooldown: cooldown !== undefined ? cooldown : baseSkill.cooldown,
+              spCost: spCost !== undefined ? spCost : baseSkill.spCost,
+              castTime: castTime !== undefined ? castTime : baseSkill.castTime,
+              currentCooldown: 0,
+              isOnCooldown: false,
+            };
+
+            newSkillSlots.push({
+              slotNumber: i as 1 | 2 | 3 | 4,
+              skill: customSkill,
+              keyBinding: i.toString(),
+            });
+          }
+        }
+
+        if (newSkillSlots.length > 0) {
+          setSkillSlots(newSkillSlots);
         }
       }
-      
-      // 스킬 슬롯 파라미터 적용
-      const newSkillSlots: SkillSlot[] = [];
-      for (let i = 1; i <= 4; i++) {
-        const skillId = row[`player_skill_${i}_id` as keyof DataRow] as string;
-        if (skillId && defaultSkills[skillId]) {
-          const baseSkill = defaultSkills[skillId];
-          const range = row[`player_skill_${i}_range` as keyof DataRow] as number;
-          const width = row[`player_skill_${i}_width` as keyof DataRow] as number;
-          const damage = row[`player_skill_${i}_damage` as keyof DataRow] as number;
-          const cooldown = row[`player_skill_${i}_cooldown` as keyof DataRow] as number;
-          const spCost = row[`player_skill_${i}_sp_cost` as keyof DataRow] as number;
-          const castTime = row[`player_skill_${i}_cast_time` as keyof DataRow] as number;
-          
-          const customSkill: Skill = {
-            ...baseSkill,
-            range: range !== undefined ? range : baseSkill.range,
-            area: width !== undefined ? width : baseSkill.area,
-            damageMultiplier: damage !== undefined ? damage : baseSkill.damageMultiplier,
-            cooldown: cooldown !== undefined ? cooldown : baseSkill.cooldown,
-            spCost: spCost !== undefined ? spCost : baseSkill.spCost,
-            castTime: castTime !== undefined ? castTime : baseSkill.castTime,
-            currentCooldown: 0,
-            isOnCooldown: false,
-          };
-          
-          newSkillSlots.push({
-            slotNumber: i as 1 | 2 | 3 | 4,
-            skill: customSkill,
-            keyBinding: i.toString(),
-          });
+    },
+    [skillConfigs],
+  );
+
+  const handleApplyMonsterRow = useCallback(
+    (row: DataRow) => {
+      if (row.monster_size !== undefined) {
+        // Update monster level config if level is present in the row
+        if (row.monster_level !== undefined) {
+          setMonsterLevelConfig((prev) => ({
+            ...prev,
+            currentLevel: row.monster_level as number,
+          }));
         }
-      }
-      
-      if (newSkillSlots.length > 0) {
-        setSkillSlots(newSkillSlots);
-      }
-    }
-  }, [skillConfigs]);
-  
-  const handleApplyMonsterRow = useCallback((row: DataRow) => {
-    if (row.monster_size !== undefined) {
-      // Update monster level config if level is present in the row
-      if (row.monster_level !== undefined) {
-        setMonsterLevelConfig(prev => ({
+
+        setMonsterConfig((prev) => ({
           ...prev,
-          currentLevel: row.monster_level as number,
+          size:
+            row.monster_size !== undefined
+              ? { min: row.monster_size, max: row.monster_size }
+              : prev.size,
+          speed:
+            row.monster_speed !== undefined
+              ? { min: row.monster_speed, max: row.monster_speed }
+              : prev.speed,
+          attack:
+            row.monster_attack !== undefined
+              ? { min: row.monster_attack, max: row.monster_attack }
+              : prev.attack,
+          defense:
+            row.monster_defense !== undefined
+              ? { min: row.monster_defense, max: row.monster_defense }
+              : prev.defense,
+          attackSpeed:
+            row.monster_attack_speed !== undefined
+              ? { min: row.monster_attack_speed, max: row.monster_speed }
+              : prev.attackSpeed,
+          accuracy:
+            row.monster_accuracy !== undefined
+              ? { min: row.monster_accuracy, max: row.monster_accuracy }
+              : prev.accuracy,
+          criticalRate:
+            row.monster_critical_rate !== undefined
+              ? { min: row.monster_critical_rate, max: row.monster_critical_rate }
+              : prev.criticalRate,
+          attackRange:
+            row.monster_attack_range !== undefined
+              ? { min: row.monster_attack_range, max: row.monster_attack_range }
+              : prev.attackRange,
+          attackWidth:
+            row.monster_attack_width !== undefined
+              ? { min: row.monster_attack_width, max: row.monster_attack_width }
+              : prev.attackWidth,
+          attackType: (row.monster_attack_type as CharacterType) || prev.attackType,
         }));
-      }
-      
-      setMonsterConfig(prev => ({
-        ...prev,
-        size: row.monster_size !== undefined ? { min: row.monster_size, max: row.monster_size } : prev.size,
-        speed: row.monster_speed !== undefined ? { min: row.monster_speed, max: row.monster_speed } : prev.speed,
-        attack: row.monster_attack !== undefined ? { min: row.monster_attack, max: row.monster_attack } : prev.attack,
-        defense: row.monster_defense !== undefined ? { min: row.monster_defense, max: row.monster_defense } : prev.defense,
-        attackSpeed: row.monster_attack_speed !== undefined ? { min: row.monster_attack_speed, max: row.monster_speed } : prev.attackSpeed,
-        accuracy: row.monster_accuracy !== undefined ? { min: row.monster_accuracy, max: row.monster_accuracy } : prev.accuracy,
-        criticalRate: row.monster_critical_rate !== undefined ? { min: row.monster_critical_rate, max: row.monster_critical_rate } : prev.criticalRate,
-        attackRange: row.monster_attack_range !== undefined ? { min: row.monster_attack_range, max: row.monster_attack_range } : prev.attackRange,
-        attackWidth: row.monster_attack_width !== undefined ? { min: row.monster_attack_width, max: row.monster_attack_width } : prev.attackWidth,
-        attackType: (row.monster_attack_type as CharacterType) || prev.attackType,
-      }));
-      
-      // 기본 공격 적용 (데이터셋의 range/width 파라미터 사용)
-      if (row.monster_basic_attack_id) {
-        const basicAttackId = row.monster_basic_attack_id as string;
-        const basicAttackSkill = skillConfigs[basicAttackId];
-        if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
-          const range = row.monster_basic_attack_range as number;
-          const width = row.monster_basic_attack_width as number;
-          const damage = row.monster_basic_attack_damage as number;
-          const cooldown = row.monster_basic_attack_cooldown as number;
-          const spCost = row.monster_basic_attack_sp_cost as number;
-          const castTime = row.monster_basic_attack_cast_time as number;
-          
-          setMonsterBasicAttack({
-            skill: basicAttackSkill,
-            keyBinding: 'auto',
-            range: range !== undefined ? range : basicAttackSkill.range,
-            width: width !== undefined ? width : basicAttackSkill.area,
-            damage: damage !== undefined ? damage : basicAttackSkill.damageMultiplier,
-            cooldown: cooldown !== undefined ? cooldown : basicAttackSkill.cooldown,
-            spCost: spCost !== undefined ? spCost : basicAttackSkill.spCost,
-            castTime: castTime !== undefined ? castTime : basicAttackSkill.castTime,
-          });
+
+        // 기본 공격 적용 (데이터셋의 range/width 파라미터 사용)
+        if (row.monster_basic_attack_id) {
+          const basicAttackId = row.monster_basic_attack_id as string;
+          const basicAttackSkill = skillConfigs[basicAttackId];
+          if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
+            const range = row.monster_basic_attack_range as number;
+            const width = row.monster_basic_attack_width as number;
+            const damage = row.monster_basic_attack_damage as number;
+            const cooldown = row.monster_basic_attack_cooldown as number;
+            const spCost = row.monster_basic_attack_sp_cost as number;
+            const castTime = row.monster_basic_attack_cast_time as number;
+
+            setMonsterBasicAttack({
+              skill: basicAttackSkill,
+              keyBinding: 'auto',
+              range: range !== undefined ? range : basicAttackSkill.range,
+              width: width !== undefined ? width : basicAttackSkill.area,
+              damage: damage !== undefined ? damage : basicAttackSkill.damageMultiplier,
+              cooldown: cooldown !== undefined ? cooldown : basicAttackSkill.cooldown,
+              spCost: spCost !== undefined ? spCost : basicAttackSkill.spCost,
+              castTime: castTime !== undefined ? castTime : basicAttackSkill.castTime,
+            });
+          }
         }
       }
-    }
-  }, [skillConfigs]);
+    },
+    [skillConfigs],
+  );
 
   // Apply current data row to configs and skills (only when tick changes, NOT when dataset changes)
   useEffect(() => {
@@ -373,7 +475,7 @@ export default function App() {
     // 데이터셋 내 값 변경 시에는 PlayerDatasetViewer/MonsterDatasetViewer의 onApplyRow로 처리
     const playerRow = playerDataset[currentTick];
     const monsterRow = monsterDataset[currentTick];
-    
+
     if (playerRow && playerRow.player_size !== undefined) {
       handleApplyPlayerRow(playerRow);
     }
@@ -385,9 +487,9 @@ export default function App() {
 
   const menuItems = [
     { id: 'simulator' as View, label: '시뮬레이터', icon: Gamepad2 },
-    { 
-      id: null, 
-      label: '시뮬레이터 설정', 
+    {
+      id: null,
+      label: '시뮬레이터 설정',
       icon: Settings,
       hasSubmenu: true,
       submenu: [
@@ -398,7 +500,7 @@ export default function App() {
         { id: 'settings-monster' as View, label: '몬스터 설정', icon: Skull },
         { id: 'settings-items' as View, label: '아이템 설정', icon: Package },
         { id: 'settings-keys' as View, label: '키 설정', icon: Keyboard },
-      ]
+      ],
     },
     { id: 'export' as View, label: '데이터 내보내기', icon: FileDown },
     { id: 'make' as View, label: 'Make 설정', icon: Workflow },
@@ -414,12 +516,10 @@ export default function App() {
             <SidebarHeader className="border-b border-sidebar-border p-4">
               <div className="space-y-1">
                 <h2 className="text-slate-900">게임 시뮬레이터</h2>
-                <p className="text-sm text-slate-600">
-                  스프레드시트 워크플로우
-                </p>
+                <p className="text-sm text-slate-600">스프레드시트 워크플로우</p>
               </div>
             </SidebarHeader>
-            
+
             <SidebarContent className="overflow-visible">
               <SidebarGroup>
                 <SidebarGroupLabel>메뉴</SidebarGroupLabel>
@@ -439,7 +539,7 @@ export default function App() {
                               <span>{item.label}</span>
                               <ChevronRight className="ml-auto h-3 w-3 transition-transform group-hover:rotate-90" />
                             </SidebarMenuButton>
-                            
+
                             {/* Submenu - shows on hover */}
                             <div className="absolute left-full top-0 ml-2 hidden w-60 rounded-lg border border-slate-200 bg-white shadow-xl group-hover:block z-[100]">
                               <div className="p-1.5">
@@ -448,7 +548,9 @@ export default function App() {
                                     key={subItem.id}
                                     onClick={() => setCurrentView(subItem.id)}
                                     className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all hover:bg-slate-100 ${
-                                      currentView === subItem.id ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-700'
+                                      currentView === subItem.id
+                                        ? 'bg-blue-50 text-blue-700 font-medium'
+                                        : 'text-slate-700'
                                     }`}
                                   >
                                     <span className="flex-1">{subItem.label}</span>
@@ -477,9 +579,7 @@ export default function App() {
             </SidebarContent>
 
             <SidebarFooter className="border-t border-sidebar-border p-4">
-              <p className="text-xs text-slate-500">
-                데이터셋 + 시각화 + 동기화
-              </p>
+              <p className="text-xs text-slate-500">데이터셋 + 시각화 + 동기화</p>
             </SidebarFooter>
           </Sidebar>
 
@@ -548,10 +648,7 @@ export default function App() {
               {/* Key Settings View */}
               {currentView === 'settings-keys' && (
                 <div className="max-w-4xl mx-auto">
-                  <KeyBindingSettings
-                    bindings={keyBindings}
-                    onBindingsChange={setKeyBindings}
-                  />
+                  <KeyBindingSettings bindings={keyBindings} onBindingsChange={setKeyBindings} />
                 </div>
               )}
 

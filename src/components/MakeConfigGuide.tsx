@@ -39,13 +39,17 @@ export function MakeConfigGuide() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <h4 className="text-green-900">Google Sheets - Watch Rows</h4>
-                    <p className="text-sm text-green-700">
-                      시트의 행 변경/추가를 감지합니다.
-                    </p>
+                    <p className="text-sm text-green-700">시트의 행 변경/추가를 감지합니다.</p>
                     <div className="bg-white p-3 rounded text-xs font-mono">
-                      <div>Spreadsheet ID: <span className="text-blue-600">YOUR_SHEET_ID</span></div>
-                      <div>Sheet Name: <span className="text-blue-600">Dataset</span></div>
-                      <div>Trigger: <span className="text-blue-600">On Update</span></div>
+                      <div>
+                        Spreadsheet ID: <span className="text-blue-600">YOUR_SHEET_ID</span>
+                      </div>
+                      <div>
+                        Sheet Name: <span className="text-blue-600">Dataset</span>
+                      </div>
+                      <div>
+                        Trigger: <span className="text-blue-600">On Update</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -60,7 +64,9 @@ export function MakeConfigGuide() {
                       여러 행이 동시에 변경된 경우, 한 건씩 처리합니다.
                     </p>
                     <div className="bg-white p-3 rounded text-xs font-mono">
-                      <div>Array: <span className="text-blue-600">{'{{1.values}}'}</span></div>
+                      <div>
+                        Array: <span className="text-blue-600">{'{{1.values}}'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -75,9 +81,18 @@ export function MakeConfigGuide() {
                       Figma 변수를 업데이트합니다. (아래 API 탭 참고)
                     </p>
                     <div className="bg-white p-3 rounded text-xs font-mono space-y-1">
-                      <div>Method: <Badge>POST</Badge></div>
-                      <div>URL: <span className="text-purple-600">https://api.figma.com/v1/files/FILE_KEY/variables</span></div>
-                      <div>Header: <span className="text-purple-600">X-Figma-Token: YOUR_TOKEN</span></div>
+                      <div>
+                        Method: <Badge>POST</Badge>
+                      </div>
+                      <div>
+                        URL:{' '}
+                        <span className="text-purple-600">
+                          https://api.figma.com/v1/files/FILE_KEY/variables
+                        </span>
+                      </div>
+                      <div>
+                        Header: <span className="text-purple-600">X-Figma-Token: YOUR_TOKEN</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -88,11 +103,11 @@ export function MakeConfigGuide() {
                   </div>
                   <div className="flex-1 space-y-2">
                     <h4 className="text-yellow-900">Sleep (Rate Limit 방지)</h4>
-                    <p className="text-sm text-yellow-700">
-                      API 호출 간격 조절 (200-500ms 권장)
-                    </p>
+                    <p className="text-sm text-yellow-700">API 호출 간격 조절 (200-500ms 권장)</p>
                     <div className="bg-white p-3 rounded text-xs font-mono">
-                      <div>Delay: <span className="text-yellow-600">300ms</span></div>
+                      <div>
+                        Delay: <span className="text-yellow-600">300ms</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -113,7 +128,9 @@ export function MakeConfigGuide() {
                   <h4 className="text-sm mb-2">HTTP Request 예시</h4>
                   <div className="bg-slate-900 text-slate-100 p-4 rounded-lg text-xs font-mono overflow-x-auto space-y-2">
                     <div className="text-blue-400">POST</div>
-                    <div className="text-green-400">https://api.figma.com/v1/files/{'<FILE_KEY>'}/variables</div>
+                    <div className="text-green-400">
+                      https://api.figma.com/v1/files/{'<FILE_KEY>'}/variables
+                    </div>
                     <div className="mt-3 text-slate-400">// Headers</div>
                     <div className="text-yellow-300">{`{
   "X-Figma-Token": "YOUR_PERSONAL_ACCESS_TOKEN",
@@ -255,43 +272,57 @@ export function MakeConfigGuide() {
                       <tbody className="divide-y">
                         <tr>
                           <td className="p-3 font-mono text-blue-600">vx</td>
-                          <td className="p-3"><Badge variant="outline">Number</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Number</Badge>
+                          </td>
                           <td className="p-3">200</td>
                           <td className="p-3">X 좌표</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-blue-600">vy</td>
-                          <td className="p-3"><Badge variant="outline">Number</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Number</Badge>
+                          </td>
                           <td className="p-3">200</td>
                           <td className="p-3">Y 좌표</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-red-600">vr_atk</td>
-                          <td className="p-3"><Badge variant="outline">Number</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Number</Badge>
+                          </td>
                           <td className="p-3">60</td>
                           <td className="p-3">공격 범위</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-purple-600">vr_skill</td>
-                          <td className="p-3"><Badge variant="outline">Number</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Number</Badge>
+                          </td>
                           <td className="p-3">30</td>
                           <td className="p-3">스킬 범위</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-yellow-600">v_attack</td>
-                          <td className="p-3"><Badge variant="outline">Boolean</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Boolean</Badge>
+                          </td>
                           <td className="p-3">false</td>
                           <td className="p-3">공격 상태</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-orange-600">v_crit</td>
-                          <td className="p-3"><Badge variant="outline">Boolean</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Boolean</Badge>
+                          </td>
                           <td className="p-3">false</td>
                           <td className="p-3">크리티컬</td>
                         </tr>
                         <tr>
                           <td className="p-3 font-mono text-slate-600">v_miss</td>
-                          <td className="p-3"><Badge variant="outline">Boolean</Badge></td>
+                          <td className="p-3">
+                            <Badge variant="outline">Boolean</Badge>
+                          </td>
                           <td className="p-3">false</td>
                           <td className="p-3">회피</td>
                         </tr>
@@ -307,8 +338,12 @@ export function MakeConfigGuide() {
                       <div className="text-sm mb-2">📍 캐릭터 프레임 (위치)</div>
                       <div className="text-xs space-y-1 font-mono text-slate-700">
                         <div>• Auto Layout 컨테이너 프레임 생성</div>
-                        <div>• Padding-left → <span className="text-blue-600">vx</span> 바인딩</div>
-                        <div>• Padding-top → <span className="text-blue-600">vy</span> 바인딩</div>
+                        <div>
+                          • Padding-left → <span className="text-blue-600">vx</span> 바인딩
+                        </div>
+                        <div>
+                          • Padding-top → <span className="text-blue-600">vy</span> 바인딩
+                        </div>
                         <div>• 내부에 점(Ellipse) 배치</div>
                       </div>
                     </div>
@@ -316,17 +351,27 @@ export function MakeConfigGuide() {
                     <div className="bg-slate-50 p-4 rounded-lg">
                       <div className="text-sm mb-2">🎯 공격 범위 (Circle)</div>
                       <div className="text-xs space-y-1 font-mono text-slate-700">
-                        <div>• Width → <span className="text-red-600">vr_atk * 2</span></div>
-                        <div>• Height → <span className="text-red-600">vr_atk * 2</span></div>
-                        <div>• Visible → <span className="text-yellow-600">v_attack</span></div>
+                        <div>
+                          • Width → <span className="text-red-600">vr_atk * 2</span>
+                        </div>
+                        <div>
+                          • Height → <span className="text-red-600">vr_atk * 2</span>
+                        </div>
+                        <div>
+                          • Visible → <span className="text-yellow-600">v_attack</span>
+                        </div>
                       </div>
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-lg">
                       <div className="text-sm mb-2">⚡ 상태 표시 (Fill Color)</div>
                       <div className="text-xs space-y-1 font-mono text-slate-700">
-                        <div>• Conditional: if <span className="text-orange-600">v_crit</span> → Red</div>
-                        <div>• Else if <span className="text-slate-600">v_miss</span> → Gray</div>
+                        <div>
+                          • Conditional: if <span className="text-orange-600">v_crit</span> → Red
+                        </div>
+                        <div>
+                          • Else if <span className="text-slate-600">v_miss</span> → Gray
+                        </div>
                         <div>• Else → Blue</div>
                       </div>
                     </div>
@@ -360,7 +405,8 @@ export function MakeConfigGuide() {
                 <AlertCircle className="w-4 h-4" />
                 <AlertTitle>주의사항</AlertTitle>
                 <AlertDescription>
-                  Figma 파일이 열려있는 상태에서 변수 업데이트가 반영됩니다. 팀/파일 권한과 토큰 scope를 확인하세요.
+                  Figma 파일이 열려있는 상태에서 변수 업데이트가 반영됩니다. 팀/파일 권한과 토큰
+                  scope를 확인하세요.
                 </AlertDescription>
               </Alert>
             </TabsContent>
@@ -395,7 +441,8 @@ export function MakeConfigGuide() {
 
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm text-blue-900">
-              <strong>권장:</strong> v1은 Google Sheets Sync로 프로토타입 → v2에서 Make로 실시간 동기화 구현
+              <strong>권장:</strong> v1은 Google Sheets Sync로 프로토타입 → v2에서 Make로 실시간
+              동기화 구현
             </p>
           </div>
         </CardContent>

@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from "react";
-import { EffectShape, ProjectileType, ParticleUpdateStrategy } from "../../lib/simulator/particles";
+import React, { useEffect, useRef } from 'react';
+import { EffectShape, ProjectileType, ParticleUpdateStrategy } from '../../lib/simulator/particles';
 
 interface TrailPoint {
   x: number;
@@ -60,7 +60,7 @@ export function EffectPreviewCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     let particles: any[] = [];
@@ -85,7 +85,7 @@ export function EffectPreviewCanvas({
         let vx = 0;
         let vy = 0;
 
-        if (config.particleStrategy === "projectile") {
+        if (config.particleStrategy === 'projectile') {
           vx = Math.cos(angle) * (config.projectileSpeed / 1000);
           vy = Math.sin(angle) * (config.projectileSpeed / 1000);
         }
@@ -116,11 +116,11 @@ export function EffectPreviewCanvas({
         spawnTimer = 0;
       }
 
-      ctx.fillStyle = "#1f2937";
+      ctx.fillStyle = '#1f2937';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // 그리드
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
       ctx.lineWidth = 1;
       for (let x = 0; x < canvas.width; x += 40) {
         ctx.beginPath();
@@ -136,7 +136,7 @@ export function EffectPreviewCanvas({
       }
 
       // 중심점
-      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.beginPath();
       ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, Math.PI * 2);
       ctx.fill();
@@ -149,9 +149,13 @@ export function EffectPreviewCanvas({
         for (let i = 0; i < config.ringCount; i++) {
           const offset = (i / config.ringCount) * 1000;
           const radius = ((time * config.ringSpeed + offset) % 300) + 20;
-          const alpha = 1 - (radius / 320);
+          const alpha = 1 - radius / 320;
 
-          ctx.strokeStyle = primaryColor + Math.floor(alpha * 100).toString(16).padStart(2, "0");
+          ctx.strokeStyle =
+            primaryColor +
+            Math.floor(alpha * 100)
+              .toString(16)
+              .padStart(2, '0');
           ctx.lineWidth = config.ringThickness;
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -165,17 +169,17 @@ export function EffectPreviewCanvas({
         if (p.life > p.maxLife) return false;
 
         if (config.rotationSpeed > 0 && p.angle !== undefined) {
-          p.angle += (config.rotationSpeed * Math.PI / 180) * deltaTime;
+          p.angle += ((config.rotationSpeed * Math.PI) / 180) * deltaTime;
         }
 
-        if (config.particleStrategy === "projectile") {
+        if (config.particleStrategy === 'projectile') {
           p.x += p.vx * deltaTime * 1000;
           p.y += p.vy * deltaTime * 1000;
         }
 
         let sizeMultiplier = 1;
         if (config.pulseSpeed > 0) {
-          sizeMultiplier = 1 + Math.sin(p.life / 100 * config.pulseSpeed) * 0.3;
+          sizeMultiplier = 1 + Math.sin((p.life / 100) * config.pulseSpeed) * 0.3;
         }
         const currentSize = p.size * sizeMultiplier;
 
@@ -192,8 +196,14 @@ export function EffectPreviewCanvas({
         }
 
         const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, currentSize);
-        gradient.addColorStop(0, primaryColor + Math.floor(alpha * 255).toString(16).padStart(2, "0"));
-        gradient.addColorStop(1, secondaryColor + "00");
+        gradient.addColorStop(
+          0,
+          primaryColor +
+            Math.floor(alpha * 255)
+              .toString(16)
+              .padStart(2, '0'),
+        );
+        gradient.addColorStop(1, secondaryColor + '00');
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -208,12 +218,17 @@ export function EffectPreviewCanvas({
       // 화면 플래시
       if (config.enableScreenFlash && particles.length > 0) {
         const flashCycle = (time * 3) % 2;
-        const flashAlpha = flashCycle < 1
-          ? flashCycle * config.flashIntensity
-          : (2 - flashCycle) * config.flashIntensity;
+        const flashAlpha =
+          flashCycle < 1
+            ? flashCycle * config.flashIntensity
+            : (2 - flashCycle) * config.flashIntensity;
 
         const normalizedFlashColor = normalizeHexColor(config.flashColor);
-        ctx.fillStyle = normalizedFlashColor + Math.floor(flashAlpha * 255).toString(16).padStart(2, "0");
+        ctx.fillStyle =
+          normalizedFlashColor +
+          Math.floor(flashAlpha * 255)
+            .toString(16)
+            .padStart(2, '0');
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 

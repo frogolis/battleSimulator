@@ -9,23 +9,23 @@ export interface CharacterTypeInfo {
   name: string;
   description: string;
   color: string;
-  
+
   // 프리셋 기본값
-  defaultLevel?: number;        // 기본 레벨
-  defaultSize?: number;          // 기본 크기
-  defaultSkillIds?: string[];    // 기본 스킬 ID 목록 (최대 4개)
+  defaultLevel?: number; // 기본 레벨
+  defaultSize?: number; // 기본 크기
+  defaultSkillIds?: string[]; // 기본 스킬 ID 목록 (최대 4개)
   defaultBasicAttackId?: string; // 기본 공격 스킬 ID
   defaultAIPattern?: AIPatternConfig; // 기본 AI 패턴 (몬스터용)
-  
+
   // 스탯 포뮬러 (레벨별 능력치 계산)
   statFormulas?: {
-    hpFormula?: string;           // HP 계산 포뮬러
-    spFormula?: string;           // SP 계산 포뮬러
-    attackFormula?: string;       // 공격력 계산 포뮬러
-    defenseFormula?: string;      // 방어력 계산 포뮬러
-    moveSpeedFormula?: string;    // 이동속도 계산 포뮬러
-    attackSpeedFormula?: string;  // 공격속도 계산 포뮬러
-    accuracyFormula?: string;     // 명중률 계산 포뮬러 (%)
+    hpFormula?: string; // HP 계산 포뮬러
+    spFormula?: string; // SP 계산 포뮬러
+    attackFormula?: string; // 공격력 계산 포뮬러
+    defenseFormula?: string; // 방어력 계산 포뮬러
+    moveSpeedFormula?: string; // 이동속도 계산 포뮬러
+    attackSpeedFormula?: string; // 공격속도 계산 포뮬러
+    accuracyFormula?: string; // 명중률 계산 포뮬러 (%)
     criticalRateFormula?: string; // 크리티컬 확률 계산 포뮬러 (%)
   };
 }
@@ -57,13 +57,13 @@ export const DEFAULT_CHARACTER_TYPES: CharacterTypeInfo[] = [
           action: 'attack',
           conditions: [{ type: 'distance', operator: '<', value: 100 }],
           enabled: true,
-          skillId: 'powerSlash'
+          skillId: 'powerSlash',
         },
         {
           action: 'chase',
           conditions: [],
-          enabled: true
-        }
+          enabled: true,
+        },
       ],
       aggroRange: 300,
       chaseMinDistance: 0,
@@ -94,18 +94,18 @@ export const DEFAULT_CHARACTER_TYPES: CharacterTypeInfo[] = [
           action: 'attack',
           conditions: [{ type: 'distance', operator: '>', value: 100 }],
           enabled: true,
-          skillId: 'powerSlash'
+          skillId: 'powerSlash',
         },
         {
           action: 'flee',
           conditions: [{ type: 'distance', operator: '<', value: 80 }],
-          enabled: true
+          enabled: true,
         },
         {
           action: 'chase',
           conditions: [],
-          enabled: true
-        }
+          enabled: true,
+        },
       ],
       aggroRange: 400,
       chaseMinDistance: 100,
@@ -136,18 +136,18 @@ export const DEFAULT_CHARACTER_TYPES: CharacterTypeInfo[] = [
           action: 'attack',
           conditions: [{ type: 'hp', operator: '>', value: 30 }],
           enabled: true,
-          skillId: 'whirlwind'
+          skillId: 'whirlwind',
         },
         {
           action: 'flee',
           conditions: [{ type: 'hp', operator: '<', value: 30 }],
-          enabled: true
+          enabled: true,
         },
         {
           action: 'chase',
           conditions: [],
-          enabled: true
-        }
+          enabled: true,
+        },
       ],
       aggroRange: 350,
       chaseMinDistance: 120,
@@ -156,10 +156,13 @@ export const DEFAULT_CHARACTER_TYPES: CharacterTypeInfo[] = [
 ];
 
 export function getCharacterTypeName(type: string, types: CharacterTypeInfo[]): string {
-  const typeInfo = types.find(t => t.id === type);
+  const typeInfo = types.find((t) => t.id === type);
   return typeInfo?.name || type;
 }
 
-export function getCharacterTypeInfo(type: string, types: CharacterTypeInfo[]): CharacterTypeInfo | undefined {
-  return types.find(t => t.id === type);
+export function getCharacterTypeInfo(
+  type: string,
+  types: CharacterTypeInfo[],
+): CharacterTypeInfo | undefined {
+  return types.find((t) => t.id === type);
 }

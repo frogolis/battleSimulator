@@ -1,9 +1,9 @@
-import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { ScrollArea } from "../ui/scroll-area";
-import { Sword, Target, Circle as CircleIcon, Sparkles, Zap } from "lucide-react";
-import { EFFECT_PRESETS } from "../../lib/skillSystem";
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
+import { Sword, Target, Circle as CircleIcon, Sparkles, Zap } from 'lucide-react';
+import { EFFECT_PRESETS } from '../../lib/skillSystem';
 
 interface EffectPresetLibraryProps {
   selectedPreset: string;
@@ -14,34 +14,22 @@ interface EffectPresetLibraryProps {
 const presetsByType = {
   projectile: [
     'projectile_arrow_single',
-    'projectile_arrow_multi', 
+    'projectile_arrow_multi',
     'projectile_fireball',
     'projectile_fireball_homing',
     'projectile_radial_burst',
     'projectile_cone_spread',
   ],
-  trail: [
-    'trail_slash',
-    'trail_thrust',
-    'trail_spin',
-  ],
-  lightning: [
-    'lightning_chain',
-    'lightning_strike',
-  ],
-  ring: [
-    'ring_single',
-    'ring_concentric',
-    'ring_explosion',
-  ],
-  glow: [
-    'glow_heal',
-    'glow_buff',
-    'glow_power',
-  ],
+  trail: ['trail_slash', 'trail_thrust', 'trail_spin'],
+  lightning: ['lightning_chain', 'lightning_strike'],
+  ring: ['ring_single', 'ring_concentric', 'ring_explosion'],
+  glow: ['glow_heal', 'glow_buff', 'glow_power'],
 };
 
-const effectTypeInfo: Record<string, { label: string; description: string; icon: React.ReactNode }> = {
+const effectTypeInfo: Record<
+  string,
+  { label: string; description: string; icon: React.ReactNode }
+> = {
   projectile: {
     label: '투사체 발사',
     description: '방향성/방사형으로 투사체를 발사하는 이펙트',
@@ -69,16 +57,13 @@ const effectTypeInfo: Record<string, { label: string; description: string; icon:
   },
 };
 
-export function EffectPresetLibrary({
-  selectedPreset,
-  onPresetSelect,
-}: EffectPresetLibraryProps) {
+export function EffectPresetLibrary({ selectedPreset, onPresetSelect }: EffectPresetLibraryProps) {
   return (
     <ScrollArea className="h-[500px] pr-4">
       <div className="space-y-6">
         {Object.entries(presetsByType).map(([effectType, presetKeys]) => {
           const typeInfo = effectTypeInfo[effectType];
-          
+
           return (
             <div key={effectType} className="space-y-3">
               <div className="flex items-start gap-3">
@@ -91,7 +76,7 @@ export function EffectPresetLibrary({
                   <p className="text-xs text-slate-400">{typeInfo.description}</p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 {presetKeys.map((presetKey) => {
                   const preset = EFFECT_PRESETS[presetKey];
@@ -153,9 +138,7 @@ export function EffectPresetLibrary({
                             ✨ {Math.round(preset.glowIntensity * 100)}%
                           </span>
                           {preset.projectileSpeed && (
-                            <span title="투사체 속도">
-                              🚀 {preset.projectileSpeed}
-                            </span>
+                            <span title="투사체 속도">🚀 {preset.projectileSpeed}</span>
                           )}
                         </div>
                       </CardHeader>

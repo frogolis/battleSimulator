@@ -30,7 +30,7 @@ export interface CharacterState {
   skillSwingStart: number | null;
   skillSwingAngle: number;
   skillSwingHit: Set<number>;
-  activeSkillType: "powerSlash" | "whirlwind" | null;
+  activeSkillType: 'powerSlash' | 'whirlwind' | null;
   activeSkillDamageMultiplier: number;
   playerScale: number;
   shakeOffset: Position;
@@ -55,7 +55,7 @@ export interface MonsterState {
   isAttacking: boolean;
   attackCooldown: number;
   isDead: boolean;
-  aiState: "CHASE" | "ATTACK" | "RETREAT";
+  aiState: 'CHASE' | 'ATTACK' | 'RETREAT';
   wanderTarget: Position | null; // 레거시 호환용
   wanderCooldown: number; // 레거시 호환용
   detectionRange: number; // 레거시 호환용 (항상 9999)
@@ -88,7 +88,7 @@ export interface Projectile {
   position: Position;
   velocity: Position;
   damage: number;
-  owner: "player" | "monster";
+  owner: 'player' | 'monster';
   size: number;
   startPosition: Position;
   travelDistance: number;
@@ -146,11 +146,11 @@ export interface SkillParticle {
   secondaryColor?: string;
   skillType?: string; // 스킬 타입 (glowIntensity 등을 위해)
   strategy?: ParticleUpdateStrategy; // 파티클 업데이트 전략 (레거시)
-  
+
   // 새로운 이펙트 시스템
   effectType?: EffectType; // 이펙트 타입
   texture?: ParticleTexture; // 파티클 텍스쳐
-  
+
   // 투사체 기능 (파티클이 투사체 역할을 할 때)
   damage?: number; // 데미지 (투사체일 때)
   owner?: 'player' | 'monster'; // 소유자 (투사체일 때)
@@ -161,22 +161,22 @@ export interface SkillParticle {
   targetId?: number; // 유도 타겟 ID
   isHoming?: boolean; // 유도 여부
   skillName?: string; // 스킬 이름 (데미지 텍스트 표시용)
-  
+
   // 궤적 트레일 기능
   trailHistory?: TrailPoint[]; // 이동 궤적 히스토리
   trailEnabled?: boolean; // 궤적 활성화 여부
   trailLength?: number; // 궤적 길이 (포인트 개수)
   trailWidth?: number; // 궤적 선 두께
-  
+
   // 번개 이펙트
   lightningSegments?: LightningSegment[]; // 번개 세그먼트
   lightningTarget?: Position; // 번개 타겟 위치
-  
+
   // 링 이펙트
   ringRadius?: number; // 링 반지름
   ringStartRadius?: number; // 링 시작 반지름
   ringExpansionSpeed?: number; // 확장 속도
-  
+
   // 글로우 이펙트
   glowIntensity?: number; // 글로우 강도
   riseSpeed?: number; // 상승 속도 (글로우 파티클용)
@@ -199,4 +199,4 @@ export interface TrailEffect {
 /**
  * 시뮬레이터 모드
  */
-export type SimulatorMode = "1v1" | "1vMany";
+export type SimulatorMode = '1v1' | '1vMany';

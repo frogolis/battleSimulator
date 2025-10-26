@@ -46,7 +46,7 @@ export interface LevelBasedStats {
   // 독립 변수
   level: number;
   size: number;
-  
+
   // 종속 변수 (레벨에 의해 계산됨)
   hp: number;
   sp: number;
@@ -62,44 +62,50 @@ export interface LevelBasedStats {
  * 타입별 포뮬러를 사용한 능력치 계산
  */
 export function calculateStatsWithFormula(
-  level: number, 
-  size: number, 
+  level: number,
+  size: number,
   levelConfig: LevelConfig,
   typeInfo?: CharacterTypeInfo,
-  isPlayer: boolean = true
+  isPlayer: boolean = true,
 ): LevelBasedStats {
   // 타입 정보가 있고 포뮬러가 설정되어 있으면 포뮬러 사용
   if (typeInfo?.statFormulas) {
     const formulas = typeInfo.statFormulas;
-    
+
     return {
       level,
       size,
-      hp: formulas.hpFormula 
+      hp: formulas.hpFormula
         ? evaluateFormula(formulas.hpFormula, level, size)
         : levelConfig.baseHp + (level - 1) * levelConfig.hpPerLevel,
-      sp: formulas.spFormula 
+      sp: formulas.spFormula
         ? evaluateFormula(formulas.spFormula, level, size)
         : levelConfig.baseSp + (level - 1) * levelConfig.spPerLevel,
-      speed: formulas.moveSpeedFormula 
+      speed: formulas.moveSpeedFormula
         ? evaluateFormula(formulas.moveSpeedFormula, level, size)
         : (isPlayer ? 150 : 60) + (level - 1) * (isPlayer ? 2 : 1),
-      attack: formulas.attackFormula 
+      attack: formulas.attackFormula
         ? evaluateFormula(formulas.attackFormula, level, size)
         : levelConfig.baseAttack + (level - 1) * levelConfig.attackPerLevel,
-      defense: formulas.defenseFormula 
+      defense: formulas.defenseFormula
         ? evaluateFormula(formulas.defenseFormula, level, size)
         : levelConfig.baseDefense + (level - 1) * levelConfig.defensePerLevel,
-      attackSpeed: formulas.attackSpeedFormula 
+      attackSpeed: formulas.attackSpeedFormula
         ? evaluateFormula(formulas.attackSpeedFormula, level, size)
         : (isPlayer ? 1.5 : 1.0) + (level - 1) * (isPlayer ? 0.02 : 0.01),
-      accuracy: Math.min(100, Math.round((isPlayer ? 85 : 75) + (level - 1) * (isPlayer ? 0.3 : 0.25))),
-      criticalRate: Math.min(100, Math.round((isPlayer ? 25 : 15) + (level - 1) * (isPlayer ? 0.5 : 0.3))),
+      accuracy: Math.min(
+        100,
+        Math.round((isPlayer ? 85 : 75) + (level - 1) * (isPlayer ? 0.3 : 0.25)),
+      ),
+      criticalRate: Math.min(
+        100,
+        Math.round((isPlayer ? 25 : 15) + (level - 1) * (isPlayer ? 0.5 : 0.3)),
+      ),
     };
   }
-  
+
   // 기본 계산 (타입 정보 없거나 포뮬러 없을 때)
-  return isPlayer 
+  return isPlayer
     ? calculatePlayerStatsDefault(level, size, levelConfig)
     : calculateMonsterStatsDefault(level, size, levelConfig);
 }
@@ -107,19 +113,23 @@ export function calculateStatsWithFormula(
 /**
  * 플레이어 레벨 기반 능력치 계산 (기본)
  */
-function calculatePlayerStatsDefault(level: number, size: number, levelConfig: LevelConfig): LevelBasedStats {
+function calculatePlayerStatsDefault(
+  level: number,
+  size: number,
+  levelConfig: LevelConfig,
+): LevelBasedStats {
   // 기본 스탯
   const baseSpeed = 150;
   const baseAttackSpeed = 1.5;
   const baseAccuracy = 85;
   const baseCriticalRate = 25;
-  
+
   // 레벨당 증가량
-  const speedPerLevel = 2;        // 레벨당 +2
+  const speedPerLevel = 2; // 레벨당 +2
   const attackSpeedPerLevel = 0.02; // 레벨당 +0.02
-  const accuracyPerLevel = 0.3;   // 레벨당 +0.3%
+  const accuracyPerLevel = 0.3; // 레벨당 +0.3%
   const criticalRatePerLevel = 0.5; // 레벨당 +0.5%
-  
+
   return {
     level,
     size,
@@ -137,26 +147,34 @@ function calculatePlayerStatsDefault(level: number, size: number, levelConfig: L
 /**
  * 플레이어 레벨 기반 능력치 계산 (레거시 - 하위 호환성)
  */
-export function calculatePlayerStats(level: number, size: number, levelConfig: LevelConfig): LevelBasedStats {
+export function calculatePlayerStats(
+  level: number,
+  size: number,
+  levelConfig: LevelConfig,
+): LevelBasedStats {
   return calculatePlayerStatsDefault(level, size, levelConfig);
 }
 
 /**
  * 몬스터 레벨 기반 능력치 계산 (기본)
  */
-function calculateMonsterStatsDefault(level: number, size: number, levelConfig: LevelConfig): LevelBasedStats {
+function calculateMonsterStatsDefault(
+  level: number,
+  size: number,
+  levelConfig: LevelConfig,
+): LevelBasedStats {
   // 기본 스탯
   const baseSpeed = 60;
   const baseAttackSpeed = 1.0;
   const baseAccuracy = 75;
   const baseCriticalRate = 15;
-  
+
   // 레벨당 증가량
-  const speedPerLevel = 1;        // 레벨당 +1
+  const speedPerLevel = 1; // 레벨당 +1
   const attackSpeedPerLevel = 0.01; // 레벨당 +0.01
-  const accuracyPerLevel = 0.25;  // 레벨당 +0.25%
+  const accuracyPerLevel = 0.25; // 레벨당 +0.25%
   const criticalRatePerLevel = 0.3; // 레벨당 +0.3%
-  
+
   return {
     level,
     size,
@@ -174,7 +192,11 @@ function calculateMonsterStatsDefault(level: number, size: number, levelConfig: 
 /**
  * 몬스터 레벨 기반 능력치 계산 (레거시 - 하위 호환성)
  */
-export function calculateMonsterStats(level: number, size: number, levelConfig: LevelConfig): LevelBasedStats {
+export function calculateMonsterStats(
+  level: number,
+  size: number,
+  levelConfig: LevelConfig,
+): LevelBasedStats {
   return calculateMonsterStatsDefault(level, size, levelConfig);
 }
 
@@ -187,14 +209,20 @@ export function updateDataRowWithLevel(
   levelConfig: LevelConfig,
   level?: number,
   size?: number,
-  typeInfo?: CharacterTypeInfo
+  typeInfo?: CharacterTypeInfo,
 ): any {
   const prefix = isPlayer ? 'player' : 'monster';
-  const currentLevel = level !== undefined ? level : (row[`${prefix}_level`] || 1);
-  const currentSize = size !== undefined ? size : (row[`${prefix}_size`] || (isPlayer ? 20 : 24));
-  
-  const stats = calculateStatsWithFormula(currentLevel, currentSize, levelConfig, typeInfo, isPlayer);
-  
+  const currentLevel = level !== undefined ? level : row[`${prefix}_level`] || 1;
+  const currentSize = size !== undefined ? size : row[`${prefix}_size`] || (isPlayer ? 20 : 24);
+
+  const stats = calculateStatsWithFormula(
+    currentLevel,
+    currentSize,
+    levelConfig,
+    typeInfo,
+    isPlayer,
+  );
+
   return {
     ...row,
     [`${prefix}_level`]: stats.level,

@@ -16,7 +16,7 @@ export function drawPlayer(
   player: CharacterState,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -60,7 +60,7 @@ export function drawMonster(
   monster: MonsterState,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): void {
   if (monster.isDead) return;
 
@@ -86,7 +86,7 @@ export function drawMonster(
   // 몬스터 원 그리기
   ctx.beginPath();
   ctx.arc(screenPos.x, screenPos.y, size, 0, Math.PI * 2);
-  ctx.fillStyle = monster.isAttacking ? '#dc2626' : (monster.color || '#ef4444');
+  ctx.fillStyle = monster.isAttacking ? '#dc2626' : monster.color || '#ef4444';
   ctx.fill();
   ctx.strokeStyle = '#991b1b';
   ctx.lineWidth = 2;
@@ -102,7 +102,7 @@ export function drawMonster(
     screenPos.x - hpBarWidth / 2,
     screenPos.y - size - 8 * scale,
     hpBarWidth,
-    hpBarHeight
+    hpBarHeight,
   );
 
   ctx.fillStyle = hpPercent > 0.5 ? '#10b981' : hpPercent > 0.2 ? '#f59e0b' : '#ef4444';
@@ -110,7 +110,7 @@ export function drawMonster(
     screenPos.x - hpBarWidth / 2,
     screenPos.y - size - 8 * scale,
     hpBarWidth * hpPercent,
-    hpBarHeight
+    hpBarHeight,
   );
 
   ctx.restore();
@@ -124,7 +124,7 @@ export function drawProjectile(
   projectile: Projectile,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -172,7 +172,7 @@ export function drawProjectile(
     0,
     screenPos.x,
     screenPos.y,
-    coreSize
+    coreSize,
   );
   coreGradient.addColorStop(0, baseColor);
   coreGradient.addColorStop(0.5, baseColor + 'cc');
@@ -188,16 +188,22 @@ export function drawProjectile(
     const spread = Math.PI / 3; // 60도 확산
     const particleAngle = angle + (Math.random() - 0.5) * spread;
     const distance = size * (0.5 + Math.random() * 1.5);
-    
+
     const px = screenPos.x + Math.cos(particleAngle) * distance;
     const py = screenPos.y + Math.sin(particleAngle) * distance;
-    
+
     const particleAlpha = 0.3 + Math.random() * 0.4;
-    
+
     const particleGradient = ctx.createRadialGradient(px, py, 0, px, py, particleSize);
-    particleGradient.addColorStop(0, baseColor + Math.floor(particleAlpha * 255).toString(16).padStart(2, '0'));
+    particleGradient.addColorStop(
+      0,
+      baseColor +
+        Math.floor(particleAlpha * 255)
+          .toString(16)
+          .padStart(2, '0'),
+    );
     particleGradient.addColorStop(1, baseColor + '00');
-    
+
     ctx.fillStyle = particleGradient;
     ctx.beginPath();
     ctx.arc(px, py, particleSize, 0, Math.PI * 2);
@@ -211,7 +217,7 @@ export function drawProjectile(
     coreSize,
     screenPos.x,
     screenPos.y,
-    size * 2.5
+    size * 2.5,
   );
   outerGlow.addColorStop(0, glowColor + '40');
   outerGlow.addColorStop(0.5, glowColor + '20');
@@ -232,7 +238,7 @@ export function drawParticle(
   particle: SkillParticle,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -269,7 +275,7 @@ export function drawParticle(
       0,
       screenPos.x,
       screenPos.y,
-      size * 2
+      size * 2,
     );
     gradient.addColorStop(0, `${particle.color}80`);
     gradient.addColorStop(1, 'transparent');
@@ -294,7 +300,7 @@ export function drawAttackRangeWithPhase(
   phase: 'idle' | 'windup' | 'execution' | 'recovery',
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean
+  testMode: boolean,
 ): void {
   let screenCenter: Position;
   let scale = 1;
@@ -338,13 +344,7 @@ export function drawAttackRangeWithPhase(
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.moveTo(screenCenter.x, screenCenter.y);
-  ctx.arc(
-    screenCenter.x,
-    screenCenter.y,
-    scaledRange,
-    angle - arc / 2,
-    angle + arc / 2
-  );
+  ctx.arc(screenCenter.x, screenCenter.y, scaledRange, angle - arc / 2, angle + arc / 2);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
@@ -357,7 +357,7 @@ export function clearCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  backgroundColor: string = '#0f172a'
+  backgroundColor: string = '#0f172a',
 ): void {
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
@@ -370,7 +370,7 @@ export function drawGrid(
   ctx: CanvasRenderingContext2D,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  gridSize: number = 100
+  gridSize: number = 100,
 ): void {
   const { canvasWidth, canvasHeight, zoom } = cameraConfig;
   const scaledGridSize = gridSize * zoom;

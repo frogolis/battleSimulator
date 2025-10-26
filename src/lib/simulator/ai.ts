@@ -22,10 +22,10 @@ export interface AIUpdateResult {
 function evaluateCondition(
   condition: PatternCondition,
   distanceToPlayer: number,
-  monsterHpPercent: number
+  monsterHpPercent: number,
 ): boolean {
   let value: number;
-  
+
   switch (condition.type) {
     case 'distance':
       value = distanceToPlayer;
@@ -61,7 +61,7 @@ function evaluateCondition(
 export function matchAIPattern(
   monster: MonsterState,
   player: CharacterState,
-  distanceToPlayer: number
+  distanceToPlayer: number,
 ): AIUpdateResult | null {
   const patterns = monster.aiPatternConfig?.patterns || [];
   const monsterHpPercent = monster.stats.hp / monster.stats.maxHp;
@@ -72,7 +72,7 @@ export function matchAIPattern(
 
     // 모든 조건이 만족되는지 확인
     const allConditionsMet = pattern.conditions.every((condition) =>
-      evaluateCondition(condition, distanceToPlayer, monsterHpPercent)
+      evaluateCondition(condition, distanceToPlayer, monsterHpPercent),
     );
 
     if (allConditionsMet) {
@@ -109,7 +109,7 @@ export function updateMonsterMovement(
   targetPos: Position,
   speed: number,
   deltaTime: number,
-  minDistance: number = 0
+  minDistance: number = 0,
 ): void {
   const dx = targetPos.x - monster.position.x;
   const dy = targetPos.y - monster.position.y;
@@ -136,7 +136,7 @@ export function updateMonsterRetreat(
   monster: MonsterState,
   playerPos: Position,
   speed: number,
-  deltaTime: number
+  deltaTime: number,
 ): void {
   const dx = monster.position.x - playerPos.x;
   const dy = monster.position.y - playerPos.y;
@@ -160,7 +160,7 @@ export function updateAIState(
   monster: MonsterState,
   player: CharacterState,
   distanceToPlayer: number,
-  monsterConfig: CharacterConfig
+  monsterConfig: CharacterConfig,
 ): void {
   const hpPercent = monster.stats.hp / monster.stats.maxHp;
   const attackRange = monster.basicAttack?.range || monsterConfig.attackRange;
@@ -206,11 +206,15 @@ export function updateAIState(
 export function selectSkillByPattern(
   monster: MonsterState,
   player: CharacterState,
-  distanceToPlayer: number
+  distanceToPlayer: number,
 ): number | null {
   const aiResult = matchAIPattern(monster, player, distanceToPlayer);
-  
-  if (aiResult && (aiResult.action === 'skill' || aiResult.action === 'attack') && aiResult.skillSlot) {
+
+  if (
+    aiResult &&
+    (aiResult.action === 'skill' || aiResult.action === 'attack') &&
+    aiResult.skillSlot
+  ) {
     return aiResult.skillSlot;
   }
 

@@ -18,17 +18,17 @@ interface DataExportImportProps {
   // Player config
   playerConfig: CharacterConfig;
   onPlayerConfigChange: (config: CharacterConfig) => void;
-  
+
   // Monster config
   monsterConfig: CharacterConfig;
   onMonsterConfigChange: (config: CharacterConfig) => void;
-  
+
   // Level configs
   playerLevelConfig: LevelConfig;
   onPlayerLevelConfigChange: (config: LevelConfig) => void;
   monsterLevelConfig: LevelConfig;
   onMonsterLevelConfigChange: (config: LevelConfig) => void;
-  
+
   // Skill system
   skillConfigs: Record<string, Skill>;
   onSkillConfigsChange: (configs: Record<string, Skill>) => void;
@@ -36,19 +36,19 @@ interface DataExportImportProps {
   onPlayerBasicAttackChange: (slot: BasicAttackSlot) => void;
   monsterBasicAttack: BasicAttackSlot;
   onMonsterBasicAttackChange: (slot: BasicAttackSlot) => void;
-  
+
   // Item system
   itemSlots: ItemSlot[];
   onItemSlotsChange: (slots: ItemSlot[]) => void;
-  
+
   // Character types
   characterTypes: CharacterTypeInfo[];
   onCharacterTypesChange: (types: CharacterTypeInfo[]) => void;
-  
+
   // Monster types
   monsterTypeStats: Record<string, MonsterTypeStats>;
   onMonsterTypeStatsChange: (stats: Record<string, MonsterTypeStats>) => void;
-  
+
   // Datasets
   playerDataset: DataRow[];
   onPlayerDatasetChange: (dataset: DataRow[]) => void;
@@ -92,143 +92,155 @@ export function DataExportImport({
       const workbook = XLSX.utils.book_new();
 
       // 1. Character Types Sheet
-      const characterTypesData = characterTypes.map(ct => ({
-        'ID': ct.id,
-        '이름': ct.name,
-        '설명': ct.description || '',
-        '색상': ct.color,
+      const characterTypesData = characterTypes.map((ct) => ({
+        ID: ct.id,
+        이름: ct.name,
+        설명: ct.description || '',
+        색상: ct.color,
       }));
       const wsCharacterTypes = XLSX.utils.json_to_sheet(characterTypesData);
       XLSX.utils.book_append_sheet(workbook, wsCharacterTypes, 'Character Types');
 
       // 2. Monster Types Sheet
       const monsterTypesData = Object.entries(monsterTypeStats).map(([id, stats]) => ({
-        'ID': id,
-        '캐릭터타입': stats.characterType,
-        '기본레벨': stats.baseLevel,
-        '크기': stats.size,
-        'AI패턴': stats.aiPattern,
-        '스킬': stats.skills.join(','),
+        ID: id,
+        캐릭터타입: stats.characterType,
+        기본레벨: stats.baseLevel,
+        크기: stats.size,
+        AI패턴: stats.aiPattern,
+        스킬: stats.skills.join(','),
       }));
       const wsMonsterTypes = XLSX.utils.json_to_sheet(monsterTypesData);
       XLSX.utils.book_append_sheet(workbook, wsMonsterTypes, 'Monster Types');
 
       // 3. Skills Sheet
       const skillsData = Object.entries(skillConfigs).map(([id, skill]) => ({
-        'ID': id,
-        '이름': skill.name,
-        '타입': skill.type,
-        '타겟': skill.target,
-        '쿨다운': skill.cooldown,
-        '시전시간': skill.castTime,
-        '공격력': skill.damage,
-        '크기': skill.size,
-        '지속시간': skill.duration,
-        '투사체속도': skill.projectileSpeed,
-        '유효거리': skill.range,
-        'X오프셋': skill.offsetX,
-        'Y오프셋': skill.offsetY,
-        '설명': skill.description || '',
-        '색상': skill.color,
+        ID: id,
+        이름: skill.name,
+        타입: skill.type,
+        타겟: skill.target,
+        쿨다운: skill.cooldown,
+        시전시간: skill.castTime,
+        공격력: skill.damage,
+        크기: skill.size,
+        지속시간: skill.duration,
+        투사체속도: skill.projectileSpeed,
+        유효거리: skill.range,
+        X오프셋: skill.offsetX,
+        Y오프셋: skill.offsetY,
+        설명: skill.description || '',
+        색상: skill.color,
       }));
       const wsSkills = XLSX.utils.json_to_sheet(skillsData);
       XLSX.utils.book_append_sheet(workbook, wsSkills, 'Skills');
 
       // 4. Items Sheet
-      const itemsData = itemSlots.map(item => ({
-        'ID': item.id,
-        '이름': item.name,
-        '타입': item.type,
-        '스탯타입': item.statType,
-        '값': item.value,
-        '설명': item.description || '',
+      const itemsData = itemSlots.map((item) => ({
+        ID: item.id,
+        이름: item.name,
+        타입: item.type,
+        스탯타입: item.statType,
+        값: item.value,
+        설명: item.description || '',
       }));
       const wsItems = XLSX.utils.json_to_sheet(itemsData);
       XLSX.utils.book_append_sheet(workbook, wsItems, 'Items');
 
       // 5. Player Dataset Sheet
-      const playerDatasetData = playerDataset.map(row => ({
-        'ID': row.id,
-        '캐릭터타입': row.characterType,
-        '레벨': row.level,
-        '장착아이템': row.equippedItems?.join(',') || '',
-        '스킬': row.skills?.join(',') || '',
+      const playerDatasetData = playerDataset.map((row) => ({
+        ID: row.id,
+        캐릭터타입: row.characterType,
+        레벨: row.level,
+        장착아이템: row.equippedItems?.join(',') || '',
+        스킬: row.skills?.join(',') || '',
       }));
       const wsPlayerDataset = XLSX.utils.json_to_sheet(playerDatasetData);
       XLSX.utils.book_append_sheet(workbook, wsPlayerDataset, 'Player Dataset');
 
       // 6. Monster Dataset Sheet
-      const monsterDatasetData = monsterDataset.map(row => ({
-        'ID': row.id,
-        '캐릭터타입': row.characterType,
-        '레벨': row.level,
-        '장착아이템': row.equippedItems?.join(',') || '',
-        '스킬': row.skills?.join(',') || '',
+      const monsterDatasetData = monsterDataset.map((row) => ({
+        ID: row.id,
+        캐릭터타입: row.characterType,
+        레벨: row.level,
+        장착아이템: row.equippedItems?.join(',') || '',
+        스킬: row.skills?.join(',') || '',
       }));
       const wsMonsterDataset = XLSX.utils.json_to_sheet(monsterDatasetData);
       XLSX.utils.book_append_sheet(workbook, wsMonsterDataset, 'Monster Dataset');
 
       // 7. Player Level Config Sheet
-      const playerLevelData = [{
-        '최대레벨': playerLevelConfig.maxLevel,
-        '기본경험치': playerLevelConfig.baseExpRequired,
-        '경험치증가율': playerLevelConfig.expGrowthRate,
-        '경험치증가타입': playerLevelConfig.expGrowthType,
-      }];
+      const playerLevelData = [
+        {
+          최대레벨: playerLevelConfig.maxLevel,
+          기본경험치: playerLevelConfig.baseExpRequired,
+          경험치증가율: playerLevelConfig.expGrowthRate,
+          경험치증가타입: playerLevelConfig.expGrowthType,
+        },
+      ];
       const wsPlayerLevel = XLSX.utils.json_to_sheet(playerLevelData);
       XLSX.utils.book_append_sheet(workbook, wsPlayerLevel, 'Player Level Config');
 
       // 8. Monster Level Config Sheet
-      const monsterLevelData = [{
-        '최대레벨': monsterLevelConfig.maxLevel,
-        '기본경험치': monsterLevelConfig.baseExpRequired,
-        '경험치증가율': monsterLevelConfig.expGrowthRate,
-        '경험치증가타입': monsterLevelConfig.expGrowthType,
-      }];
+      const monsterLevelData = [
+        {
+          최대레벨: monsterLevelConfig.maxLevel,
+          기본경험치: monsterLevelConfig.baseExpRequired,
+          경험치증가율: monsterLevelConfig.expGrowthRate,
+          경험치증가타입: monsterLevelConfig.expGrowthType,
+        },
+      ];
       const wsMonsterLevel = XLSX.utils.json_to_sheet(monsterLevelData);
       XLSX.utils.book_append_sheet(workbook, wsMonsterLevel, 'Monster Level Config');
 
       // 9. Player Basic Attack Sheet
-      const playerBasicAttackData = [{
-        'ID': playerBasicAttack.id,
-        '이름': playerBasicAttack.name,
-        '타입': playerBasicAttack.type,
-        '크기': playerBasicAttack.size,
-        '색상': playerBasicAttack.color,
-      }];
+      const playerBasicAttackData = [
+        {
+          ID: playerBasicAttack.id,
+          이름: playerBasicAttack.name,
+          타입: playerBasicAttack.type,
+          크기: playerBasicAttack.size,
+          색상: playerBasicAttack.color,
+        },
+      ];
       const wsPlayerBasicAttack = XLSX.utils.json_to_sheet(playerBasicAttackData);
       XLSX.utils.book_append_sheet(workbook, wsPlayerBasicAttack, 'Player Basic Attack');
 
       // 10. Monster Basic Attack Sheet
-      const monsterBasicAttackData = [{
-        'ID': monsterBasicAttack.id,
-        '이름': monsterBasicAttack.name,
-        '타입': monsterBasicAttack.type,
-        '크기': monsterBasicAttack.size,
-        '색상': monsterBasicAttack.color,
-      }];
+      const monsterBasicAttackData = [
+        {
+          ID: monsterBasicAttack.id,
+          이름: monsterBasicAttack.name,
+          타입: monsterBasicAttack.type,
+          크기: monsterBasicAttack.size,
+          색상: monsterBasicAttack.color,
+        },
+      ];
       const wsMonsterBasicAttack = XLSX.utils.json_to_sheet(monsterBasicAttackData);
       XLSX.utils.book_append_sheet(workbook, wsMonsterBasicAttack, 'Monster Basic Attack');
 
       // 11. Player Config Sheet
-      const playerConfigData = [{
-        'HP포뮬러': playerConfig.hpFormula,
-        '공격력포뮬러': playerConfig.attackFormula,
-        '방어력포뮬러': playerConfig.defenseFormula,
-        '이동속도포뮬러': playerConfig.moveSpeedFormula,
-        '공격속도포뮬러': playerConfig.attackSpeedFormula,
-      }];
+      const playerConfigData = [
+        {
+          HP포뮬러: playerConfig.hpFormula,
+          공격력포뮬러: playerConfig.attackFormula,
+          방어력포뮬러: playerConfig.defenseFormula,
+          이동속도포뮬러: playerConfig.moveSpeedFormula,
+          공격속도포뮬러: playerConfig.attackSpeedFormula,
+        },
+      ];
       const wsPlayerConfig = XLSX.utils.json_to_sheet(playerConfigData);
       XLSX.utils.book_append_sheet(workbook, wsPlayerConfig, 'Player Config');
 
       // 12. Monster Config Sheet
-      const monsterConfigData = [{
-        'HP포뮬러': monsterConfig.hpFormula,
-        '공격력포뮬러': monsterConfig.attackFormula,
-        '방어력포뮬러': monsterConfig.defenseFormula,
-        '이동속도포뮬러': monsterConfig.moveSpeedFormula,
-        '공격속도포뮬러': monsterConfig.attackSpeedFormula,
-      }];
+      const monsterConfigData = [
+        {
+          HP포뮬러: monsterConfig.hpFormula,
+          공격력포뮬러: monsterConfig.attackFormula,
+          방어력포뮬러: monsterConfig.defenseFormula,
+          이동속도포뮬러: monsterConfig.moveSpeedFormula,
+          공격속도포뮬러: monsterConfig.attackSpeedFormula,
+        },
+      ];
       const wsMonsterConfig = XLSX.utils.json_to_sheet(monsterConfigData);
       XLSX.utils.book_append_sheet(workbook, wsMonsterConfig, 'Monster Config');
 
@@ -258,7 +270,7 @@ export function DataExportImport({
         if (workbook.SheetNames.includes('Character Types')) {
           const sheet = workbook.Sheets['Character Types'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-          const types: CharacterTypeInfo[] = rows.map(row => ({
+          const types: CharacterTypeInfo[] = rows.map((row) => ({
             id: row['ID'],
             name: row['이름'],
             description: row['설명'] || '',
@@ -272,7 +284,7 @@ export function DataExportImport({
           const sheet = workbook.Sheets['Monster Types'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
           const types: Record<string, MonsterTypeStats> = {};
-          rows.forEach(row => {
+          rows.forEach((row) => {
             types[row['ID']] = {
               characterType: row['캐릭터타입'],
               baseLevel: row['기본레벨'],
@@ -289,7 +301,7 @@ export function DataExportImport({
           const sheet = workbook.Sheets['Skills'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
           const skills: Record<string, Skill> = {};
-          rows.forEach(row => {
+          rows.forEach((row) => {
             skills[row['ID']] = {
               id: row['ID'],
               name: row['이름'],
@@ -315,7 +327,7 @@ export function DataExportImport({
         if (workbook.SheetNames.includes('Items')) {
           const sheet = workbook.Sheets['Items'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-          const items: ItemSlot[] = rows.map(row => ({
+          const items: ItemSlot[] = rows.map((row) => ({
             id: row['ID'],
             name: row['이름'],
             type: row['타입'],
@@ -330,11 +342,13 @@ export function DataExportImport({
         if (workbook.SheetNames.includes('Player Dataset')) {
           const sheet = workbook.Sheets['Player Dataset'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-          const dataset: DataRow[] = rows.map(row => ({
+          const dataset: DataRow[] = rows.map((row) => ({
             id: row['ID'],
             characterType: row['캐릭터타입'],
             level: row['레벨'],
-            equippedItems: row['장착아이템'] ? row['장착아이템'].split(',').map((s: string) => s.trim()) : [],
+            equippedItems: row['장착아이템']
+              ? row['장착아이템'].split(',').map((s: string) => s.trim())
+              : [],
             skills: row['스킬'] ? row['스킬'].split(',').map((s: string) => s.trim()) : [],
           }));
           onPlayerDatasetChange(dataset);
@@ -344,11 +358,13 @@ export function DataExportImport({
         if (workbook.SheetNames.includes('Monster Dataset')) {
           const sheet = workbook.Sheets['Monster Dataset'];
           const rows: any[] = XLSX.utils.sheet_to_json(sheet);
-          const dataset: DataRow[] = rows.map(row => ({
+          const dataset: DataRow[] = rows.map((row) => ({
             id: row['ID'],
             characterType: row['캐릭터타입'],
             level: row['레벨'],
-            equippedItems: row['장착아이템'] ? row['장착아이템'].split(',').map((s: string) => s.trim()) : [],
+            equippedItems: row['장착아이템']
+              ? row['장착아이템'].split(',').map((s: string) => s.trim())
+              : [],
             skills: row['스킬'] ? row['스킬'].split(',').map((s: string) => s.trim()) : [],
           }));
           onMonsterDatasetChange(dataset);
@@ -454,7 +470,9 @@ export function DataExportImport({
       } catch (error) {
         console.error('Import error:', error);
         setUploadStatus('error');
-        setUploadMessage(`데이터 불러오기 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+        setUploadMessage(
+          `데이터 불러오기 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        );
         toast.error('데이터 불러오기에 실패했습니다.');
       }
     };
@@ -482,7 +500,8 @@ export function DataExportImport({
             데이터 내보내기/가져오기
           </CardTitle>
           <CardDescription>
-            게임 설정, 스킬, 아이템, 캐릭터 타입, 데이터셋 등 모든 데이터를 Excel 파일로 저장하거나 불러올 수 있습니다.
+            게임 설정, 스킬, 아이템, 캐릭터 타입, 데이터셋 등 모든 데이터를 Excel 파일로 저장하거나
+            불러올 수 있습니다.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -510,7 +529,7 @@ export function DataExportImport({
                 이전에 내보낸 Excel 파일을 업로드하여 데이터를 복원합니다.
               </p>
             </div>
-            
+
             <input
               ref={fileInputRef}
               type="file"
@@ -519,7 +538,7 @@ export function DataExportImport({
               className="hidden"
               id="file-upload"
             />
-            
+
             <Button
               onClick={() => fileInputRef.current?.click()}
               variant="outline"

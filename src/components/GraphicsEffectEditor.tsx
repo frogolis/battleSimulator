@@ -1,15 +1,15 @@
-import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { Sparkles, Eye, Layers, Settings } from "lucide-react";
-import { toast } from "sonner";
-import { EffectShape, ProjectileType, ParticleUpdateStrategy } from "../lib/simulator/particles";
-import { DETAILED_EFFECT_PRESETS } from "../lib/skillSystem";
-import { EffectPreviewCanvas } from "./graphics-effects/EffectPreviewCanvas";
-import { EffectPresetLibrary } from "./graphics-effects/EffectPresetLibrary";
-import { EffectHierarchyView } from "./graphics-effects/EffectHierarchyView";
-import { EffectDetailsPanel } from "./graphics-effects/EffectDetailsPanel";
-import { createInitialEffects } from "./graphics-effects/AdditionalEffectsPanel";
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Sparkles, Eye, Layers, Settings } from 'lucide-react';
+import { toast } from 'sonner';
+import { EffectShape, ProjectileType, ParticleUpdateStrategy } from '../lib/simulator/particles';
+import { DETAILED_EFFECT_PRESETS } from '../lib/skillSystem';
+import { EffectPreviewCanvas } from './graphics-effects/EffectPreviewCanvas';
+import { EffectPresetLibrary } from './graphics-effects/EffectPresetLibrary';
+import { EffectHierarchyView } from './graphics-effects/EffectHierarchyView';
+import { EffectDetailsPanel } from './graphics-effects/EffectDetailsPanel';
+import { createInitialEffects } from './graphics-effects/AdditionalEffectsPanel';
 
 export interface GraphicsEffectConfig {
   particleCount: number;
@@ -42,22 +42,22 @@ export interface GraphicsEffectConfig {
   flashColor: string;
   rotationSpeed: number;
   pulseSpeed: number;
-  effectPlaybackSpeed: number;    // 이펙트 전체 재생 속도
-  particlePlaybackSpeed: number;  // 개별 파티클 애니메이션 속도
-  trailEnabled: boolean;           // 궤적 활성화
-  trailLength: number;             // 궤적 길이
-  trailWidth: number;              // 궤적 두께
+  effectPlaybackSpeed: number; // 이펙트 전체 재생 속도
+  particlePlaybackSpeed: number; // 개별 파티클 애니메이션 속도
+  trailEnabled: boolean; // 궤적 활성화
+  trailLength: number; // 궤적 길이
+  trailWidth: number; // 궤적 두께
 }
 
 const DEFAULT_CONFIG: GraphicsEffectConfig = {
   particleCount: 30,
   particleSize: 6,
   particleLifetime: 800,
-  primaryColor: "#3b82f6",
-  secondaryColor: "#60a5fa",
+  primaryColor: '#3b82f6',
+  secondaryColor: '#60a5fa',
   glowIntensity: 0.6,
-  effectShape: "circle",
-  projectileType: "arrow",
+  effectShape: 'circle',
+  projectileType: 'arrow',
   projectileSpeed: 400,
   projectileSize: 10,
   homingEnabled: false,
@@ -65,7 +65,7 @@ const DEFAULT_CONFIG: GraphicsEffectConfig = {
   windupDuration: 200,
   executionDuration: 400,
   recoveryDuration: 200,
-  particleStrategy: "projectile",
+  particleStrategy: 'projectile',
   spawnDelay: 0,
   fadeInDuration: 100,
   fadeOutDuration: 200,
@@ -77,7 +77,7 @@ const DEFAULT_CONFIG: GraphicsEffectConfig = {
   ringThickness: 3,
   enableScreenFlash: false,
   flashIntensity: 0.3,
-  flashColor: "#ffffff",
+  flashColor: '#ffffff',
   rotationSpeed: 0,
   pulseSpeed: 0,
   effectPlaybackSpeed: 1.0,
@@ -103,11 +103,11 @@ export function GraphicsEffectEditor({
     ...initialConfig,
   });
 
-  const [activeTab, setActiveTab] = useState<string>("presets");
-  const [selectedPreset, setSelectedPreset] = useState<string>("");
-  
+  const [activeTab, setActiveTab] = useState<string>('presets');
+  const [selectedPreset, setSelectedPreset] = useState<string>('');
+
   const [additionalEffects, setAdditionalEffects] = useState(() => createInitialEffects(config));
-  
+
   const [openSections, setOpenSections] = useState({
     core: true,
     particle: true,
@@ -145,7 +145,7 @@ export function GraphicsEffectEditor({
       trailLength: preset.trailLength || 20,
       trailWidth: preset.trailWidth || 2,
     };
-    
+
     setConfig(newConfig);
     setSelectedPreset(presetKey);
     onConfigChange?.(newConfig);
@@ -154,7 +154,7 @@ export function GraphicsEffectEditor({
 
   // 추가 효과 토글
   const toggleAdditionalEffect = (effectId: string) => {
-    const effect = additionalEffects.find(e => e.id === effectId);
+    const effect = additionalEffects.find((e) => e.id === effectId);
     if (!effect) return;
 
     const newEnabled = !effect.enabled;
@@ -185,9 +185,9 @@ export function GraphicsEffectEditor({
     }
 
     updateConfig(updates);
-    
-    setAdditionalEffects(prev =>
-      prev.map(e => e.id === effectId ? { ...e, enabled: newEnabled } : e)
+
+    setAdditionalEffects((prev) =>
+      prev.map((e) => (e.id === effectId ? { ...e, enabled: newEnabled } : e)),
     );
   };
 
@@ -199,7 +199,7 @@ export function GraphicsEffectEditor({
 
   // 섹션 토글
   const toggleSection = (section: string) => {
-    setOpenSections(prev => ({ ...prev, [section]: !prev[section as keyof typeof prev] }));
+    setOpenSections((prev) => ({ ...prev, [section]: !prev[section as keyof typeof prev] }));
   };
 
   return (
@@ -209,9 +209,7 @@ export function GraphicsEffectEditor({
           <Sparkles className="h-5 w-5" />
           그래픽 효과 에디터
         </CardTitle>
-        <CardDescription>
-          시각 효과, 투사체, 애니메이션을 계층적으로 구성합니다
-        </CardDescription>
+        <CardDescription>시각 효과, 투사체, 애니메이션을 계층적으로 구성합니다</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* 프리뷰 캔버스 */}

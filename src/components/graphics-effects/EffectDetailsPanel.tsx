@@ -1,10 +1,10 @@
-import React from "react";
-import { Label } from "../ui/label";
-import { Slider } from "../ui/slider";
-import { Badge } from "../ui/badge";
-import { Separator } from "../ui/separator";
-import { ScrollArea } from "../ui/scroll-area";
-import { Zap } from "lucide-react";
+import React from 'react';
+import { Label } from '../ui/label';
+import { Slider } from '../ui/slider';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { ScrollArea } from '../ui/scroll-area';
+import { Zap } from 'lucide-react';
 
 interface GraphicsEffectConfig {
   windupDuration: number;
@@ -51,7 +51,7 @@ export function EffectDetailsPanel({
             <p className="text-xs text-slate-400 mb-3">
               이펙트 전체와 개별 파티클의 재생 속도를 독립적으로 조절할 수 있습니다.
             </p>
-            
+
             <div className="space-y-3">
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -65,9 +65,7 @@ export function EffectDetailsPanel({
                   max={3.0}
                   step={0.1}
                 />
-                <p className="text-xs text-slate-400">
-                  전체 이펙트의 생성/소멸 속도를 조절합니다
-                </p>
+                <p className="text-xs text-slate-400">전체 이펙트의 생성/소멸 속도를 조절합니다</p>
               </div>
 
               <div className="space-y-2">
@@ -97,7 +95,7 @@ export function EffectDetailsPanel({
             <Zap className="h-4 w-4" />
             애니메이션 타이밍
           </h3>
-          
+
           <div className="space-y-2">
             <div className="flex justify-between">
               <Label>준비 시간 (Windup)</Label>
@@ -181,7 +179,9 @@ export function EffectDetailsPanel({
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div className="p-2 bg-slate-800 rounded">
               <div className="text-slate-400">파티클</div>
-              <div>{config.particleCount}개 × {config.particleSize}px</div>
+              <div>
+                {config.particleCount}개 × {config.particleSize}px
+              </div>
             </div>
             <div className="p-2 bg-slate-800 rounded">
               <div className="text-slate-400">생존시간</div>
@@ -197,7 +197,7 @@ export function EffectDetailsPanel({
             </div>
             <div className="p-2 bg-slate-800 rounded">
               <div className="text-slate-400">활성 효과</div>
-              <div>{additionalEffects.filter(e => e.enabled).length}개</div>
+              <div>{additionalEffects.filter((e) => e.enabled).length}개</div>
             </div>
             <div className="p-2 bg-slate-800 rounded">
               <div className="text-slate-400">형태</div>
@@ -218,21 +218,27 @@ export function EffectDetailsPanel({
               </span>
             </div>
             <div className="w-full h-6 bg-slate-700 rounded overflow-hidden flex">
-              <div 
+              <div
                 className="bg-blue-500 flex items-center justify-center text-white"
-                style={{ width: `${(config.windupDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%` }}
+                style={{
+                  width: `${(config.windupDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%`,
+                }}
               >
                 {config.windupDuration > 0 && <span className="text-[10px]">준비</span>}
               </div>
-              <div 
+              <div
                 className="bg-green-500 flex items-center justify-center text-white"
-                style={{ width: `${(config.executionDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%` }}
+                style={{
+                  width: `${(config.executionDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%`,
+                }}
               >
                 <span className="text-[10px]">실행</span>
               </div>
-              <div 
+              <div
                 className="bg-yellow-500 flex items-center justify-center text-white"
-                style={{ width: `${(config.recoveryDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%` }}
+                style={{
+                  width: `${(config.recoveryDuration / (config.windupDuration + config.executionDuration + config.recoveryDuration)) * 100}%`,
+                }}
               >
                 {config.recoveryDuration > 0 && <span className="text-[10px]">회복</span>}
               </div>

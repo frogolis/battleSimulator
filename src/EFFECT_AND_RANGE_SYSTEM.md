@@ -1,19 +1,23 @@
 # 이펙트와 범위 시스템 통합 문서
 
 ## 문제점
+
 근접 공격 시 다음 3가지 시각적 요소가 서로 다른 범위를 표시하는 문제가 있었습니다:
-1. 범위 UI (파란색 부채꼴) 
+
+1. 범위 UI (파란색 부채꼴)
 2. 스윙 애니메이션 (빨간색 호)
 3. 궤적 이펙트
 
 ## 해결 방안
 
 ### 1. 스킬 범위(area) 값 통일
+
 모든 근접 공격 시각 효과는 스킬의 `area` 값(도 단위)을 기준으로 합니다.
 
 ### 2. 코드 위치
 
 #### A. 범위 UI
+
 - 파일: `/components/MultiMonsterSimulator.tsx`
 - 위치: 3936-3969줄 (근접 공격 미리보기)
 - 위치: 3874-3914줄 (원거리 공격 미리보기)
@@ -21,18 +25,20 @@
 - 계산: `meleeSwingArc = (attackWidth * Math.PI) / 180`
 
 #### B. 스윙 애니메이션
+
 - 파일: `/components/MultiMonsterSimulator.tsx`
 - 위치: 3740-3814줄 (근접 스윙 그리기)
 - 사용 값: `meleeWidth = basicAttack?.area`
 - 계산: `meleeSwingArc = (meleeWidth * Math.PI) / 180`
 
 #### C. 궤적 이펙트
+
 - 파일: `/lib/simulator/particles-new.ts`
 - 함수: `createTrailEffect()`
-- 파라미터: 
+- 파라미터:
   - `skillArea` (도 단위) - 호의 각도
   - `skillRange` (픽셀) - 호의 반지름
-- 계산: 
+- 계산:
   - `radius = skillRange` (스킬 사거리를 반지름으로 사용)
   - `arcAngle = skillArea * Math.PI / 180` (호 각도, slash 타입)
 
@@ -50,6 +56,7 @@
 ### 4. 수정 내역
 
 #### 수정 1: CreateEffectOptions에 skillArea 추가
+
 ```typescript
 // /lib/simulator/particles-new.ts
 export interface CreateEffectOptions {
@@ -59,19 +66,20 @@ export interface CreateEffectOptions {
 ```
 
 #### 수정 2: createTrailEffect에서 skillArea와 skillRange 사용
+
 ```typescript
 export function createTrailEffect(options: CreateEffectOptions): SkillParticle[] {
   const { preset, position, targetPosition, skillArea, skillRange } = options;
-  
+
   // 스킬 사거리를 우선 사용, 없으면 프리셋 값 사용
   const radius = skillRange || preset.trailLength || 80;
-  
+
   // slash 타입: skillArea 값을 호 각도로 사용, skillRange를 반지름으로 사용
   switch (trailType) {
     case 'slash': {
-      const arcAngle = skillArea 
-        ? (skillArea * Math.PI / 180) 
-        : (preset.trailArcAngle || Math.PI / 2.5);
+      const arcAngle = skillArea
+        ? (skillArea * Math.PI) / 180
+        : preset.trailArcAngle || Math.PI / 2.5;
       const startAngle = angle - arcAngle / 2;
       const currentAngle = startAngle + arcAngle * progress;
       // 반지름은 skillRange 사용
@@ -84,6 +92,7 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
 ```
 
 #### 수정 3: createSkillParticles에서 skillArea와 skillRange 전달
+
 ```typescript
 // /lib/simulator/particles.ts
 export function createSkillParticles(...): SkillParticle[] {
@@ -108,6 +117,7 @@ export function createSkillParticles(...): SkillParticle[] {
 ```
 
 #### 수정 4: CreateEffectOptions 인터페이스 업데이트
+
 ```typescript
 // /lib/simulator/particles-new.ts
 export interface CreateEffectOptions {
@@ -133,11 +143,13 @@ export interface CreateEffectOptions {
 **원인**: 궤적 이펙트가 프리셋의 `trailLength` 값을 반지름으로 사용하고 있었음
 
 **해결**:
+
 1. `CreateEffectOptions`에 `skillRange` 파라미터 추가
 2. `createTrailEffect`에서 `skillRange`를 반지름으로 우선 사용
 3. `createSkillParticles`에서 `skill.range` 전달
 
 **결과**:
+
 - 범위 UI와 궤적 이펙트가 동일한 반지름(`skill.range`) 사용
 - 범위 UI와 궤적 이펙트가 동일한 각도(`skill.area`) 사용
 - 스킬 설정에서 `range`와 `area`를 변경하면 모든 시각 요소가 일관되게 변경됨
