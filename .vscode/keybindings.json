@@ -1,0 +1,12 @@
+[
+  {
+    "key": "ctrl+shift+e",
+    "command": "eslint.restart",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "ctrl+shift+l",
+    "command": "eslint.executeAutofix",
+    "when": "editorTextFocus"
+  }
+]
