@@ -1,24 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
-import { Plus, Trash2, Move, BarChart3, TrendingUp } from 'lucide-react';
+/* eslint-disable react-hooks/exhaustive-deps */
+
+import { BarChart3, Move, Plus, Trash2, TrendingUp } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BezierSegment,
   ExpGrowthConfig,
   generateExpChartDataWithSegments,
 } from '../lib/levelSystem';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { ScrollArea } from './ui/scroll-area';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 
 interface ExpCurveEditorProps {
   config: ExpGrowthConfig;
   onChange: (config: ExpGrowthConfig) => void;
   maxLevel?: number;
 }
+
+const debugCurve = (..._args: unknown[]): void => {};
 
 export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,7 +68,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
     if (bezierSegments.length === 0) return 10000;
 
     // 모든 세그먼트의 endExp 중 최대값을 기준으로 함
-    const maxEndExp = Math.max(...bezierSegments.map((s) => s.endExp));
+    const maxEndExp = Math.max(...bezierSegments.map(s => s.endExp));
 
     // 여유 공간 30% 추가
     return Math.max(maxEndExp * 1.3, 1000);
@@ -250,7 +254,12 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
 
     updateCanvasWidth();
 
-    const resizeObserver = new ResizeObserver(updateCanvasWidth);
+    const ResizeObserverClass = globalThis.ResizeObserver;
+    if (!ResizeObserverClass) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserverClass(updateCanvasWidth);
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current);
     }
@@ -261,6 +270,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
   }, []);
 
   // Y축 최대값을 config에 초기화 (한 번만)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!config.yAxisMax && bezierSegments.length > 0) {
       onChange({
@@ -271,6 +281,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
   }, []);
 
   // 캔버스 업데이트
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     drawCanvas();
   }, [bezierSegments, selectedSegment, displayMaxLevel, currentMaxExp, canvasWidth]);
@@ -315,7 +326,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           setSelectedSegment(segment.id);
           dragInfoRef.current = { segmentId: segment.id, point: 'start' };
           setIsDragging(true);
-          console.log('드래그 시작: 시작점', segment.id);
+          debugCurve('드래그 시작: 시작점', segment.id);
           return;
         }
         // 종료점
@@ -323,7 +334,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           setSelectedSegment(segment.id);
           dragInfoRef.current = { segmentId: segment.id, point: 'end' };
           setIsDragging(true);
-          console.log('드래그 시작: 종료점', segment.id);
+          debugCurve('드래그 시작: 종료점', segment.id);
           return;
         }
         // 컨트롤 포인트
@@ -331,13 +342,13 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           if (Math.hypot(pos.x - x1, pos.y - y1) < 12) {
             dragInfoRef.current = { segmentId: segment.id, point: 'cp1' };
             setIsDragging(true);
-            console.log('드래그 시작: CP1', segment.id);
+            debugCurve('드래그 시작: CP1', segment.id);
             return;
           }
           if (Math.hypot(pos.x - x2, pos.y - y2) < 12) {
             dragInfoRef.current = { segmentId: segment.id, point: 'cp2' };
             setIsDragging(true);
-            console.log('드래그 시작: CP2', segment.id);
+            debugCurve('드래그 시작: CP2', segment.id);
             return;
           }
         }
@@ -357,14 +368,15 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           pos.y <= Math.max(y0, y3) + 30
         ) {
           setSelectedSegment(segment.id);
-          console.log('곡선 선택:', segment.id);
+          debugCurve('곡선 선택:', segment.id);
           return;
         }
       }
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      if (!dragInfoRef.current) return;
+      const dragInfo = dragInfoRef.current;
+      if (!dragInfo) return;
 
       const segments = config.bezierSegments || [];
       if (segments.length === 0) return;
@@ -372,36 +384,36 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
       const pos = getMousePos(e);
       const maxExp = currentMaxExp;
 
-      console.log('드래그 중:', dragInfoRef.current.point, pos);
+      debugCurve('드래그 중:', dragInfo.point, pos);
 
       // 변경이 필요한 세그먼트만 찾기
-      const targetIndex = segments.findIndex((s) => s.id === dragInfoRef.current!.segmentId);
+      const targetIndex = segments.findIndex(s => s.id === dragInfo.segmentId);
       if (targetIndex === -1) return;
 
       const segment = segments[targetIndex];
       const x0 = levelToX(segment.startLevel);
       const y0 = expToY(segment.startExp, maxExp);
       const x3 = levelToX(segment.endLevel);
-      const y3 = expToY(segment.endExp, maxExp);
+      const _y3 = expToY(segment.endExp, maxExp);
       const expRange = segment.endExp - segment.startExp;
 
       let updatedSegment: BezierSegment = segment;
 
-      if (dragInfoRef.current!.point === 'cp1') {
+      if (dragInfo.point === 'cp1') {
         const dx = x3 - x0;
         const newX = dx !== 0 ? Math.max(0, Math.min(1, (pos.x - x0) / dx)) : 0.33;
         const dy = (expRange * (CANVAS_HEIGHT - 2 * PADDING)) / maxExp;
         const newY = dy !== 0 ? Math.max(-0.5, Math.min(3, (y0 - pos.y) / dy)) : 0.25;
-        console.log('CP1 업데이트:', { x: newX, y: newY });
+        debugCurve('CP1 업데이트:', { x: newX, y: newY });
         updatedSegment = { ...segment, controlPoint1: { x: newX, y: newY } };
-      } else if (dragInfoRef.current!.point === 'cp2') {
+      } else if (dragInfo.point === 'cp2') {
         const dx = x3 - x0;
         const newX = dx !== 0 ? Math.max(0, Math.min(1, (pos.x - x0) / dx)) : 0.67;
         const dy = (expRange * (CANVAS_HEIGHT - 2 * PADDING)) / maxExp;
         const newY = dy !== 0 ? Math.max(-0.5, Math.min(3, (y0 - pos.y) / dy)) : 0.75;
-        console.log('CP2 업데이트:', { x: newX, y: newY });
+        debugCurve('CP2 업데이트:', { x: newX, y: newY });
         updatedSegment = { ...segment, controlPoint2: { x: newX, y: newY } };
-      } else if (dragInfoRef.current!.point === 'start') {
+      } else if (dragInfo.point === 'start') {
         let newLevel = Math.max(1, Math.min(segment.endLevel - 1, Math.round(xToLevel(pos.x))));
         let newExp = Math.max(0, yToExp(pos.y, maxExp));
 
@@ -418,16 +430,16 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           if (distance < snapThreshold) {
             newLevel = prevSegment.endLevel;
             newExp = prevSegment.endExp;
-            console.log('시작점 스냅:', { level: newLevel, exp: newExp });
+            debugCurve('시작점 스냅:', { level: newLevel, exp: newExp });
           }
         }
 
-        console.log('시작점 업데이트:', { level: newLevel, exp: newExp });
+        debugCurve('시작점 업데이트:', { level: newLevel, exp: newExp });
         updatedSegment = { ...segment, startLevel: newLevel, startExp: newExp };
-      } else if (dragInfoRef.current!.point === 'end') {
+      } else if (dragInfo.point === 'end') {
         let newLevel = Math.max(
           segment.startLevel + 1,
-          Math.min(displayMaxLevel, Math.round(xToLevel(pos.x))),
+          Math.min(displayMaxLevel, Math.round(xToLevel(pos.x)))
         );
         let newExp = Math.max(0, yToExp(pos.y, maxExp));
 
@@ -440,17 +452,17 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           const nextStartY = expToY(nextSegment.startExp, maxExp);
 
           const distance = Math.sqrt(
-            Math.pow(pos.x - nextStartX, 2) + Math.pow(pos.y - nextStartY, 2),
+            Math.pow(pos.x - nextStartX, 2) + Math.pow(pos.y - nextStartY, 2)
           );
 
           if (distance < snapThreshold) {
             newLevel = nextSegment.startLevel;
             newExp = nextSegment.startExp;
-            console.log('종료점 스냅:', { level: newLevel, exp: newExp });
+            debugCurve('종료점 스냅:', { level: newLevel, exp: newExp });
           }
         }
 
-        console.log('종료점 업데이트:', { level: newLevel, exp: newExp });
+        debugCurve('종료점 업데이트:', { level: newLevel, exp: newExp });
         updatedSegment = { ...segment, endLevel: newLevel, endExp: newExp };
       }
 
@@ -458,14 +470,14 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
       if (updatedSegment !== segment) {
         const updatedSegments = [...segments];
         updatedSegments[targetIndex] = updatedSegment;
-        console.log('onChange 호출');
+        debugCurve('onChange 호출');
         onChange({ ...config, bezierSegments: updatedSegments });
       }
     };
 
     const onMouseUp = () => {
       if (dragInfoRef.current) {
-        console.log('드래그 종료');
+        debugCurve('드래그 종료');
       }
       dragInfoRef.current = null;
       setIsDragging(false);
@@ -481,6 +493,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, onChange, selectedSegment, displayMaxLevel]);
 
   const addBezierSegment = () => {
@@ -520,7 +533,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
   const deleteSegment = (segmentId: string) => {
     onChange({
       ...config,
-      bezierSegments: bezierSegments.filter((s) => s.id !== segmentId),
+      bezierSegments: bezierSegments.filter(s => s.id !== segmentId),
     });
     if (selectedSegment === segmentId) {
       setSelectedSegment(null);
@@ -559,71 +572,71 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
     });
   };
 
-  const selectedSeg = bezierSegments.find((s) => s.id === selectedSegment);
+  const selectedSeg = bezierSegments.find(s => s.id === selectedSegment);
 
   return (
-    <div className="space-y-4" ref={containerRef}>
+    <div className='space-y-4' ref={containerRef}>
       {/* 캔버스 */}
-      <Card className="p-4">
-        <div className="mb-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Move className="w-4 h-4" />
+      <Card className='p-4'>
+        <div className='mb-3 space-y-3'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
+              <div className='flex items-center gap-2 text-xs text-slate-600'>
+                <Move className='w-4 h-4' />
                 <span>사각형(시작/종료)과 원형(컨트롤)을 드래그</span>
               </div>
               {isDragging && dragInfoRef.current && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant='secondary' className='text-xs'>
                   드래그 중: {dragInfoRef.current.point}
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className='flex items-center gap-2'>
               <Button
-                size="sm"
+                size='sm'
                 onClick={redistributeSegments}
                 disabled={bezierSegments.length === 0}
-                variant="outline"
-                className="h-8 text-xs"
+                variant='outline'
+                className='h-8 text-xs'
               >
                 최대 레벨 설정 적용
               </Button>
               <Button
-                size="sm"
+                size='sm'
                 onClick={addBezierSegment}
                 disabled={bezierSegments.length >= 10}
-                className="h-8 w-8 p-0"
+                className='h-8 w-8 p-0'
               >
-                <Plus className="w-4 h-4" />
+                <Plus className='w-4 h-4' />
               </Button>
             </div>
           </div>
 
           {/* 축 범위 설정 */}
           {bezierSegments.length > 0 && (
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center justify-between gap-4">
-                <Label className="text-xs">📊 그래프 축 설정</Label>
+            <div className='p-3 bg-slate-50 rounded-lg border border-slate-200'>
+              <div className='flex items-center justify-between gap-4'>
+                <Label className='text-xs'>📊 그래프 축 설정</Label>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-4">
+              <div className='mt-2 grid grid-cols-2 gap-4'>
                 {/* 최대 레벨 표시 */}
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-slate-600">최대 레벨</Label>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs px-3 py-1">
+                <div className='flex flex-col gap-1.5'>
+                  <Label className='text-xs text-slate-600'>최대 레벨</Label>
+                  <div className='flex items-center gap-2'>
+                    <Badge variant='outline' className='text-xs px-3 py-1'>
                       Lv.1 ~ Lv.{displayMaxLevel}
                     </Badge>
                   </div>
                 </div>
 
                 {/* 최대 경험치 설정 */}
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs text-slate-600">최대 경험치 요구량 (Y축)</Label>
-                  <div className="flex items-center gap-2">
+                <div className='flex flex-col gap-1.5'>
+                  <Label className='text-xs text-slate-600'>최대 경험치 요구량 (Y축)</Label>
+                  <div className='flex items-center gap-2'>
                     <Input
-                      type="number"
+                      type='number'
                       value={Math.floor(currentMaxExp)}
-                      onChange={(e) => {
+                      onChange={e => {
                         onChange({
                           ...config,
                           yAxisMax: parseInt(e.target.value) || 1000,
@@ -631,20 +644,20 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                       }}
                       min={1000}
                       step={1000}
-                      className="h-8 text-xs flex-1"
-                      placeholder="경험치 최대값"
+                      className='h-8 text-xs flex-1'
+                      placeholder='경험치 최대값'
                     />
                     <Button
-                      size="sm"
-                      variant="outline"
+                      size='sm'
+                      variant='outline'
                       onClick={() => {
                         onChange({
                           ...config,
                           yAxisMax: calculateAutoMaxExp(),
                         });
                       }}
-                      className="h-8 px-3 text-xs"
-                      title="자동 계산된 범위로 리셋"
+                      className='h-8 px-3 text-xs'
+                      title='자동 계산된 범위로 리셋'
                     >
                       자동
                     </Button>
@@ -655,12 +668,12 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
           )}
         </div>
 
-        <div className="relative w-full">
+        <div className='relative w-full'>
           <canvas
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
-            className="border rounded cursor-crosshair select-none bg-white"
+            className='border rounded cursor-crosshair select-none bg-white'
             style={{
               touchAction: 'none',
               userSelect: 'none',
@@ -674,37 +687,37 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
 
       {/* 선택된 구간 설정 */}
       {selectedSeg && (
-        <Card className="p-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">
-                  구간 {bezierSegments.findIndex((s) => s.id === selectedSeg.id) + 1}
+        <Card className='p-4'>
+          <div className='space-y-3'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <Badge variant='secondary'>
+                  구간 {bezierSegments.findIndex(s => s.id === selectedSeg.id) + 1}
                 </Badge>
-                <span className="text-xs text-slate-500">
+                <span className='text-xs text-slate-500'>
                   Lv.{selectedSeg.startLevel}~{selectedSeg.endLevel}
                 </span>
               </div>
               <Button
-                size="sm"
-                variant="ghost"
+                size='sm'
+                variant='ghost'
                 onClick={() => deleteSegment(selectedSeg.id)}
-                className="h-7 px-2 text-red-500 hover:bg-red-50"
+                className='h-7 px-2 text-red-500 hover:bg-red-50'
               >
-                <Trash2 className="w-3 h-3" />
+                <Trash2 className='w-3 h-3' />
               </Button>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-lg border space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-600">레벨 범위</Label>
+            <div className='bg-slate-50 p-3 rounded-lg border space-y-3'>
+              <div className='flex items-center justify-between'>
+                <Label className='text-xs text-slate-600'>레벨 범위</Label>
                 {(() => {
-                  const segIndex = bezierSegments.findIndex((s) => s.id === selectedSeg.id);
+                  const segIndex = bezierSegments.findIndex(s => s.id === selectedSeg.id);
                   if (segIndex > 0) {
                     const prevSeg = bezierSegments[segIndex - 1];
                     if (prevSeg.endLevel !== selectedSeg.startLevel) {
                       return (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant='destructive' className='text-xs'>
                           연속성 오류
                         </Badge>
                       );
@@ -713,56 +726,56 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                   return null;
                 })()}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='space-y-1'>
                   <Input
-                    type="number"
+                    type='number'
                     value={selectedSeg.startLevel}
-                    onChange={(e) => {
-                      const updated = bezierSegments.map((s) =>
+                    onChange={e => {
+                      const updated = bezierSegments.map(s =>
                         s.id === selectedSeg.id
                           ? { ...s, startLevel: parseInt(e.target.value) || 1 }
-                          : s,
+                          : s
                       );
                       onChange({ ...config, bezierSegments: updated });
                     }}
                     min={1}
                     max={displayMaxLevel}
-                    className="h-8"
+                    className='h-8'
                   />
-                  <span className="text-xs text-slate-500">시작 레벨</span>
+                  <span className='text-xs text-slate-500'>시작 레벨</span>
                 </div>
-                <div className="space-y-1">
+                <div className='space-y-1'>
                   <Input
-                    type="number"
+                    type='number'
                     value={selectedSeg.endLevel}
-                    onChange={(e) => {
-                      const updated = bezierSegments.map((s) =>
+                    onChange={e => {
+                      const updated = bezierSegments.map(s =>
                         s.id === selectedSeg.id
                           ? { ...s, endLevel: parseInt(e.target.value) || 1 }
-                          : s,
+                          : s
                       );
                       onChange({ ...config, bezierSegments: updated });
                     }}
                     min={selectedSeg.startLevel}
                     max={displayMaxLevel}
-                    className="h-8"
+                    className='h-8'
                   />
-                  <span className="text-xs text-slate-500">종료 레벨</span>
+                  <span className='text-xs text-slate-500'>종료 레벨</span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-3 rounded-lg border space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-600">경험치 범위</Label>
+            <div className='bg-slate-50 p-3 rounded-lg border space-y-3'>
+              <div className='flex items-center justify-between'>
+                <Label className='text-xs text-slate-600'>경험치 범위</Label>
                 {(() => {
-                  const segIndex = bezierSegments.findIndex((s) => s.id === selectedSeg.id);
+                  const segIndex = bezierSegments.findIndex(s => s.id === selectedSeg.id);
                   if (segIndex > 0) {
                     const prevSeg = bezierSegments[segIndex - 1];
                     if (Math.abs(prevSeg.endExp - selectedSeg.startExp) > 1) {
                       return (
-                        <Badge variant="destructive" className="text-xs">
+                        <Badge variant='destructive' className='text-xs'>
                           연속성 오류
                         </Badge>
                       );
@@ -771,40 +784,40 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                   return null;
                 })()}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='space-y-1'>
                   <Input
-                    type="number"
+                    type='number'
                     value={Math.floor(selectedSeg.startExp)}
-                    onChange={(e) => {
-                      const updated = bezierSegments.map((s) =>
+                    onChange={e => {
+                      const updated = bezierSegments.map(s =>
                         s.id === selectedSeg.id
                           ? { ...s, startExp: parseInt(e.target.value) || 0 }
-                          : s,
+                          : s
                       );
                       onChange({ ...config, bezierSegments: updated });
                     }}
                     min={0}
-                    className="h-8"
+                    className='h-8'
                   />
-                  <span className="text-xs text-slate-500">시작 경험치</span>
+                  <span className='text-xs text-slate-500'>시작 경험치</span>
                 </div>
-                <div className="space-y-1">
+                <div className='space-y-1'>
                   <Input
-                    type="number"
+                    type='number'
                     value={Math.floor(selectedSeg.endExp)}
-                    onChange={(e) => {
-                      const updated = bezierSegments.map((s) =>
+                    onChange={e => {
+                      const updated = bezierSegments.map(s =>
                         s.id === selectedSeg.id
                           ? { ...s, endExp: parseInt(e.target.value) || 0 }
-                          : s,
+                          : s
                       );
                       onChange({ ...config, bezierSegments: updated });
                     }}
                     min={selectedSeg.startExp}
-                    className="h-8"
+                    className='h-8'
                   />
-                  <span className="text-xs text-slate-500">종료 경험치</span>
+                  <span className='text-xs text-slate-500'>종료 경험치</span>
                 </div>
               </div>
             </div>
@@ -815,47 +828,47 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
       {/* 경험치 테이블 */}
       {bezierSegments.length > 0 && (
         <Card>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="exp-table">
-              <AccordionTrigger className="px-4 hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm">레벨별 경험치 테이블</span>
-                  <Badge variant="secondary" className="ml-2">
+          <Accordion type='single' collapsible className='w-full'>
+            <AccordionItem value='exp-table'>
+              <AccordionTrigger className='px-4 hover:no-underline'>
+                <div className='flex items-center gap-2'>
+                  <BarChart3 className='w-5 h-5 text-purple-600' />
+                  <span className='text-sm'>레벨별 경험치 테이블</span>
+                  <Badge variant='secondary' className='ml-2'>
                     Lv.1 ~ Lv.{displayMaxLevel}
                   </Badge>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <div className="space-y-3">
+              <AccordionContent className='px-4 pb-4'>
+                <div className='space-y-3'>
                   {/* 통계 요약 */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className='grid grid-cols-4 gap-3'>
                     {(() => {
                       const expData = generateExpChartDataWithSegments(config, 1, displayMaxLevel);
                       const totalExp = expData.reduce((sum, d) => sum + d.exp, 0);
                       const avgExp = Math.floor(totalExp / expData.length);
-                      const maxExpPerLevel = Math.max(...expData.map((d) => d.exp));
+                      const maxExpPerLevel = Math.max(...expData.map(d => d.exp));
                       const finalCumulativeExp = expData[expData.length - 1]?.cumulativeExp || 0;
 
                       return (
                         <>
-                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
-                            <div className="text-xs text-blue-600">총 레벨 수</div>
-                            <div className="text-lg text-blue-900">{displayMaxLevel}</div>
+                          <div className='bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200'>
+                            <div className='text-xs text-blue-600'>총 레벨 수</div>
+                            <div className='text-lg text-blue-900'>{displayMaxLevel}</div>
                           </div>
-                          <div className="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200">
-                            <div className="text-xs text-green-600">평균 필요 EXP</div>
-                            <div className="text-lg text-green-900">{avgExp.toLocaleString()}</div>
+                          <div className='bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-lg border border-green-200'>
+                            <div className='text-xs text-green-600'>평균 필요 EXP</div>
+                            <div className='text-lg text-green-900'>{avgExp.toLocaleString()}</div>
                           </div>
-                          <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200">
-                            <div className="text-xs text-orange-600">최대 필요 EXP</div>
-                            <div className="text-lg text-orange-900">
+                          <div className='bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-lg border border-orange-200'>
+                            <div className='text-xs text-orange-600'>최대 필요 EXP</div>
+                            <div className='text-lg text-orange-900'>
                               {maxExpPerLevel.toLocaleString()}
                             </div>
                           </div>
-                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200">
-                            <div className="text-xs text-purple-600">누적 총 EXP</div>
-                            <div className="text-lg text-purple-900">
+                          <div className='bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-lg border border-purple-200'>
+                            <div className='text-xs text-purple-600'>누적 총 EXP</div>
+                            <div className='text-lg text-purple-900'>
                               {finalCumulativeExp.toLocaleString()}
                             </div>
                           </div>
@@ -865,15 +878,15 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                   </div>
 
                   {/* 경험치 테이블 */}
-                  <ScrollArea className="h-[400px] rounded-lg border">
+                  <ScrollArea className='h-[400px] rounded-lg border'>
                     <Table>
-                      <TableHeader className="sticky top-0 bg-white z-10">
+                      <TableHeader className='sticky top-0 bg-white z-10'>
                         <TableRow>
-                          <TableHead className="w-20 text-center">레벨</TableHead>
-                          <TableHead className="text-right">필요 경험치</TableHead>
-                          <TableHead className="text-right">증가량</TableHead>
-                          <TableHead className="text-right">누적 경험치</TableHead>
-                          <TableHead className="w-24 text-center">구간</TableHead>
+                          <TableHead className='w-20 text-center'>레벨</TableHead>
+                          <TableHead className='text-right'>필요 경험치</TableHead>
+                          <TableHead className='text-right'>증가량</TableHead>
+                          <TableHead className='text-right'>누적 경험치</TableHead>
+                          <TableHead className='w-24 text-center'>구간</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -881,7 +894,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                           const expData = generateExpChartDataWithSegments(
                             config,
                             1,
-                            displayMaxLevel,
+                            displayMaxLevel
                           );
                           return expData.map((data, index) => {
                             const prevExp = index > 0 ? expData[index - 1].exp : 0;
@@ -890,7 +903,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                               prevExp > 0 ? ((growth / prevExp) * 100).toFixed(1) : '0.0';
 
                             const segment = bezierSegments.find(
-                              (s) => data.level >= s.startLevel && data.level <= s.endLevel,
+                              s => data.level >= s.startLevel && data.level <= s.endLevel
                             );
                             const segmentIndex = segment
                               ? bezierSegments.indexOf(segment) + 1
@@ -906,41 +919,41 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
                                   hover:bg-slate-50
                                 `}
                               >
-                                <TableCell className="text-center">
+                                <TableCell className='text-center'>
                                   <Badge variant={data.level % 10 === 0 ? 'default' : 'outline'}>
                                     Lv.{data.level}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-right font-mono">
+                                <TableCell className='text-right font-mono'>
                                   {isUndefined ? '-' : data.exp.toLocaleString()}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className='text-right'>
                                   {isUndefined ? (
-                                    <span className="text-slate-400 text-xs">-</span>
+                                    <span className='text-slate-400 text-xs'>-</span>
                                   ) : growth > 0 ? (
-                                    <div className="flex items-center justify-end gap-1">
-                                      <TrendingUp className="w-3 h-3 text-green-600" />
-                                      <span className="text-green-600 text-xs">
+                                    <div className='flex items-center justify-end gap-1'>
+                                      <TrendingUp className='w-3 h-3 text-green-600' />
+                                      <span className='text-green-600 text-xs'>
                                         +{growth.toLocaleString()}
                                       </span>
-                                      <span className="text-xs text-slate-400">
+                                      <span className='text-xs text-slate-400'>
                                         ({growthPercent}%)
                                       </span>
                                     </div>
                                   ) : (
-                                    <span className="text-slate-400 text-xs">-</span>
+                                    <span className='text-slate-400 text-xs'>-</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-slate-600">
+                                <TableCell className='text-right font-mono text-slate-600'>
                                   {isUndefined ? '-' : data.cumulativeExp.toLocaleString()}
                                 </TableCell>
-                                <TableCell className="text-center">
+                                <TableCell className='text-center'>
                                   {segmentIndex ? (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge variant='secondary' className='text-xs'>
                                       #{segmentIndex}
                                     </Badge>
                                   ) : (
-                                    <span className="text-slate-400 text-xs">-</span>
+                                    <span className='text-slate-400 text-xs'>-</span>
                                   )}
                                 </TableCell>
                               </TableRow>

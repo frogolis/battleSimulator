@@ -1,15 +1,11 @@
+import { Calculator, Plus, Trash2, Users, Zap } from 'lucide-react';
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Plus, Trash2, Users, Calculator, Zap } from 'lucide-react';
-import { CharacterTypeInfo } from '../lib/characterTypes';
 import { toast } from 'sonner';
+import { CharacterTypeInfo } from '../lib/characterTypes';
 import { defaultSkills } from '../lib/skillSystem';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +14,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Separator } from './ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface CharacterTypeManagerProps {
   characterTypes: CharacterTypeInfo[];
@@ -45,7 +45,7 @@ export function CharacterTypeManager({
   onCharacterTypesChange,
 }: CharacterTypeManagerProps) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(
-    characterTypes[0]?.id || null,
+    characterTypes[0]?.id || null
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newType, setNewType] = useState<Partial<CharacterTypeInfo>>({
@@ -55,7 +55,7 @@ export function CharacterTypeManager({
     color: 'text-gray-600',
   });
 
-  const selectedType = characterTypes.find((t) => t.id === selectedTypeId);
+  const selectedType = characterTypes.find(t => t.id === selectedTypeId);
 
   // 포뮬러 미리보기 함수
   const evaluateFormulaPreview = (formula: string | undefined, level: number): string => {
@@ -83,7 +83,7 @@ export function CharacterTypeManager({
       return typeof result === 'number' && !isNaN(result)
         ? String(Math.round(result * 10) / 10)
         : '오류';
-    } catch (error) {
+    } catch {
       return '오류';
     }
   };
@@ -94,21 +94,24 @@ export function CharacterTypeManager({
       return;
     }
 
+    const typeId = newType.id;
+    const typeName = newType.name;
+
     // ID 중복 체크
-    if (characterTypes.some((t) => t.id === newType.id)) {
+    if (characterTypes.some(t => t.id === typeId)) {
       toast.error('이미 존재하는 ID입니다.');
       return;
     }
 
     // ID 유효성 체크 (영문, 숫자, 언더스코어만 허용)
-    if (!/^[a-z0-9_]+$/.test(newType.id)) {
+    if (!/^[a-z0-9_]+$/.test(typeId)) {
       toast.error('ID는 영문 소문자, 숫자, 언더스코어(_)만 사용 가능합니다.');
       return;
     }
 
     const newCharacterType: CharacterTypeInfo = {
-      id: newType.id!,
-      name: newType.name!,
+      id: typeId,
+      name: typeName,
       description: newType.description || '',
       color: newType.color || 'text-gray-600',
       defaultLevel: 1,
@@ -144,11 +147,11 @@ export function CharacterTypeManager({
       return;
     }
 
-    onCharacterTypesChange(characterTypes.filter((t) => t.id !== id));
+    onCharacterTypesChange(characterTypes.filter(t => t.id !== id));
 
     // 선택된 타입이 삭제되면 첫 번째 타입 선택
     if (selectedTypeId === id) {
-      const remainingTypes = characterTypes.filter((t) => t.id !== id);
+      const remainingTypes = characterTypes.filter(t => t.id !== id);
       setSelectedTypeId(remainingTypes[0]?.id || null);
     }
 
@@ -159,7 +162,7 @@ export function CharacterTypeManager({
     if (!selectedTypeId) return;
 
     onCharacterTypesChange(
-      characterTypes.map((t) => (t.id === selectedTypeId ? { ...t, ...updates } : t)),
+      characterTypes.map(t => (t.id === selectedTypeId ? { ...t, ...updates } : t))
     );
   };
 
@@ -179,7 +182,7 @@ export function CharacterTypeManager({
 
     const currentSkills = selectedType.defaultSkillIds || [];
     const newSkills = currentSkills.includes(skillId)
-      ? currentSkills.filter((id) => id !== skillId)
+      ? currentSkills.filter(id => id !== skillId)
       : [...currentSkills, skillId];
 
     handleUpdateType({ defaultSkillIds: newSkills });
@@ -192,28 +195,28 @@ export function CharacterTypeManager({
   }));
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* 타입 목록 카드 */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className='flex items-center justify-between'>
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <Users className='w-5 h-5' />
                 캐릭터 타입 관리
               </CardTitle>
               <CardDescription>
                 각 캐릭터 타입별로 능력치 계산식과 스킬 세트를 관리합니다
               </CardDescription>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)} size="sm">
-              <Plus className="w-4 h-4 mr-2" />새 타입 추가
+            <Button onClick={() => setIsDialogOpen(true)} size='sm'>
+              <Plus className='w-4 h-4 mr-2' />새 타입 추가
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {characterTypes.map((type) => (
+          <div className='grid grid-cols-2 md:grid-cols-3 gap-2'>
+            {characterTypes.map(type => (
               <div
                 key={type.id}
                 className={`p-3 border-2 rounded-lg cursor-pointer transition-all ${
@@ -223,27 +226,27 @@ export function CharacterTypeManager({
                 }`}
                 onClick={() => setSelectedTypeId(type.id)}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <Badge variant="outline" className={type.color}>
+                <div className='flex items-center justify-between mb-1'>
+                  <Badge variant='outline' className={type.color}>
                     {type.name}
                   </Badge>
                   {type.id !== 'warrior' && type.id !== 'archer' && type.id !== 'mage' && (
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
+                      variant='ghost'
+                      size='sm'
+                      onClick={e => {
                         e.stopPropagation();
                         handleDeleteType(type.id);
                       }}
-                      className="h-6 w-6 p-0"
+                      className='h-6 w-6 p-0'
                     >
-                      <Trash2 className="w-3 h-3 text-red-500" />
+                      <Trash2 className='w-3 h-3 text-red-500' />
                     </Button>
                   )}
                 </div>
-                <code className="text-xs text-gray-500">{type.id}</code>
+                <code className='text-xs text-gray-500'>{type.id}</code>
                 {type.description && (
-                  <p className="text-xs text-gray-600 mt-1">{type.description}</p>
+                  <p className='text-xs text-gray-600 mt-1'>{type.description}</p>
                 )}
               </div>
             ))}
@@ -255,39 +258,39 @@ export function CharacterTypeManager({
       {selectedType && (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className={`${selectedType.color} text-lg px-3 py-1`}>
+            <div className='flex items-center gap-3'>
+              <Badge variant='outline' className={`${selectedType.color} text-lg px-3 py-1`}>
                 {selectedType.name}
               </Badge>
               <div>
-                <CardTitle className="text-lg">{selectedType.description}</CardTitle>
+                <CardTitle className='text-lg'>{selectedType.description}</CardTitle>
                 <CardDescription>
-                  <code className="text-xs">{selectedType.id}</code>
+                  <code className='text-xs'>{selectedType.id}</code>
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="basic">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="basic" className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
+            <Tabs defaultValue='basic'>
+              <TabsList className='grid w-full grid-cols-3'>
+                <TabsTrigger value='basic' className='flex items-center gap-2'>
+                  <Users className='w-4 h-4' />
                   능력치 & 스킬 초기값
                 </TabsTrigger>
-                <TabsTrigger value="formulas" className="flex items-center gap-2">
-                  <Calculator className="w-4 h-4" />
+                <TabsTrigger value='formulas' className='flex items-center gap-2'>
+                  <Calculator className='w-4 h-4' />
                   능력치 포뮬러 (고급)
                 </TabsTrigger>
-                <TabsTrigger value="skills" className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
+                <TabsTrigger value='skills' className='flex items-center gap-2'>
+                  <Zap className='w-4 h-4' />
                   스킬 세트 선택
                 </TabsTrigger>
               </TabsList>
 
               {/* 능력치 포뮬러 탭 (고급) */}
-              <TabsContent value="formulas" className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-blue-800">
+              <TabsContent value='formulas' className='space-y-4'>
+                <div className='bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4'>
+                  <p className='text-sm text-blue-800'>
                     💡 <strong>고급 사용자 전용</strong> - 능력치 계산 포뮬러를 직접 수정합니다.
                     <br />• <strong>사용 가능한 변수:</strong> level (캐릭터 레벨), size (크기)
                     <br />• <strong>사용 가능한 함수:</strong> MAX, MIN, ROUND, FLOOR, CEIL, SQRT
@@ -300,48 +303,48 @@ export function CharacterTypeManager({
                   </p>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="hpFormula">HP 포뮬러</Label>
+                <div className='space-y-4'>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='hpFormula'>HP 포뮬러</Label>
                       {selectedType.statFormulas?.hpFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1: {evaluateFormulaPreview(selectedType.statFormulas.hpFormula, 1)} |
                           레벨 10: {evaluateFormulaPreview(selectedType.statFormulas.hpFormula, 10)}
                         </span>
                       )}
                     </div>
                     <Input
-                      id="hpFormula"
+                      id='hpFormula'
                       value={selectedType.statFormulas?.hpFormula || ''}
-                      onChange={(e) => handleFormulaChange('hpFormula', e.target.value)}
-                      placeholder="예: 100 + level * 20"
+                      onChange={e => handleFormulaChange('hpFormula', e.target.value)}
+                      placeholder='예: 100 + level * 20'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="spFormula">SP 포뮬러</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='spFormula'>SP 포뮬러</Label>
                       {selectedType.statFormulas?.spFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1: {evaluateFormulaPreview(selectedType.statFormulas.spFormula, 1)} |
                           레벨 10: {evaluateFormulaPreview(selectedType.statFormulas.spFormula, 10)}
                         </span>
                       )}
                     </div>
                     <Input
-                      id="spFormula"
+                      id='spFormula'
                       value={selectedType.statFormulas?.spFormula || ''}
-                      onChange={(e) => handleFormulaChange('spFormula', e.target.value)}
-                      placeholder="예: 50 + level * 10"
+                      onChange={e => handleFormulaChange('spFormula', e.target.value)}
+                      placeholder='예: 50 + level * 10'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="attackFormula">공격력 포뮬러</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='attackFormula'>공격력 포뮬러</Label>
                       {selectedType.statFormulas?.attackFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.attackFormula, 1)} |
                           레벨 10:{' '}
@@ -350,18 +353,18 @@ export function CharacterTypeManager({
                       )}
                     </div>
                     <Input
-                      id="attackFormula"
+                      id='attackFormula'
                       value={selectedType.statFormulas?.attackFormula || ''}
-                      onChange={(e) => handleFormulaChange('attackFormula', e.target.value)}
-                      placeholder="예: 10 + level * 3"
+                      onChange={e => handleFormulaChange('attackFormula', e.target.value)}
+                      placeholder='예: 10 + level * 3'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="defenseFormula">방어력 포뮬러</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='defenseFormula'>방어력 포뮬러</Label>
                       {selectedType.statFormulas?.defenseFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.defenseFormula, 1)} |
                           레벨 10:{' '}
@@ -370,18 +373,18 @@ export function CharacterTypeManager({
                       )}
                     </div>
                     <Input
-                      id="defenseFormula"
+                      id='defenseFormula'
                       value={selectedType.statFormulas?.defenseFormula || ''}
-                      onChange={(e) => handleFormulaChange('defenseFormula', e.target.value)}
-                      placeholder="예: 5 + level * 2"
+                      onChange={e => handleFormulaChange('defenseFormula', e.target.value)}
+                      placeholder='예: 5 + level * 2'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="moveSpeedFormula">이동속도 포뮬러</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='moveSpeedFormula'>이동속도 포뮬러</Label>
                       {selectedType.statFormulas?.moveSpeedFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.moveSpeedFormula, 1)} |
                           레벨 10:{' '}
@@ -390,18 +393,18 @@ export function CharacterTypeManager({
                       )}
                     </div>
                     <Input
-                      id="moveSpeedFormula"
+                      id='moveSpeedFormula'
                       value={selectedType.statFormulas?.moveSpeedFormula || ''}
-                      onChange={(e) => handleFormulaChange('moveSpeedFormula', e.target.value)}
-                      placeholder="예: 80 (고정값) 또는 80 + level"
+                      onChange={e => handleFormulaChange('moveSpeedFormula', e.target.value)}
+                      placeholder='예: 80 (고정값) 또는 80 + level'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="attackSpeedFormula">공격속도 포뮬러</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='attackSpeedFormula'>공격속도 포뮬러</Label>
                       {selectedType.statFormulas?.attackSpeedFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.attackSpeedFormula, 1)}{' '}
                           | 레벨 10:{' '}
@@ -410,18 +413,18 @@ export function CharacterTypeManager({
                       )}
                     </div>
                     <Input
-                      id="attackSpeedFormula"
+                      id='attackSpeedFormula'
                       value={selectedType.statFormulas?.attackSpeedFormula || ''}
-                      onChange={(e) => handleFormulaChange('attackSpeedFormula', e.target.value)}
-                      placeholder="예: 1.0 (고정값) 또는 1.0 + level * 0.05"
+                      onChange={e => handleFormulaChange('attackSpeedFormula', e.target.value)}
+                      placeholder='예: 1.0 (고정값) 또는 1.0 + level * 0.05'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="accuracyFormula">명중률 포뮬러 (%)</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='accuracyFormula'>명중률 포뮬러 (%)</Label>
                       {selectedType.statFormulas?.accuracyFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.accuracyFormula, 1)} |
                           레벨 10:{' '}
@@ -430,42 +433,42 @@ export function CharacterTypeManager({
                       )}
                     </div>
                     <Input
-                      id="accuracyFormula"
+                      id='accuracyFormula'
                       value={selectedType.statFormulas?.accuracyFormula || ''}
-                      onChange={(e) => handleFormulaChange('accuracyFormula', e.target.value)}
-                      placeholder="예: 85 (고정값) 또는 80 + level * 0.5"
+                      onChange={e => handleFormulaChange('accuracyFormula', e.target.value)}
+                      placeholder='예: 85 (고정값) 또는 80 + level * 0.5'
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="criticalRateFormula">크리티컬 확률 포뮬러 (%)</Label>
+                  <div className='space-y-2'>
+                    <div className='flex items-center justify-between'>
+                      <Label htmlFor='criticalRateFormula'>크리티컬 확률 포뮬러 (%)</Label>
                       {selectedType.statFormulas?.criticalRateFormula && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className='text-xs text-muted-foreground'>
                           레벨 1:{' '}
                           {evaluateFormulaPreview(selectedType.statFormulas.criticalRateFormula, 1)}{' '}
                           | 레벨 10:{' '}
                           {evaluateFormulaPreview(
                             selectedType.statFormulas.criticalRateFormula,
-                            10,
+                            10
                           )}
                         </span>
                       )}
                     </div>
                     <Input
-                      id="criticalRateFormula"
+                      id='criticalRateFormula'
                       value={selectedType.statFormulas?.criticalRateFormula || ''}
-                      onChange={(e) => handleFormulaChange('criticalRateFormula', e.target.value)}
-                      placeholder="예: 15 (고정값) 또는 10 + level * 0.5"
+                      onChange={e => handleFormulaChange('criticalRateFormula', e.target.value)}
+                      placeholder='예: 15 (고정값) 또는 10 + level * 0.5'
                     />
                   </div>
                 </div>
               </TabsContent>
 
               {/* 스킬 세트 선택 탭 */}
-              <TabsContent value="skills" className="space-y-4">
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-orange-800">
+              <TabsContent value='skills' className='space-y-4'>
+                <div className='bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4'>
+                  <p className='text-sm text-orange-800'>
                     💡 이 캐릭터 타입이 기본적으로 보유할 <strong>기본 공격</strong>과{' '}
                     <strong>스킬 세트</strong>를 설정합니다.
                     <br />
@@ -475,22 +478,22 @@ export function CharacterTypeManager({
                 </div>
 
                 {/* 기본 공격 슬롯 */}
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   <Label>기본 공격 (마우스 클릭)</Label>
                   <Select
                     value={selectedType.defaultBasicAttackId || 'meleeBasic'}
-                    onValueChange={(value) => handleUpdateType({ defaultBasicAttackId: value })}
+                    onValueChange={value => handleUpdateType({ defaultBasicAttackId: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-64">
+                    <SelectContent className='max-h-64'>
                       {availableSkills
-                        .filter((skill) => {
+                        .filter(skill => {
                           const skillData = defaultSkills[skill.id];
                           return skillData?.category === 'basicAttack';
                         })
-                        .map((skill) => (
+                        .map(skill => (
                           <SelectItem key={skill.id} value={skill.id}>
                             {skill.name} - {skill.description}
                           </SelectItem>
@@ -503,15 +506,15 @@ export function CharacterTypeManager({
 
                 {/* 선택된 스킬 목록 */}
                 {selectedType.defaultSkillIds && selectedType.defaultSkillIds.length > 0 && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <p className="text-sm font-semibold text-green-800 mb-2">
+                  <div className='bg-green-50 border border-green-200 rounded-lg p-3'>
+                    <p className='text-sm font-semibold text-green-800 mb-2'>
                       ✅ 선택된 스킬 ({selectedType.defaultSkillIds.length}개)
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className='flex flex-wrap gap-2'>
                       {selectedType.defaultSkillIds.map((skillId, index) => {
-                        const skill = availableSkills.find((s) => s.id === skillId);
+                        const skill = availableSkills.find(s => s.id === skillId);
                         return (
-                          <Badge key={skillId} variant="outline" className="bg-white">
+                          <Badge key={skillId} variant='outline' className='bg-white'>
                             슬롯 {index + 1}: {skill?.name || skillId}
                           </Badge>
                         );
@@ -520,18 +523,18 @@ export function CharacterTypeManager({
                   </div>
                 )}
 
-                <div className="space-y-2">
+                <div className='space-y-2'>
                   <Label>스킬 세트 (슬롯 1~4)</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
+                  <p className='text-xs text-muted-foreground mb-2'>
                     스킬을 클릭하여 선택/해제하세요. 선택한 순서대로 슬롯 1~4에 배치됩니다.
                   </p>
-                  <div className="grid grid-cols-2 gap-2 max-h-96 overflow-y-auto p-2 border rounded-md">
+                  <div className='grid grid-cols-2 gap-2 max-h-96 overflow-y-auto p-2 border rounded-md'>
                     {availableSkills
-                      .filter((skill) => {
+                      .filter(skill => {
                         const skillData = defaultSkills[skill.id];
                         return skillData?.category === 'skill';
                       })
-                      .map((skill) => (
+                      .map(skill => (
                         <div
                           key={skill.id}
                           className={`p-3 border rounded cursor-pointer transition-colors ${
@@ -541,16 +544,16 @@ export function CharacterTypeManager({
                           }`}
                           onClick={() => handleSkillToggle(skill.id)}
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="text-sm">{skill.name}</div>
+                          <div className='flex items-center justify-between'>
+                            <div className='text-sm'>{skill.name}</div>
                             {selectedType.defaultSkillIds?.includes(skill.id) && (
-                              <Badge variant="default" className="text-xs h-5">
+                              <Badge variant='default' className='text-xs h-5'>
                                 {selectedType.defaultSkillIds.indexOf(skill.id) + 1}
                               </Badge>
                             )}
                           </div>
                           {skill.description && (
-                            <div className="text-xs text-gray-500 mt-1">{skill.description}</div>
+                            <div className='text-xs text-gray-500 mt-1'>{skill.description}</div>
                           )}
                         </div>
                       ))}
@@ -559,9 +562,9 @@ export function CharacterTypeManager({
               </TabsContent>
 
               {/* 기본 설정 탭 - 능력치 & 스킬 초기값 */}
-              <TabsContent value="basic" className="space-y-4">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-purple-800">
+              <TabsContent value='basic' className='space-y-4'>
+                <div className='bg-purple-50 border border-purple-200 rounded-lg p-3 mb-4'>
+                  <p className='text-sm text-purple-800'>
                     💡 이 탭에서는 캐릭터 타입의 <strong>초기값</strong>을 설정합니다.
                     <br />
                     • 능력치 초기값을 설정하면 자동으로 기본 성장 포뮬러가 생성됩니다.
@@ -572,14 +575,14 @@ export function CharacterTypeManager({
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="defaultLevel">기본 레벨</Label>
+                <div className='grid grid-cols-2 gap-4'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='defaultLevel'>기본 레벨</Label>
                     <Input
-                      id="defaultLevel"
-                      type="number"
+                      id='defaultLevel'
+                      type='number'
                       value={selectedType.defaultLevel || 1}
-                      onChange={(e) => {
+                      onChange={e => {
                         const value = parseInt(e.target.value);
                         if (!isNaN(value) && value >= 1) {
                           handleUpdateType({ defaultLevel: value });
@@ -590,13 +593,13 @@ export function CharacterTypeManager({
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="defaultSize">기본 크기 (px)</Label>
+                  <div className='space-y-2'>
+                    <Label htmlFor='defaultSize'>기본 크기 (px)</Label>
                     <Input
-                      id="defaultSize"
-                      type="number"
+                      id='defaultSize'
+                      type='number'
                       value={selectedType.defaultSize || 20}
-                      onChange={(e) => {
+                      onChange={e => {
                         const value = parseInt(e.target.value);
                         if (!isNaN(value) && value >= 8 && value <= 64) {
                           handleUpdateType({ defaultSize: value });
@@ -611,190 +614,190 @@ export function CharacterTypeManager({
                 <Separator />
 
                 {/* 능력치 초기값 설정 */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-blue-800 mb-3">
+                <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
+                  <p className='text-sm font-semibold text-blue-800 mb-3'>
                     ⚔️ 능력치 초기값 (레벨 {selectedType.defaultLevel || 1} 기준)
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-hp" className="text-xs">
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-hp' className='text-xs'>
                         HP
                       </Label>
                       <Input
-                        id="stat-hp"
-                        type="number"
+                        id='stat-hp'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.hpFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseInt(e.target.value);
                           if (!isNaN(baseValue)) {
                             const growthRate = 20;
                             handleFormulaChange(
                               'hpFormula',
-                              `${baseValue} + (level - 1) * ${growthRate}`,
+                              `${baseValue} + (level - 1) * ${growthRate}`
                             );
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-sp" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-sp' className='text-xs'>
                         SP
                       </Label>
                       <Input
-                        id="stat-sp"
-                        type="number"
+                        id='stat-sp'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.spFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseInt(e.target.value);
                           if (!isNaN(baseValue)) {
                             const growthRate = 10;
                             handleFormulaChange(
                               'spFormula',
-                              `${baseValue} + (level - 1) * ${growthRate}`,
+                              `${baseValue} + (level - 1) * ${growthRate}`
                             );
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-attack" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-attack' className='text-xs'>
                         공격력
                       </Label>
                       <Input
-                        id="stat-attack"
-                        type="number"
+                        id='stat-attack'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.attackFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseInt(e.target.value);
                           if (!isNaN(baseValue)) {
                             const growthRate = 3;
                             handleFormulaChange(
                               'attackFormula',
-                              `${baseValue} + (level - 1) * ${growthRate}`,
+                              `${baseValue} + (level - 1) * ${growthRate}`
                             );
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-defense" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-defense' className='text-xs'>
                         방어력
                       </Label>
                       <Input
-                        id="stat-defense"
-                        type="number"
+                        id='stat-defense'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.defenseFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseInt(e.target.value);
                           if (!isNaN(baseValue)) {
                             const growthRate = 2;
                             handleFormulaChange(
                               'defenseFormula',
-                              `${baseValue} + (level - 1) * ${growthRate}`,
+                              `${baseValue} + (level - 1) * ${growthRate}`
                             );
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-speed" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-speed' className='text-xs'>
                         이동속도
                       </Label>
                       <Input
-                        id="stat-speed"
-                        type="number"
+                        id='stat-speed'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.moveSpeedFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseInt(e.target.value);
                           if (!isNaN(baseValue)) {
                             handleFormulaChange('moveSpeedFormula', `${baseValue}`);
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-attackspeed" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-attackspeed' className='text-xs'>
                         공격속도
                       </Label>
                       <Input
-                        id="stat-attackspeed"
-                        type="number"
-                        step="0.1"
+                        id='stat-attackspeed'
+                        type='number'
+                        step='0.1'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.attackSpeedFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseFloat(e.target.value);
                           if (!isNaN(baseValue)) {
                             handleFormulaChange('attackSpeedFormula', `${baseValue}`);
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-accuracy" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-accuracy' className='text-xs'>
                         명중률 (%)
                       </Label>
                       <Input
-                        id="stat-accuracy"
-                        type="number"
+                        id='stat-accuracy'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.accuracyFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseFloat(e.target.value);
                           if (!isNaN(baseValue)) {
                             handleFormulaChange('accuracyFormula', `${baseValue}`);
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="stat-critical" className="text-xs">
+                    <div className='space-y-1'>
+                      <Label htmlFor='stat-critical' className='text-xs'>
                         크리티컬 (%)
                       </Label>
                       <Input
-                        id="stat-critical"
-                        type="number"
+                        id='stat-critical'
+                        type='number'
                         value={evaluateFormulaPreview(
                           selectedType.statFormulas?.criticalRateFormula,
-                          selectedType.defaultLevel || 1,
+                          selectedType.defaultLevel || 1
                         )}
-                        onChange={(e) => {
+                        onChange={e => {
                           const baseValue = parseFloat(e.target.value);
                           if (!isNaN(baseValue)) {
                             handleFormulaChange('criticalRateFormula', `${baseValue}`);
                           }
                         }}
-                        className="h-8"
+                        className='h-8'
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-blue-700 mt-2">
+                  <p className='text-xs text-blue-700 mt-2'>
                     💡 초기값을 입력하면 자동으로 성장 포뮬러가 생성됩니다.
                   </p>
                 </div>
@@ -802,66 +805,66 @@ export function CharacterTypeManager({
                 <Separator />
 
                 {/* 스킬 세트 요약 */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-green-800 mb-3">✨ 스킬 세트 초기값</p>
-                  <div className="space-y-2">
+                <div className='bg-green-50 border border-green-200 rounded-lg p-4'>
+                  <p className='text-sm font-semibold text-green-800 mb-3'>✨ 스킬 세트 초기값</p>
+                  <div className='space-y-2'>
                     <div>
-                      <Label className="text-xs text-green-700">기본 공격</Label>
-                      <p className="text-sm text-slate-700">
+                      <Label className='text-xs text-green-700'>기본 공격</Label>
+                      <p className='text-sm text-slate-700'>
                         {selectedType.defaultBasicAttackId
-                          ? availableSkills.find((s) => s.id === selectedType.defaultBasicAttackId)
+                          ? availableSkills.find(s => s.id === selectedType.defaultBasicAttackId)
                               ?.name || selectedType.defaultBasicAttackId
                           : '설정 안 됨'}
                       </p>
                     </div>
                     <div>
-                      <Label className="text-xs text-green-700">
+                      <Label className='text-xs text-green-700'>
                         스킬 ({selectedType.defaultSkillIds?.length || 0}개)
                       </Label>
                       {selectedType.defaultSkillIds && selectedType.defaultSkillIds.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 mt-1">
+                        <div className='flex flex-wrap gap-1 mt-1'>
                           {selectedType.defaultSkillIds.map((skillId, index) => {
-                            const skill = availableSkills.find((s) => s.id === skillId);
+                            const skill = availableSkills.find(s => s.id === skillId);
                             return (
-                              <Badge key={skillId} variant="outline" className="text-xs bg-white">
+                              <Badge key={skillId} variant='outline' className='text-xs bg-white'>
                                 {index + 1}. {skill?.name || skillId}
                               </Badge>
                             );
                           })}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-500 italic">설정된 스킬 없음</p>
+                        <p className='text-sm text-slate-500 italic'>설정된 스킬 없음</p>
                       )}
                     </div>
                   </div>
-                  <p className="text-xs text-green-700 mt-2">
+                  <p className='text-xs text-green-700 mt-2'>
                     💡 스킬 세트는 "스킬 세트 선택" 탭에서 변경할 수 있습니다.
                   </p>
                 </div>
 
                 <Separator />
 
-                <div className="space-y-2">
-                  <Label htmlFor="typeDescription">타입 설명</Label>
+                <div className='space-y-2'>
+                  <Label htmlFor='typeDescription'>타입 설명</Label>
                   <Input
-                    id="typeDescription"
+                    id='typeDescription'
                     value={selectedType.description || ''}
-                    onChange={(e) => handleUpdateType({ description: e.target.value })}
-                    placeholder="이 타입에 대한 설명을 입력하세요"
+                    onChange={e => handleUpdateType({ description: e.target.value })}
+                    placeholder='이 타입에 대한 설명을 입력하세요'
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="typeColor">타입 색상</Label>
+                <div className='space-y-2'>
+                  <Label htmlFor='typeColor'>타입 색상</Label>
                   <Select
                     value={selectedType.color}
-                    onValueChange={(value) => handleUpdateType({ color: value })}
+                    onValueChange={value => handleUpdateType({ color: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {AVAILABLE_COLORS.map((color) => (
+                      {AVAILABLE_COLORS.map(color => (
                         <SelectItem key={color.id} value={color.id}>
                           <span className={color.id}>{color.name}</span>
                         </SelectItem>
@@ -882,45 +885,45 @@ export function CharacterTypeManager({
             <DialogTitle>새 캐릭터 타입 추가</DialogTitle>
             <DialogDescription>새로운 캐릭터 타입의 정보를 입력해주세요</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="type-id">ID (영문 소문자, 숫자, _만 가능)</Label>
+          <div className='space-y-4 py-4'>
+            <div className='space-y-2'>
+              <Label htmlFor='type-id'>ID (영문 소문자, 숫자, _만 가능)</Label>
               <Input
-                id="type-id"
-                placeholder="예: tank, healer, assassin"
+                id='type-id'
+                placeholder='예: tank, healer, assassin'
                 value={newType.id}
-                onChange={(e) => setNewType({ ...newType, id: e.target.value.toLowerCase() })}
+                onChange={e => setNewType({ ...newType, id: e.target.value.toLowerCase() })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="type-name">이름</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='type-name'>이름</Label>
               <Input
-                id="type-name"
-                placeholder="예: 탱커"
+                id='type-name'
+                placeholder='예: 탱커'
                 value={newType.name}
-                onChange={(e) => setNewType({ ...newType, name: e.target.value })}
+                onChange={e => setNewType({ ...newType, name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="type-description">설명 (선택)</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='type-description'>설명 (선택)</Label>
               <Input
-                id="type-description"
-                placeholder="예: 높은 방어력과 체력"
+                id='type-description'
+                placeholder='예: 높은 방어력과 체력'
                 value={newType.description}
-                onChange={(e) => setNewType({ ...newType, description: e.target.value })}
+                onChange={e => setNewType({ ...newType, description: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="type-color">색상</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='type-color'>색상</Label>
               <Select
                 value={newType.color}
-                onValueChange={(value) => setNewType({ ...newType, color: value })}
+                onValueChange={value => setNewType({ ...newType, color: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_COLORS.map((color) => (
+                  {AVAILABLE_COLORS.map(color => (
                     <SelectItem key={color.id} value={color.id}>
                       <span className={color.id}>{color.name}</span>
                     </SelectItem>
@@ -930,7 +933,7 @@ export function CharacterTypeManager({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant='outline' onClick={() => setIsDialogOpen(false)}>
               취소
             </Button>
             <Button onClick={handleAddType}>추가</Button>

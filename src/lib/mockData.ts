@@ -150,11 +150,7 @@ export interface DataRow {
   monster_skill_4_cast_time?: number;
 }
 
-import {
-  calculatePlayerStats,
-  calculateMonsterStats,
-  calculateStatsWithFormula,
-} from './levelBasedStats';
+import { calculateStatsWithFormula } from './levelBasedStats';
 import { defaultPlayerLevelConfig, defaultMonsterLevelConfig } from './levelSystem';
 import { defaultAIPatternConfig } from './monsterAI';
 import { DEFAULT_CHARACTER_TYPES } from './characterTypes';
@@ -168,7 +164,7 @@ const playerStats = calculateStatsWithFormula(
   firstType?.defaultSize || 20,
   defaultPlayerLevelConfig,
   firstType,
-  true,
+  true
 );
 
 // 레벨 1 몬스터 스탯 계산 (첫 번째 타입의 기본값 사용)
@@ -177,7 +173,7 @@ const monsterStats = calculateStatsWithFormula(
   firstType?.defaultSize || 24,
   defaultMonsterLevelConfig,
   firstType,
-  false,
+  false
 );
 
 // Initial empty dataset with one example row

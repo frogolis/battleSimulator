@@ -1,13 +1,37 @@
+import { resolveCharacterConfigMid } from './configUtils';
 import {
-  CANVAS_WIDTH,
-  CANVAS_HEIGHT,
-  COLORS,
-  AI_STATE_LABELS,
   AI_STATE_COLORS,
+  AI_STATE_LABELS,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  COLORS,
   PROJECTILE_FADE_START,
   PROJECTILE_MAX_DISTANCE,
 } from './gameConstants';
-import type { Character, Monster, Projectile, CharacterConfig, Position } from './gameTypes';
+import type {
+  Character,
+  CharacterConfig,
+  CharacterType,
+  Monster,
+  Position,
+  Projectile,
+} from './gameTypes';
+
+const AI_STATE_COLOR_MAP: Record<Monster['aiState'], string> = {
+  IDLE: AI_STATE_COLORS.IDLE,
+  CHASE: AI_STATE_COLORS.CHASE,
+  ATTACK: AI_STATE_COLORS.ATTACK,
+  FLEE: AI_STATE_COLORS.RETREAT,
+  DEFEND: AI_STATE_COLORS.RETREAT,
+};
+
+const AI_STATE_LABEL_MAP: Record<Monster['aiState'], string> = {
+  IDLE: AI_STATE_LABELS.IDLE,
+  CHASE: AI_STATE_LABELS.CHASE,
+  ATTACK: AI_STATE_LABELS.ATTACK,
+  FLEE: AI_STATE_LABELS.RETREAT,
+  DEFEND: '방어',
+};
 
 /**
  * Draw the player character
@@ -15,8 +39,9 @@ import type { Character, Monster, Projectile, CharacterConfig, Position } from '
 export function drawPlayer(
   ctx: CanvasRenderingContext2D,
   player: Character,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
+  const resolvedConfig = resolveCharacterConfigMid(config);
   ctx.fillStyle = player.isAttacking
     ? COLORS.PLAYER_ATTACKING
     : player.isSkilling
@@ -25,7 +50,7 @@ export function drawPlayer(
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(player.position.x, player.position.y, config.size / 2, 0, Math.PI * 2);
+  ctx.arc(player.position.x, player.position.y, resolvedConfig.size / 2, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 }
@@ -36,12 +61,13 @@ export function drawPlayer(
 export function drawPlayerHPBar(
   ctx: CanvasRenderingContext2D,
   player: Character,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
-  const barWidth = config.size;
+  const resolvedConfig = resolveCharacterConfigMid(config);
+  const barWidth = resolvedConfig.size;
   const barHeight = 4;
   const barX = player.position.x - barWidth / 2;
-  const barY = player.position.y - config.size / 2 - 10;
+  const barY = player.position.y - resolvedConfig.size / 2 - 10;
 
   ctx.fillStyle = COLORS.HP_BACKGROUND;
   ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -57,16 +83,17 @@ export function drawPlayerHPBar(
 export function drawMonster(
   ctx: CanvasRenderingContext2D,
   monster: Monster,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
   if (monster.isDead) return;
+  const resolvedConfig = resolveCharacterConfigMid(config);
 
-  const aiStateColor = AI_STATE_COLORS[monster.aiState];
+  const aiStateColor = AI_STATE_COLOR_MAP[monster.aiState];
   ctx.fillStyle = monster.isAttacking ? COLORS.MONSTER_ATTACKING : aiStateColor;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.arc(monster.position.x, monster.position.y, config.size / 2, 0, Math.PI * 2);
+  ctx.arc(monster.position.x, monster.position.y, resolvedConfig.size / 2, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 }
@@ -77,14 +104,15 @@ export function drawMonster(
 export function drawMonsterHPBar(
   ctx: CanvasRenderingContext2D,
   monster: Monster,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
   if (monster.isDead) return;
+  const resolvedConfig = resolveCharacterConfigMid(config);
 
-  const barWidth = config.size;
+  const barWidth = resolvedConfig.size;
   const barHeight = 4;
   const barX = monster.position.x - barWidth / 2;
-  const barY = monster.position.y - config.size / 2 - 10;
+  const barY = monster.position.y - resolvedConfig.size / 2 - 10;
 
   ctx.fillStyle = COLORS.HP_BACKGROUND;
   ctx.fillRect(barX, barY, barWidth, barHeight);
@@ -100,18 +128,19 @@ export function drawMonsterHPBar(
 export function drawMonsterAIState(
   ctx: CanvasRenderingContext2D,
   monster: Monster,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
   if (monster.isDead) return;
+  const resolvedConfig = resolveCharacterConfigMid(config);
 
-  ctx.fillStyle = AI_STATE_COLORS[monster.aiState];
+  ctx.fillStyle = AI_STATE_COLOR_MAP[monster.aiState];
   ctx.font = '10px monospace';
-  const aiText = `AI: ${AI_STATE_LABELS[monster.aiState]}`;
+  const aiText = `AI: ${AI_STATE_LABEL_MAP[monster.aiState]}`;
   const textWidth = ctx.measureText(aiText).width;
   ctx.fillText(
     aiText,
     monster.position.x - textWidth / 2,
-    monster.position.y + config.size / 2 + 20,
+    monster.position.y + resolvedConfig.size / 2 + 20
   );
 }
 
@@ -119,11 +148,11 @@ export function drawMonsterAIState(
  * Draw all projectiles with fade effect
  */
 export function drawProjectiles(ctx: CanvasRenderingContext2D, projectiles: Projectile[]) {
-  projectiles.forEach((projectile) => {
+  projectiles.forEach(projectile => {
     const fadeProgress = Math.min(
       1,
       (projectile.travelDistance - PROJECTILE_FADE_START) /
-        (PROJECTILE_MAX_DISTANCE - PROJECTILE_FADE_START),
+        (PROJECTILE_MAX_DISTANCE - PROJECTILE_FADE_START)
     );
     const opacity = Math.max(0, 1 - fadeProgress);
 
@@ -146,9 +175,10 @@ export function drawMeleeSwing(
   player: Character,
   config: CharacterConfig,
   mousePosition: Position,
-  swingDuration: number,
+  swingDuration: number
 ) {
   if (player.meleeSwingStart === null) return;
+  const resolvedConfig = resolveCharacterConfigMid(config);
 
   const mouseX = mousePosition.x;
   const mouseY = mousePosition.y;
@@ -157,12 +187,12 @@ export function drawMeleeSwing(
   const dx = mouseX - playerX;
   const dy = mouseY - playerY;
   const targetAngle = Math.atan2(dy, dx);
-  const meleeSwingArc = (config.attackWidth * Math.PI) / 180;
+  const meleeSwingArc = (resolvedConfig.attackWidth * Math.PI) / 180;
   const startAngle = targetAngle - meleeSwingArc / 2;
   const swingProgress = (Date.now() - player.meleeSwingStart) / swingDuration;
   const currentSwingOffset = meleeSwingArc * swingProgress;
   const currentAngle = startAngle + currentSwingOffset;
-  const meleeRange = config.attackRange;
+  const meleeRange = resolvedConfig.attackRange;
 
   ctx.save();
   ctx.shadowColor = COLORS.MELEE_SHADOW;
@@ -178,7 +208,7 @@ export function drawMeleeSwing(
   ctx.moveTo(playerX, playerY);
   ctx.lineTo(
     playerX + Math.cos(currentAngle) * handleLength,
-    playerY + Math.sin(currentAngle) * handleLength,
+    playerY + Math.sin(currentAngle) * handleLength
   );
   ctx.stroke();
 
@@ -211,13 +241,14 @@ export function drawRangedAimIndicator(
   ctx: CanvasRenderingContext2D,
   playerPosition: Position,
   mousePosition: Position,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
+  const resolvedConfig = resolveCharacterConfigMid(config);
   const dx = mousePosition.x - playerPosition.x;
   const dy = mousePosition.y - playerPosition.y;
   const angle = Math.atan2(dy, dx);
-  const range = config.attackRange;
-  const spreadAngle = (config.attackWidth * Math.PI) / 180 / 2;
+  const range = resolvedConfig.attackRange;
+  const spreadAngle = (resolvedConfig.attackWidth * Math.PI) / 180 / 2;
 
   ctx.save();
   ctx.globalAlpha = 0.2;
@@ -236,12 +267,12 @@ export function drawRangedAimIndicator(
   ctx.moveTo(playerPosition.x, playerPosition.y);
   ctx.lineTo(
     playerPosition.x + Math.cos(angle - spreadAngle) * range,
-    playerPosition.y + Math.sin(angle - spreadAngle) * range,
+    playerPosition.y + Math.sin(angle - spreadAngle) * range
   );
   ctx.moveTo(playerPosition.x, playerPosition.y);
   ctx.lineTo(
     playerPosition.x + Math.cos(angle + spreadAngle) * range,
-    playerPosition.y + Math.sin(angle + spreadAngle) * range,
+    playerPosition.y + Math.sin(angle + spreadAngle) * range
   );
   ctx.stroke();
   ctx.restore();
@@ -285,7 +316,7 @@ export interface AttackRangeData {
  */
 export function drawAttackRangeIndicator(
   ctx: CanvasRenderingContext2D,
-  rangeData: AttackRangeData,
+  rangeData: AttackRangeData
 ) {
   const {
     position,
@@ -349,12 +380,12 @@ export function drawAttackRangeIndicator(
     ctx.moveTo(position.x, position.y);
     ctx.lineTo(
       position.x + Math.cos(angle - spreadAngle) * range,
-      position.y + Math.sin(angle - spreadAngle) * range,
+      position.y + Math.sin(angle - spreadAngle) * range
     );
     ctx.moveTo(position.x, position.y);
     ctx.lineTo(
       position.x + Math.cos(angle + spreadAngle) * range,
-      position.y + Math.sin(angle + spreadAngle) * range,
+      position.y + Math.sin(angle + spreadAngle) * range
     );
     ctx.stroke();
     ctx.setLineDash([]);
@@ -371,7 +402,7 @@ export function drawPlayerAttackRange(
   mousePosition: Position,
   range: number,
   width: number,
-  showCircle: boolean = true,
+  showCircle: boolean = true
 ) {
   const dx = mousePosition.x - playerPosition.x;
   const dy = mousePosition.y - playerPosition.y;
@@ -397,7 +428,7 @@ export function drawMonsterAttackRange(
   targetPosition: Position,
   range: number,
   width: number,
-  showCircle: boolean = true,
+  showCircle: boolean = true
 ) {
   const dx = targetPosition.x - monsterPosition.x;
   const dy = targetPosition.y - monsterPosition.y;
@@ -421,16 +452,17 @@ export function drawMonsterAttackDirections(
   ctx: CanvasRenderingContext2D,
   monsters: Monster[],
   playerPosition: Position,
-  monsterConfig: CharacterConfig,
+  monsterConfig: CharacterConfig
 ) {
-  monsters.forEach((monster) => {
+  const resolvedConfig = resolveCharacterConfigMid(monsterConfig);
+  monsters.forEach(monster => {
     if (monster.isDead) return;
 
     const dx = playerPosition.x - monster.position.x;
     const dy = playerPosition.y - monster.position.y;
     const angle = Math.atan2(dy, dx);
-    const range = monsterConfig.attackRange;
-    const spreadAngle = (monsterConfig.attackWidth * Math.PI) / 180 / 2;
+    const range = resolvedConfig.attackRange;
+    const spreadAngle = (resolvedConfig.attackWidth * Math.PI) / 180 / 2;
 
     ctx.save();
     ctx.globalAlpha = 0.15;
@@ -442,7 +474,7 @@ export function drawMonsterAttackDirections(
       monster.position.y,
       range,
       angle - spreadAngle,
-      angle + spreadAngle,
+      angle + spreadAngle
     );
     ctx.closePath();
     ctx.fill();
@@ -455,12 +487,12 @@ export function drawMonsterAttackDirections(
     ctx.moveTo(monster.position.x, monster.position.y);
     ctx.lineTo(
       monster.position.x + Math.cos(angle - spreadAngle) * range,
-      monster.position.y + Math.sin(angle - spreadAngle) * range,
+      monster.position.y + Math.sin(angle - spreadAngle) * range
     );
     ctx.moveTo(monster.position.x, monster.position.y);
     ctx.lineTo(
       monster.position.x + Math.cos(angle + spreadAngle) * range,
-      monster.position.y + Math.sin(angle + spreadAngle) * range,
+      monster.position.y + Math.sin(angle + spreadAngle) * range
     );
     ctx.stroke();
     ctx.setLineDash([]);
@@ -475,13 +507,14 @@ export function drawMeleePreview(
   ctx: CanvasRenderingContext2D,
   playerPosition: Position,
   mousePosition: Position,
-  config: CharacterConfig,
+  config: CharacterConfig
 ) {
+  const resolvedConfig = resolveCharacterConfigMid(config);
   const dx = mousePosition.x - playerPosition.x;
   const dy = mousePosition.y - playerPosition.y;
   const targetAngle = Math.atan2(dy, dx);
-  const meleeRange = config.attackRange;
-  const meleeSwingArc = (config.attackWidth * Math.PI) / 180;
+  const meleeRange = resolvedConfig.attackRange;
+  const meleeSwingArc = (resolvedConfig.attackWidth * Math.PI) / 180;
 
   ctx.save();
   ctx.globalAlpha = 0.2;
@@ -493,7 +526,7 @@ export function drawMeleePreview(
     playerPosition.y,
     meleeRange,
     targetAngle - meleeSwingArc / 2,
-    targetAngle + meleeSwingArc / 2,
+    targetAngle + meleeSwingArc / 2
   );
   ctx.closePath();
   ctx.fill();
@@ -508,7 +541,7 @@ export function drawMeleePreview(
   ctx.moveTo(playerPosition.x, playerPosition.y);
   ctx.lineTo(
     playerPosition.x + Math.cos(targetAngle) * handleLength,
-    playerPosition.y + Math.sin(targetAngle) * handleLength,
+    playerPosition.y + Math.sin(targetAngle) * handleLength
   );
   ctx.stroke();
 
@@ -517,11 +550,11 @@ export function drawMeleePreview(
   ctx.beginPath();
   ctx.moveTo(
     playerPosition.x + Math.cos(targetAngle) * handleLength,
-    playerPosition.y + Math.sin(targetAngle) * handleLength,
+    playerPosition.y + Math.sin(targetAngle) * handleLength
   );
   ctx.lineTo(
     playerPosition.x + Math.cos(targetAngle) * meleeRange,
-    playerPosition.y + Math.sin(targetAngle) * meleeRange,
+    playerPosition.y + Math.sin(targetAngle) * meleeRange
   );
   ctx.stroke();
 
@@ -536,7 +569,7 @@ export function drawAttackRanges(
   playerPosition: Position,
   playerRange: number,
   monsters: Monster[],
-  monsterRange: number,
+  monsterRange: number
 ) {
   // Player attack range
   ctx.strokeStyle = COLORS.RANGE_PLAYER;
@@ -546,7 +579,7 @@ export function drawAttackRanges(
   ctx.stroke();
 
   // Monster attack ranges
-  monsters.forEach((monster) => {
+  monsters.forEach(monster => {
     if (monster.isDead) return;
     ctx.strokeStyle = COLORS.RANGE_MONSTER;
     ctx.lineWidth = 2;
@@ -560,7 +593,7 @@ export function drawAttackRanges(
  * Draw detection ranges
  */
 export function drawDetectionRanges(ctx: CanvasRenderingContext2D, monsters: Monster[]) {
-  monsters.forEach((monster) => {
+  monsters.forEach(monster => {
     if (monster.isDead) return;
     ctx.strokeStyle = COLORS.RANGE_DETECTION;
     ctx.lineWidth = 2;
@@ -590,7 +623,7 @@ export function drawFPS(ctx: CanvasRenderingContext2D, fps: number) {
 export function drawControlGuide(
   ctx: CanvasRenderingContext2D,
   playerAttackType: CharacterType,
-  monsterAttackType: CharacterType,
+  monsterAttackType: CharacterType
 ) {
   ctx.save();
   ctx.fillStyle = COLORS.CONTROL_GUIDE_BG;
@@ -602,13 +635,13 @@ export function drawControlGuide(
   ctx.fillText(
     '범위 시각화: 플레이어(파란색) / 몬스터(빨간색) / 감지(주황색)',
     20,
-    CANVAS_HEIGHT - 28,
+    CANVAS_HEIGHT - 28
   );
   const monsterAttackText = monsterAttackType === 'melee' ? '⚔️ 근접' : '🏹 원거리';
   ctx.fillText(
     `플레이어: ${playerAttackText} | 몬스터: ${monsterAttackText}`,
     20,
-    CANVAS_HEIGHT - 10,
+    CANVAS_HEIGHT - 10
   );
   ctx.restore();
 }
@@ -653,7 +686,7 @@ export function drawGrid(
   canvasHeight: number,
   gridSize: number = 50,
   gridColor: string = 'rgba(255, 255, 255, 0.1)',
-  axisColor: string = 'rgba(255, 255, 255, 0.2)',
+  axisColor: string = 'rgba(255, 255, 255, 0.2)'
 ) {
   ctx.strokeStyle = gridColor;
   ctx.lineWidth = 1;

@@ -1,11 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { EffectShape, ProjectileType, ParticleUpdateStrategy } from '../../lib/simulator/particles';
-
-interface TrailPoint {
-  x: number;
-  y: number;
-  timestamp: number;
-}
+import { useEffect, useRef } from 'react';
+import { EffectShape, ParticleUpdateStrategy, ProjectileType } from '../../lib/simulator/particles';
 
 interface GraphicsEffectConfig {
   particleCount: number;
@@ -49,6 +43,17 @@ interface EffectPreviewCanvasProps {
   height?: number;
 }
 
+interface PreviewParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  angle?: number;
+}
+
 export function EffectPreviewCanvas({
   config,
   width = 800,
@@ -63,13 +68,13 @@ export function EffectPreviewCanvas({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let particles: any[] = [];
+    let particles: PreviewParticle[] = [];
     let lastTime = Date.now();
     let spawnTimer = 0;
     let animationId = 0;
 
     const normalizeHexColor = (hex: string) => {
-      return hex.length === 7 ? hex : hex + 'ff';
+      return hex.length === 7 ? hex : `${hex}ff`;
     };
 
     const primaryColor = normalizeHexColor(config.primaryColor);
@@ -164,7 +169,7 @@ export function EffectPreviewCanvas({
       }
 
       // 파티클 렌더링
-      particles = particles.filter((p) => {
+      particles = particles.filter(p => {
         p.life += deltaTime * 1000;
         if (p.life > p.maxLife) return false;
 
@@ -201,9 +206,9 @@ export function EffectPreviewCanvas({
           primaryColor +
             Math.floor(alpha * 255)
               .toString(16)
-              .padStart(2, '0'),
+              .padStart(2, '0')
         );
-        gradient.addColorStop(1, secondaryColor + '00');
+        gradient.addColorStop(1, `${secondaryColor}00`);
 
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -246,14 +251,14 @@ export function EffectPreviewCanvas({
   }, [config]);
 
   return (
-    <div className="relative">
+    <div className='relative'>
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
-        className="w-full border border-slate-700 rounded-lg bg-slate-800"
+        className='w-full border border-slate-700 rounded-lg bg-slate-800'
       />
-      <div className="absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+      <div className='absolute top-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded'>
         실시간 프리뷰 ({width}×{height}px)
       </div>
     </div>

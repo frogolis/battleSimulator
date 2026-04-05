@@ -1,16 +1,15 @@
+import { AlertCircle, Plus, Skull, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Skull, Plus, Trash2, AlertCircle } from 'lucide-react';
-import { CharacterTypeInfo } from '../lib/characterTypes';
 import { toast } from 'sonner';
+import { CharacterTypeInfo } from '../lib/characterTypes';
 import { AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
-import { MonsterAIPatternEditor } from './MonsterAIPatternEditor';
 import { defaultSkills } from '../lib/skillSystem';
+import { MonsterAIPatternEditor } from './MonsterAIPatternEditor';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Separator } from './ui/separator';
 
 /**
  * 몬스터 타입 통계 (프리셋 기반)
@@ -37,13 +36,13 @@ export function MonsterTypeDefinition({
   characterTypes,
 }: MonsterTypeDefinitionProps) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(
-    Object.keys(monsterTypeStats)[0] || null,
+    Object.keys(monsterTypeStats)[0] || null
   );
 
   const addMonsterType = () => {
     // 아직 정의되지 않은 타입 찾기
     const definedTypeIds = new Set(Object.keys(monsterTypeStats));
-    const availableType = characterTypes.find((t) => !definedTypeIds.has(t.id));
+    const availableType = characterTypes.find(t => !definedTypeIds.has(t.id));
 
     if (!availableType) {
       toast.error('모든 캐릭터 타입이 이미 정의되었습니다.');
@@ -69,7 +68,7 @@ export function MonsterTypeDefinition({
   };
 
   const removeMonsterType = (typeId: string) => {
-    const typeName = characterTypes.find((t) => t.id === typeId)?.name || '타입';
+    const typeName = characterTypes.find(t => t.id === typeId)?.name || '타입';
     const newStats = { ...monsterTypeStats };
     delete newStats[typeId];
     onMonsterTypeStatsChange(newStats);
@@ -94,7 +93,8 @@ export function MonsterTypeDefinition({
   };
 
   const selectedStats = selectedTypeId ? monsterTypeStats[selectedTypeId] : null;
-  const selectedType = selectedTypeId ? characterTypes.find((t) => t.id === selectedTypeId) : null;
+  const selectedType = selectedTypeId ? characterTypes.find(t => t.id === selectedTypeId) : null;
+  const currentTypeId = selectedTypeId ?? '';
 
   // 사용 가능한 스킬 목록
   const availableSkills = Object.entries(defaultSkills).map(([id, skill]) => ({
@@ -108,43 +108,43 @@ export function MonsterTypeDefinition({
 
     const currentSkills = selectedStats.skills || [];
     const newSkills = currentSkills.includes(skillId)
-      ? currentSkills.filter((id) => id !== skillId)
+      ? currentSkills.filter(id => id !== skillId)
       : [...currentSkills, skillId];
 
     updateMonsterType(selectedTypeId, { skills: newSkills });
   };
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* 헤더 및 타입 선택 */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className='flex items-center justify-between'>
             <div>
-              <CardTitle className="flex items-center gap-2">
-                <Skull className="w-5 h-5 text-red-600" />
+              <CardTitle className='flex items-center gap-2'>
+                <Skull className='w-5 h-5 text-red-600' />
                 몬스터 타입 정의
               </CardTitle>
               <CardDescription>각 몬스터 타입의 기본 설정을 정의합니다</CardDescription>
             </div>
-            <Button onClick={addMonsterType} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button onClick={addMonsterType} size='sm'>
+              <Plus className='w-4 h-4 mr-2' />
               타입 추가
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className='space-y-4'>
           {/* 타입 선택 버튼들 */}
-          <div className="flex flex-wrap gap-2">
+          <div className='flex flex-wrap gap-2'>
             {Object.keys(monsterTypeStats).length === 0 ? (
-              <div className="w-full text-center py-8 text-slate-400">
-                <Skull className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">정의된 몬스터 타입이 없습니다</p>
-                <p className="text-xs mt-1">타입 추가 버튼을 눌러 몬스터 타입을 정의하세요</p>
+              <div className='w-full text-center py-8 text-slate-400'>
+                <Skull className='w-12 h-12 mx-auto mb-3 opacity-50' />
+                <p className='text-sm'>정의된 몬스터 타입이 없습니다</p>
+                <p className='text-xs mt-1'>타입 추가 버튼을 눌러 몬스터 타입을 정의하세요</p>
               </div>
             ) : (
-              Object.keys(monsterTypeStats).map((typeId) => {
-                const type = characterTypes.find((t) => t.id === typeId);
+              Object.keys(monsterTypeStats).map(typeId => {
+                const type = characterTypes.find(t => t.id === typeId);
                 if (!type) return null;
 
                 return (
@@ -160,22 +160,22 @@ export function MonsterTypeDefinition({
                     <div
                       className={`w-8 h-8 rounded-full ${type.color} flex items-center justify-center`}
                     >
-                      <Skull className="w-4 h-4 text-white" />
+                      <Skull className='w-4 h-4 text-white' />
                     </div>
                     <div>
-                      <div className="text-sm">{type.name}</div>
-                      <div className="text-xs text-slate-500">{type.description}</div>
+                      <div className='text-sm'>{type.name}</div>
+                      <div className='text-xs text-slate-500'>{type.description}</div>
                     </div>
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
+                      variant='ghost'
+                      size='sm'
+                      onClick={e => {
                         e.stopPropagation();
                         removeMonsterType(typeId);
                       }}
-                      className="ml-2"
+                      className='ml-2'
                     >
-                      <Trash2 className="w-3 h-3 text-red-500" />
+                      <Trash2 className='w-3 h-3 text-red-500' />
                     </Button>
                   </div>
                 );
@@ -189,11 +189,11 @@ export function MonsterTypeDefinition({
       {selectedStats && selectedType && (
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <div
                 className={`w-10 h-10 rounded-full ${selectedType.color} flex items-center justify-center`}
               >
-                <Skull className="w-5 h-5 text-white" />
+                <Skull className='w-5 h-5 text-white' />
               </div>
               <div>
                 <CardTitle>{selectedType.name} 기본 설정</CardTitle>
@@ -201,21 +201,21 @@ export function MonsterTypeDefinition({
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className='space-y-6'>
             {/* 기본 설정 */}
-            <div className="space-y-4">
-              <h4 className="text-sm">기본 속성</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="baseLevel">기본 레벨</Label>
+            <div className='space-y-4'>
+              <h4 className='text-sm'>기본 속성</h4>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div className='space-y-2'>
+                  <Label htmlFor='baseLevel'>기본 레벨</Label>
                   <Input
-                    id="baseLevel"
-                    type="number"
+                    id='baseLevel'
+                    type='number'
                     value={selectedStats.baseLevel}
-                    onChange={(e) => {
+                    onChange={e => {
                       const value = parseInt(e.target.value);
                       if (!isNaN(value) && value >= 1) {
-                        updateMonsterType(selectedTypeId!, { baseLevel: value });
+                        updateMonsterType(currentTypeId, { baseLevel: value });
                       }
                     }}
                     min={1}
@@ -223,16 +223,16 @@ export function MonsterTypeDefinition({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="size">크기 (px)</Label>
+                <div className='space-y-2'>
+                  <Label htmlFor='size'>크기 (px)</Label>
                   <Input
-                    id="size"
-                    type="number"
+                    id='size'
+                    type='number'
                     value={selectedStats.size}
-                    onChange={(e) => {
+                    onChange={e => {
                       const value = parseInt(e.target.value);
                       if (!isNaN(value) && value >= 8 && value <= 64) {
-                        updateMonsterType(selectedTypeId!, { size: value });
+                        updateMonsterType(currentTypeId, { size: value });
                       }
                     }}
                     min={8}
@@ -245,12 +245,12 @@ export function MonsterTypeDefinition({
             <Separator />
 
             {/* 스킬 설정 */}
-            <div className="space-y-4">
-              <h4 className="text-sm">스킬 설정</h4>
-              <div className="space-y-2">
+            <div className='space-y-4'>
+              <h4 className='text-sm'>스킬 설정</h4>
+              <div className='space-y-2'>
                 <Label>보유 스킬 선택</Label>
-                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-2 border rounded-md">
-                  {availableSkills.map((skill) => (
+                <div className='grid grid-cols-2 gap-2 max-h-64 overflow-y-auto p-2 border rounded-md'>
+                  {availableSkills.map(skill => (
                     <div
                       key={skill.id}
                       className={`p-2 border rounded cursor-pointer transition-colors ${
@@ -260,25 +260,25 @@ export function MonsterTypeDefinition({
                       }`}
                       onClick={() => handleSkillToggle(skill.id)}
                     >
-                      <div className="text-sm">{skill.name}</div>
+                      <div className='text-sm'>{skill.name}</div>
                       {skill.description && (
-                        <div className="text-xs text-gray-500 mt-1">{skill.description}</div>
+                        <div className='text-xs text-gray-500 mt-1'>{skill.description}</div>
                       )}
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className='text-xs text-muted-foreground'>
                   선택된 스킬: {selectedStats.skills?.length || 0}개
                 </p>
               </div>
             </div>
 
             {/* 안내 메시지 */}
-            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-blue-800">
-                <p className="mb-1">💡 타입 프리셋 안내</p>
-                <p className="text-blue-700">
+            <div className='flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg'>
+              <AlertCircle className='w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0' />
+              <div className='text-xs text-blue-800'>
+                <p className='mb-1'>💡 타입 프리셋 안내</p>
+                <p className='text-blue-700'>
                   각 몬스터 타입은 기본 레벨, 크기, AI 패턴, 스킬 세트를 가집니다.
                   <br />
                   실제 스탯은 레벨에 따라 계산되며, 포뮬러는 "스탯 포뮬러 관리" 메뉴에서 설정합니다.
@@ -293,8 +293,8 @@ export function MonsterTypeDefinition({
       {selectedStats && selectedType && (
         <MonsterAIPatternEditor
           config={selectedStats.aiPatternConfig || defaultAIPatternConfig}
-          onConfigChange={(newConfig) => {
-            updateMonsterType(selectedTypeId!, {
+          onConfigChange={newConfig => {
+            updateMonsterType(currentTypeId, {
               aiPatternConfig: newConfig,
             });
           }}

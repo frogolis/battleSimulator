@@ -2,17 +2,31 @@
  * 전투 시스템 - 플레이어와 몬스터의 스킬 및 공격 처리
  */
 
-import { DataRow } from './mockData';
 import { Character, Monster } from './gameTypes';
+import { DataRow } from './mockData';
+import { AIConfig, AIPatternConfig, decideSkillToUse, defaultAIPatternConfig } from './monsterAI';
 import { defaultSkills } from './skillSystem';
-import {
-  decideSkillToUse,
-  decideMovementDirection,
-  shouldAttack,
-  AIConfig,
-  AIPatternConfig,
-  defaultAIPatternConfig,
-} from './monsterAI';
+
+const logCombat = (..._args: unknown[]): void => {};
+
+const isAIType = (value: unknown): value is AIConfig['type'] => {
+  return (
+    typeof value === 'string' && ['aggressive', 'defensive', 'balanced', 'passive'].includes(value)
+  );
+};
+
+const isSkillPriority = (value: unknown): value is AIConfig['skillPriority'] => {
+  return typeof value === 'string' && ['damage', 'control', 'survival', 'balanced'].includes(value);
+};
+
+const isPatternAction = (
+  value: unknown
+): value is AIPatternConfig['patterns'][number]['action'] => {
+  return (
+    typeof value === 'string' &&
+    ['move', 'defend', 'chase', 'flee', 'attack', 'skill'].includes(value)
+  );
+};
 
 /**
  * 캐릭터 스킬 슬롯 정보
@@ -173,10 +187,13 @@ export function loadMonsterBasicAttack(row: DataRow): BasicAttackInfo {
  * 몬스터 AI 설정 로드 (레거시)
  */
 export function loadMonsterAI(row: DataRow): AIConfig {
+  const aiType = row.monster_ai_type;
+  const skillPriority = row.monster_ai_skill_priority;
+
   return {
-    type: (row.monster_ai_type as any) || 'aggressive',
+    type: isAIType(aiType) ? aiType : 'aggressive',
     aggroRange: row.monster_ai_aggro_range || 300,
-    skillPriority: (row.monster_ai_skill_priority as any) || 'damage',
+    skillPriority: isSkillPriority(skillPriority) ? skillPriority : 'damage',
   };
 }
 
@@ -193,12 +210,29 @@ export function loadMonsterAIPattern(row: DataRow): AIPatternConfig {
 
       if (parsed && Array.isArray(parsed.patterns)) {
         return {
-          patterns: parsed.patterns.map((p: any) => ({
-            action: p.action || 'chase',
-            conditions: Array.isArray(p.conditions) ? p.conditions : [],
-            enabled: p.enabled !== false,
-            skillId: p.skillId,
-          })),
+          patterns: parsed.patterns
+            .map((pattern: unknown) => {
+              if (!pattern || typeof pattern !== 'object') return null;
+
+              const candidate = pattern as {
+                action?: unknown;
+                conditions?: unknown;
+                enabled?: unknown;
+                skillId?: unknown;
+              };
+
+              return {
+                action: isPatternAction(candidate.action) ? candidate.action : 'chase',
+                conditions: Array.isArray(candidate.conditions) ? candidate.conditions : [],
+                enabled: candidate.enabled !== false,
+                skillId: typeof candidate.skillId === 'string' ? candidate.skillId : undefined,
+              };
+            })
+            .filter(
+              (
+                pattern: AIPatternConfig['patterns'][number] | null
+              ): pattern is AIPatternConfig['patterns'][number] => pattern !== null
+            ),
           aggroRange:
             typeof parsed.aggroRange === 'number'
               ? parsed.aggroRange
@@ -211,11 +245,7 @@ export function loadMonsterAIPattern(row: DataRow): AIPatternConfig {
       }
     }
   } catch (error) {
-    console.warn(
-      '⚠️ AI 패턴 로드 실패, 기본값 사용:',
-      error,
-      row.monster_name || 'Unknown Monster',
-    );
+    logCombat('⚠️ AI 패턴 로드 실패, 기본값 사용:', error, row.monster_name || 'Unknown Monster');
   }
 
   // 기본값 반환
@@ -321,11 +351,11 @@ export function decideMonsterSkill(
   currentHP: number,
   maxHP: number,
   currentSP: number,
-  maxSP: number,
+  maxSP: number
 ): number {
   const distance = Math.sqrt(
     Math.pow(playerPosition.x - monster.position.x, 2) +
-      Math.pow(playerPosition.y - monster.position.y, 2),
+      Math.pow(playerPosition.y - monster.position.y, 2)
   );
 
   const availableSkills = getAvailableSkills(monster.skills, currentSP);
@@ -336,16 +366,21 @@ export function decideMonsterSkill(
     monster.skills.slot2,
     monster.skills.slot3,
     monster.skills.slot4,
-  ].map((slot) =>
-    slot
-      ? {
-          id: slot.id,
-          range: slot.range,
-          width: slot.width,
-          damage: slot.damage,
-        }
-      : null,
-  );
+  ]
+    .map(slot =>
+      slot
+        ? {
+            id: slot.id ?? undefined,
+            range: slot.range,
+            width: slot.width,
+            damage: slot.damage,
+          }
+        : null
+    )
+    .filter(
+      (slot): slot is { id: string | undefined; range: number; width: number; damage: number } =>
+        slot !== null
+    );
 
   return decideSkillToUse(
     monster.aiConfig,
@@ -355,7 +390,7 @@ export function decideMonsterSkill(
     maxHP,
     currentSP,
     maxSP,
-    skillData,
+    skillData
   );
 }
 
@@ -364,7 +399,7 @@ export function decideMonsterSkill(
  */
 export function applySkillEffect(
   skillId: string,
-  character: Character,
+  _character: Character
 ): { hp?: number; sp?: number; buffApplied?: boolean } {
   const skill = defaultSkills[skillId];
   if (!skill) return {};
@@ -393,7 +428,7 @@ export function isInAttackRange(
   attackerAngle: number,
   targetPos: { x: number; y: number },
   range: number,
-  width: number, // 각도 (도 단위)
+  width: number // 각도 (도 단위)
 ): boolean {
   const dx = targetPos.x - attackerPos.x;
   const dy = targetPos.y - attackerPos.y;
@@ -429,7 +464,7 @@ export interface CriticalResult {
  */
 export function calculateCritical(
   baseCriticalRate: number = 0.15,
-  criticalMultiplier: number = 1.5,
+  criticalMultiplier: number = 1.5
 ): CriticalResult {
   const isCritical = Math.random() < baseCriticalRate;
 

@@ -1,22 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Button } from './ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Badge } from './ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Slider } from './ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Label } from './ui/label';
-import { Plus, Trash2, ChevronDown, ChevronRight, X, Download } from 'lucide-react';
-import { DataRow } from '../lib/mockData';
-import { CharacterConfig } from './CharacterSettings';
+import { ChevronDown, ChevronRight, Download, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { CharacterTypeInfo } from '../lib/characterTypes';
+import { CharacterConfig, CharacterType } from '../lib/gameTypes';
 import { updateDataRowWithLevel } from '../lib/levelBasedStats';
-import { CharacterTypeInfo, getCharacterTypeName } from '../lib/characterTypes';
-import { CharacterType } from '../lib/gameTypes';
 import { LevelConfig } from '../lib/levelSystem';
-import { Skill } from '../lib/skillSystem';
+import { DataRow } from '../lib/mockData';
+import { defaultSkills, Skill } from '../lib/skillSystem';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Slider } from './ui/slider';
 
 interface PlayerDatasetViewerProps {
   dataset: DataRow[];
@@ -33,6 +31,19 @@ interface PlayerDatasetViewerProps {
 interface ColumnWidths {
   [key: string]: number;
 }
+
+type EditableCellValue = string | number | undefined;
+
+const toOptionalNumber = (value: EditableCellValue): number | undefined =>
+  typeof value === 'number' ? value : undefined;
+
+const formatDisplayValue = (value: EditableCellValue, field: string): string | number => {
+  if (typeof value === 'number') {
+    return field.includes('attack_speed') ? value.toFixed(1) : value;
+  }
+
+  return value || '-';
+};
 
 export function PlayerDatasetViewer({
   dataset,
@@ -142,7 +153,7 @@ export function PlayerDatasetViewer({
       playerLevelConfig,
       defaultLevel,
       defaultSize,
-      firstType,
+      firstType
     );
 
     const newDataset = [...dataset, newRow];
@@ -173,8 +184,8 @@ export function PlayerDatasetViewer({
     setCurrentTick(index);
   };
 
-  const handleCellUpdate = (rowIndex: number, field: string, value: any) => {
-    const newDataset = [...dataset];
+  const handleCellUpdate = (rowIndex: number, field: string, value: string | number) => {
+    const newDataset: DataRow[] = [...dataset];
     const row = newDataset[rowIndex];
 
     // 레벨, 크기, 타입 변경 시 능력치 재계산
@@ -184,16 +195,16 @@ export function PlayerDatasetViewer({
       const typeId = field === 'player_attack_type' ? value : row.player_attack_type;
 
       // 타입 정보 찾기
-      const typeInfo = characterTypes.find((t) => t.id === typeId);
+      const typeInfo = characterTypes.find(t => t.id === typeId);
 
       // 능력치 재계산
       const updatedRow = updateDataRowWithLevel(
         row,
         true,
         playerLevelConfig,
-        level,
-        size,
-        typeInfo,
+        toOptionalNumber(level),
+        toOptionalNumber(size),
+        typeInfo
       );
 
       // 타입 변경 시 기본 레벨, 크기, 기본 공격, 스킬도 변경
@@ -207,13 +218,12 @@ export function PlayerDatasetViewer({
           row,
           true,
           playerLevelConfig,
-          currentLevel,
-          currentSize,
-          typeInfo,
+          toOptionalNumber(currentLevel),
+          toOptionalNumber(currentSize),
+          typeInfo
         );
-        newDataset[rowIndex] = {
+        const rowWithDynamicField: Record<string, EditableCellValue> = {
           ...typeBasedRow,
-          [field]: value,
           // 레벨과 크기는 유지 (이미 typeBasedRow에 포함되어 있음)
           player_level: currentLevel,
           player_size: currentSize,
@@ -225,22 +235,22 @@ export function PlayerDatasetViewer({
           player_skill_3_id: defaultSkillIds[2] || '',
           player_skill_4_id: defaultSkillIds[3] || '',
         };
+        rowWithDynamicField[field] = value;
+        newDataset[rowIndex] = rowWithDynamicField as unknown as DataRow;
         toast.info(
-          `🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`,
+          `🎯 타입 "${typeInfo.name}"으로 변경! 레벨 ${typeInfo.defaultLevel}, 크기 ${typeInfo.defaultSize}로 초기화되었습니다.`
         );
       } else {
-        newDataset[rowIndex] = {
-          ...updatedRow,
-          [field]: value,
-        };
+        const rowWithDynamicField: Record<string, EditableCellValue> = { ...updatedRow };
+        rowWithDynamicField[field] = value;
+        newDataset[rowIndex] = rowWithDynamicField as unknown as DataRow;
         toast.info(`🔄 레벨 기반으로 능력치가 재계산되었습니다!`);
       }
     } else {
       // attack_type 같은 다른 필드는 그대로 업데이트
-      newDataset[rowIndex] = {
-        ...row,
-        [field]: value,
-      };
+      const rowWithDynamicField: Record<string, EditableCellValue> = { ...row };
+      rowWithDynamicField[field] = value;
+      newDataset[rowIndex] = rowWithDynamicField as unknown as DataRow;
     }
 
     setDataset(newDataset);
@@ -276,7 +286,7 @@ export function PlayerDatasetViewer({
       if (!resizing) return;
       const diff = e.clientX - resizing.startX;
       const newWidth = Math.max(50, resizing.startWidth + diff);
-      setColumnWidths((prev) => ({
+      setColumnWidths(prev => ({
         ...prev,
         [resizing.column]: newWidth,
       }));
@@ -298,22 +308,18 @@ export function PlayerDatasetViewer({
   const renderEditableCell = (
     rowIndex: number,
     field: string,
-    value: any,
+    value: EditableCellValue,
     suffix = '',
-    isReadOnly = false,
+    isReadOnly = false
   ) => {
     const isEditing = editingCell?.row === rowIndex && editingCell?.field === field;
 
     // 읽기 전용 필드 (레벨에 의해 자동 계산됨)
     if (isReadOnly) {
-      const displayValue = value?.toFixed
-        ? field.includes('attack_speed')
-          ? value.toFixed(1)
-          : value
-        : value || '-';
+      const displayValue = formatDisplayValue(value, field);
       return (
         <div
-          className="px-2 py-1 text-center truncate bg-slate-100 text-slate-600"
+          className='px-2 py-1 text-center truncate bg-slate-100 text-slate-600'
           title={`${displayValue}${displayValue !== '-' ? suffix : ''} (레벨에 의해 자동 계산)`}
         >
           {displayValue}
@@ -324,12 +330,12 @@ export function PlayerDatasetViewer({
 
     if (field === 'player_attack_type') {
       const currentType = (value as CharacterType) || 'melee';
-      const typeInfo = characterTypes.find((t) => t.id === currentType);
+      const typeInfo = characterTypes.find(t => t.id === currentType);
 
       return (
         <Popover
           open={isEditing}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
             } else {
@@ -339,8 +345,8 @@ export function PlayerDatasetViewer({
         >
           <PopoverTrigger asChild>
             <div
-              className="cursor-pointer hover:bg-blue-100 rounded px-2 py-1 text-center truncate"
-              onClick={(e) => {
+              className='cursor-pointer hover:bg-blue-100 rounded px-2 py-1 text-center truncate'
+              onClick={e => {
                 e.stopPropagation();
               }}
               title={typeInfo?.name || currentType}
@@ -349,31 +355,31 @@ export function PlayerDatasetViewer({
             </div>
           </PopoverTrigger>
           <PopoverContent
-            className="w-64 p-3 z-50"
-            align="start"
-            side="bottom"
+            className='w-64 p-3 z-50'
+            align='start'
+            side='bottom'
             sideOffset={5}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs">캐릭터 타입</span>
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between'>
+                <span className='text-xs'>캐릭터 타입</span>
                 <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-5 w-5 p-0"
-                  onClick={(e) => {
+                  size='sm'
+                  variant='ghost'
+                  className='h-5 w-5 p-0'
+                  onClick={e => {
                     e.stopPropagation();
                     setEditingCell(null);
                   }}
                 >
-                  <X className="h-3 w-3" />
+                  <X className='h-3 w-3' />
                 </Button>
               </div>
               <Select
                 value={currentType}
-                onValueChange={(newValue) => {
-                  const selectedType = characterTypes.find((t) => t.id === newValue);
+                onValueChange={newValue => {
+                  const selectedType = characterTypes.find(t => t.id === newValue);
                   const newDataset = [...dataset];
                   newDataset[rowIndex] = {
                     ...newDataset[rowIndex],
@@ -385,15 +391,15 @@ export function PlayerDatasetViewer({
                   setEditingCell(null);
                 }}
               >
-                <SelectTrigger className="h-8 w-full">
+                <SelectTrigger className='h-8 w-full'>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {characterTypes.map((type) => (
+                <SelectContent className='max-h-64'>
+                  {characterTypes.map(type => (
                     <SelectItem key={type.id} value={type.id}>
-                      <div className="flex items-center gap-2">
+                      <div className='flex items-center gap-2'>
                         <span className={type.color}>{type.name}</span>
-                        <span className="text-xs text-muted-foreground">- {type.description}</span>
+                        <span className='text-xs text-muted-foreground'>- {type.description}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -413,7 +419,7 @@ export function PlayerDatasetViewer({
 
       // 기본 공격용 스킬만 필터링 (skillConfigs에서 category === 'basicAttack'인 것들)
       const basicAttackSkills = Object.values(skillConfigs).filter(
-        (skill) => skill.category === 'basicAttack',
+        skill => skill.category === 'basicAttack'
       );
 
       // 현재 기본 공격의 파라미터 값 가져오기
@@ -427,7 +433,7 @@ export function PlayerDatasetViewer({
       return (
         <Popover
           open={isEditing}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
             } else {
@@ -437,44 +443,44 @@ export function PlayerDatasetViewer({
         >
           <PopoverTrigger asChild>
             <div
-              className="cursor-pointer hover:bg-purple-100 rounded px-2 py-1 text-center truncate"
-              onClick={(e) => {
+              className='cursor-pointer hover:bg-purple-100 rounded px-2 py-1 text-center truncate'
+              onClick={e => {
                 e.stopPropagation();
               }}
               title={currentSkill?.name || currentSkillId}
             >
-              <span className="text-purple-700">{currentSkill?.name || currentSkillId}</span>
+              <span className='text-purple-700'>{currentSkill?.name || currentSkillId}</span>
             </div>
           </PopoverTrigger>
           <PopoverContent
-            className="w-80 p-4 z-50"
-            align="start"
-            side="bottom"
+            className='w-80 p-4 z-50'
+            align='start'
+            side='bottom'
             sideOffset={5}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">기본 공격</span>
+            <div className='space-y-3'>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm font-medium'>기본 공격</span>
                 <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-5 w-5 p-0"
-                  onClick={(e) => {
+                  size='sm'
+                  variant='ghost'
+                  className='h-5 w-5 p-0'
+                  onClick={e => {
                     e.stopPropagation();
                     setEditingCell(null);
                   }}
                 >
-                  <X className="h-3 w-3" />
+                  <X className='h-3 w-3' />
                 </Button>
               </div>
 
               {/* 스킬 선택 */}
-              <div className="space-y-1">
-                <Label className="text-xs">공격 타입</Label>
+              <div className='space-y-1'>
+                <Label className='text-xs'>공격 타입</Label>
                 <Select
                   value={currentSkillId}
-                  onValueChange={(newSkillId) => {
+                  onValueChange={newSkillId => {
                     const skill = skillConfigs[newSkillId];
                     if (skill) {
                       const newDataset = [...dataset];
@@ -493,11 +499,11 @@ export function PlayerDatasetViewer({
                     }
                   }}
                 >
-                  <SelectTrigger className="h-8 w-full">
+                  <SelectTrigger className='h-8 w-full'>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    {basicAttackSkills.map((skill) => (
+                  <SelectContent className='max-h-64'>
+                    {basicAttackSkills.map(skill => (
                       <SelectItem key={skill.id} value={skill.id}>
                         {skill.name}
                       </SelectItem>
@@ -507,18 +513,18 @@ export function PlayerDatasetViewer({
               </div>
 
               {/* 파라미터 편집 */}
-              <div className="space-y-2 border-t pt-3">
+              <div className='space-y-2 border-t pt-3'>
                 {/* 범위 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {range}px
                     </Badge>
                   </div>
                   <Slider
                     value={[range]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -533,21 +539,21 @@ export function PlayerDatasetViewer({
                     min={30}
                     max={200}
                     step={10}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 넓이 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {width}°
                     </Badge>
                   </div>
                   <Slider
                     value={[width]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -562,21 +568,21 @@ export function PlayerDatasetViewer({
                     min={30}
                     max={360}
                     step={15}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 데미지 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>데미지 배율</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {damage.toFixed(1)}x
                     </Badge>
                   </div>
                   <Slider
                     value={[damage * 10]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -591,21 +597,21 @@ export function PlayerDatasetViewer({
                     min={5}
                     max={50}
                     step={1}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 쿨타임 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {(cooldown / 1000).toFixed(1)}초
                     </Badge>
                   </div>
                   <Slider
                     value={[cooldown / 100]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -620,21 +626,21 @@ export function PlayerDatasetViewer({
                     min={5}
                     max={100}
                     step={1}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* SP 소모 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {spCost}
                     </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -649,21 +655,21 @@ export function PlayerDatasetViewer({
                     min={0}
                     max={100}
                     step={5}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 시전 시간 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>시전 시간</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {castTime}ms
                     </Badge>
                   </div>
                   <Slider
                     value={[castTime / 10]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -678,7 +684,7 @@ export function PlayerDatasetViewer({
                     min={10}
                     max={200}
                     step={5}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
               </div>
@@ -697,9 +703,7 @@ export function PlayerDatasetViewer({
       const currentSkill = skillConfigs[currentSkillId];
 
       // 일반 스킬만 필터링
-      const normalSkills = Object.values(skillConfigs).filter(
-        (skill) => skill.category === 'skill',
-      );
+      const normalSkills = Object.values(skillConfigs).filter(skill => skill.category === 'skill');
 
       // 현재 슬롯의 파라미터 값 가져오기
       const range = (row[`player_skill_${slotNum}_range` as keyof DataRow] as number) || 100;
@@ -712,7 +716,7 @@ export function PlayerDatasetViewer({
       return (
         <Popover
           open={isEditing}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (open) {
               setEditingCell({ row: rowIndex, field });
             } else {
@@ -722,44 +726,44 @@ export function PlayerDatasetViewer({
         >
           <PopoverTrigger asChild>
             <div
-              className="cursor-pointer hover:bg-purple-100 rounded px-2 py-1 text-center truncate"
-              onClick={(e) => {
+              className='cursor-pointer hover:bg-purple-100 rounded px-2 py-1 text-center truncate'
+              onClick={e => {
                 e.stopPropagation();
               }}
               title={currentSkill?.name || currentSkillId}
             >
-              <span className="text-purple-700">{currentSkill?.name || currentSkillId}</span>
+              <span className='text-purple-700'>{currentSkill?.name || currentSkillId}</span>
             </div>
           </PopoverTrigger>
           <PopoverContent
-            className="w-80 p-4 z-50"
-            align="start"
-            side="bottom"
+            className='w-80 p-4 z-50'
+            align='start'
+            side='bottom'
             sideOffset={5}
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           >
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">스킬 슬롯 {slotNum}</span>
+            <div className='space-y-3'>
+              <div className='flex items-center justify-between'>
+                <span className='text-sm font-medium'>스킬 슬롯 {slotNum}</span>
                 <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-5 w-5 p-0"
-                  onClick={(e) => {
+                  size='sm'
+                  variant='ghost'
+                  className='h-5 w-5 p-0'
+                  onClick={e => {
                     e.stopPropagation();
                     setEditingCell(null);
                   }}
                 >
-                  <X className="h-3 w-3" />
+                  <X className='h-3 w-3' />
                 </Button>
               </div>
 
               {/* 스킬 선택 */}
-              <div className="space-y-1">
-                <Label className="text-xs">스킬</Label>
+              <div className='space-y-1'>
+                <Label className='text-xs'>스킬</Label>
                 <Select
                   value={currentSkillId}
-                  onValueChange={(newSkillId) => {
+                  onValueChange={newSkillId => {
                     const skill = skillConfigs[newSkillId];
                     if (skill) {
                       const newDataset = [...dataset];
@@ -778,11 +782,11 @@ export function PlayerDatasetViewer({
                     }
                   }}
                 >
-                  <SelectTrigger className="h-8 w-full">
+                  <SelectTrigger className='h-8 w-full'>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="max-h-64">
-                    {normalSkills.map((skill) => (
+                  <SelectContent className='max-h-64'>
+                    {normalSkills.map(skill => (
                       <SelectItem key={skill.id} value={skill.id}>
                         {skill.name}
                       </SelectItem>
@@ -792,18 +796,18 @@ export function PlayerDatasetViewer({
               </div>
 
               {/* 파라미터 편집 */}
-              <div className="space-y-2 border-t pt-3">
+              <div className='space-y-2 border-t pt-3'>
                 {/* 범위 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>범위</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {range}px
                     </Badge>
                   </div>
                   <Slider
                     value={[range]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -814,21 +818,21 @@ export function PlayerDatasetViewer({
                     min={30}
                     max={200}
                     step={10}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 넓이 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>넓이</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {width}°
                     </Badge>
                   </div>
                   <Slider
                     value={[width]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -839,21 +843,21 @@ export function PlayerDatasetViewer({
                     min={30}
                     max={360}
                     step={15}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 데미지 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>데미지</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {damage}x
                     </Badge>
                   </div>
                   <Slider
                     value={[damage]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -864,21 +868,21 @@ export function PlayerDatasetViewer({
                     min={0.5}
                     max={5.0}
                     step={0.1}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 쿨타임 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>쿨타임</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {cooldown}ms
                     </Badge>
                   </div>
                   <Slider
                     value={[cooldown]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -889,21 +893,21 @@ export function PlayerDatasetViewer({
                     min={1000}
                     max={30000}
                     step={500}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* SP 소모 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>SP 소모</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {spCost}SP
                     </Badge>
                   </div>
                   <Slider
                     value={[spCost]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -914,21 +918,21 @@ export function PlayerDatasetViewer({
                     min={10}
                     max={100}
                     step={5}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
 
                 {/* 시전시간 */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs">
+                <div className='space-y-1'>
+                  <div className='flex justify-between text-xs'>
                     <Label>시전시간</Label>
-                    <Badge variant="secondary" className="h-5">
+                    <Badge variant='secondary' className='h-5'>
                       {castTime}ms
                     </Badge>
                   </div>
                   <Slider
                     value={[castTime]}
-                    onValueChange={(v) => {
+                    onValueChange={v => {
                       const newDataset = [...dataset];
                       newDataset[rowIndex] = {
                         ...newDataset[rowIndex],
@@ -939,7 +943,7 @@ export function PlayerDatasetViewer({
                     min={0}
                     max={3000}
                     step={100}
-                    className="w-full"
+                    className='w-full'
                   />
                 </div>
               </div>
@@ -949,16 +953,12 @@ export function PlayerDatasetViewer({
       );
     }
 
-    const displayValue = value?.toFixed
-      ? field.includes('attack_speed')
-        ? value.toFixed(1)
-        : value
-      : value || '-';
+    const displayValue = formatDisplayValue(value, field);
 
     return (
       <Popover
         open={isEditing}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (open) {
             setEditingCell({ row: rowIndex, field });
           } else {
@@ -968,8 +968,8 @@ export function PlayerDatasetViewer({
       >
         <PopoverTrigger asChild>
           <div
-            className="cursor-pointer hover:bg-blue-100 rounded px-2 py-1 text-center truncate"
-            onClick={(e) => {
+            className='cursor-pointer hover:bg-blue-100 rounded px-2 py-1 text-center truncate'
+            onClick={e => {
               e.stopPropagation();
             }}
             title={`${displayValue}${displayValue !== '-' ? suffix : ''}`}
@@ -979,39 +979,39 @@ export function PlayerDatasetViewer({
           </div>
         </PopoverTrigger>
         <PopoverContent
-          className="w-56 p-4 bg-blue-50 border-blue-400 z-50"
-          align="start"
-          side="bottom"
+          className='w-56 p-4 bg-blue-50 border-blue-400 z-50'
+          align='start'
+          side='bottom'
           sideOffset={5}
-          onClick={(e) => e.stopPropagation()}
+          onClick={e => e.stopPropagation()}
         >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Badge variant="secondary">
+          <div className='space-y-3'>
+            <div className='flex items-center justify-between'>
+              <Badge variant='secondary'>
                 {displayValue}
                 {suffix}
               </Badge>
               <Button
-                size="sm"
-                variant="ghost"
-                className="h-5 w-5 p-0"
-                onClick={(e) => {
+                size='sm'
+                variant='ghost'
+                className='h-5 w-5 p-0'
+                onClick={e => {
                   e.stopPropagation();
                   setEditingCell(null);
                 }}
               >
-                <X className="h-3 w-3" />
+                <X className='h-3 w-3' />
               </Button>
             </div>
             <Slider
-              value={[value || getFieldConfig(field).min]}
-              onValueChange={(v) => handleCellUpdate(rowIndex, field, v[0])}
+              value={[typeof value === 'number' ? value : getFieldConfig(field).min]}
+              onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
               min={getFieldConfig(field).min}
               max={getFieldConfig(field).max}
               step={getFieldConfig(field).step}
-              className="w-full"
+              className='w-full'
             />
-            <div className="flex justify-between text-xs text-slate-600">
+            <div className='flex justify-between text-xs text-slate-600'>
               <span>{getFieldConfig(field).min}</span>
               <span>{getFieldConfig(field).max}</span>
             </div>
@@ -1023,30 +1023,30 @@ export function PlayerDatasetViewer({
 
   const ResizeHandle = ({ column }: { column: string }) => (
     <div
-      className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600"
-      onMouseDown={(e) => handleResizeStart(column, e)}
-      onClick={(e) => e.stopPropagation()}
+      className='absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600'
+      onMouseDown={e => handleResizeStart(column, e)}
+      onClick={e => e.stopPropagation()}
     />
   );
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card className="overflow-visible">
+      <Card className='overflow-visible'>
         <CardHeader className={!isOpen ? 'pb-6' : ''}>
           <CollapsibleTrigger asChild>
-            <div className="flex items-center justify-between cursor-pointer">
-              <CardTitle className="flex items-center gap-2">
+            <div className='flex items-center justify-between cursor-pointer'>
+              <CardTitle className='flex items-center gap-2'>
                 {isOpen ? (
-                  <ChevronDown className="w-5 h-5" />
+                  <ChevronDown className='w-5 h-5' />
                 ) : (
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className='w-5 h-5' />
                 )}
                 플레이어 데이터셋
               </CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="outline">{dataset.length}개 행</Badge>
+              <div className='flex items-center gap-2'>
+                <Badge variant='outline'>{dataset.length}개 행</Badge>
                 {currentTick < dataset.length && (
-                  <Badge variant="default" className="bg-blue-600">
+                  <Badge variant='default' className='bg-blue-600'>
                     행 {currentTick} 선택됨
                   </Badge>
                 )}
@@ -1057,149 +1057,149 @@ export function PlayerDatasetViewer({
 
         <CollapsibleContent>
           <CardContent>
-            <div className="border rounded-lg overflow-visible">
-              <div className="overflow-x-auto max-h-96 overflow-y-auto">
-                <table className="w-full border-collapse">
+            <div className='border rounded-lg overflow-visible'>
+              <div className='overflow-x-auto max-h-96 overflow-y-auto'>
+                <table className='w-full border-collapse'>
                   <thead>
                     {/* 첫 번째 행: 카테고리 */}
-                    <tr className="border-b bg-muted/70">
+                    <tr className='border-b bg-muted/70'>
                       <th
-                        className="text-center border-r p-1 text-xs"
+                        className='text-center border-r p-1 text-xs'
                         rowSpan={2}
                         style={{ width: columnWidths.index }}
                       >
-                        <div className="truncate">#</div>
+                        <div className='truncate'>#</div>
                       </th>
-                      <th className="text-center border-r p-1 text-xs bg-blue-50" colSpan={3}>
-                        <div className="truncate">설정 정보</div>
+                      <th className='text-center border-r p-1 text-xs bg-blue-50' colSpan={3}>
+                        <div className='truncate'>설정 정보</div>
                       </th>
-                      <th className="text-center border-r p-1 text-xs bg-slate-50" colSpan={8}>
-                        <div className="truncate">종속 정보(레벨에 따른 변경)</div>
+                      <th className='text-center border-r p-1 text-xs bg-slate-50' colSpan={8}>
+                        <div className='truncate'>종속 정보(레벨에 따른 변경)</div>
                       </th>
-                      <th className="text-center border-r p-1 text-xs bg-purple-50" colSpan={5}>
-                        <div className="truncate">스킬 정보</div>
+                      <th className='text-center border-r p-1 text-xs bg-purple-50' colSpan={5}>
+                        <div className='truncate'>스킬 정보</div>
                       </th>
                       <th
-                        className="text-center p-1 text-xs"
+                        className='text-center p-1 text-xs'
                         rowSpan={2}
                         style={{ width: columnWidths.delete }}
                       >
-                        <div className="truncate">삭제</div>
+                        <div className='truncate'>삭제</div>
                       </th>
                     </tr>
                     {/* 두 번째 행: 개별 컬럼 */}
-                    <tr className="border-b bg-muted/50">
+                    <tr className='border-b bg-muted/50'>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_attack_type }}
                       >
-                        <div className="truncate">타입</div>
-                        <ResizeHandle column="player_attack_type" />
+                        <div className='truncate'>타입</div>
+                        <ResizeHandle column='player_attack_type' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_level }}
                       >
-                        <div className="truncate">LV</div>
-                        <ResizeHandle column="player_level" />
+                        <div className='truncate'>LV</div>
+                        <ResizeHandle column='player_level' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_size }}
                       >
-                        <div className="truncate">크기</div>
-                        <ResizeHandle column="player_size" />
+                        <div className='truncate'>크기</div>
+                        <ResizeHandle column='player_size' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_hp }}
                       >
-                        <div className="truncate">HP</div>
-                        <ResizeHandle column="player_hp" />
+                        <div className='truncate'>HP</div>
+                        <ResizeHandle column='player_hp' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_sp }}
                       >
-                        <div className="truncate">SP</div>
-                        <ResizeHandle column="player_sp" />
+                        <div className='truncate'>SP</div>
+                        <ResizeHandle column='player_sp' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_speed }}
                       >
-                        <div className="truncate">속도</div>
-                        <ResizeHandle column="player_speed" />
+                        <div className='truncate'>속도</div>
+                        <ResizeHandle column='player_speed' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_attack }}
                       >
-                        <div className="truncate">공격력</div>
-                        <ResizeHandle column="player_attack" />
+                        <div className='truncate'>공격력</div>
+                        <ResizeHandle column='player_attack' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_defense }}
                       >
-                        <div className="truncate">방어력</div>
-                        <ResizeHandle column="player_defense" />
+                        <div className='truncate'>방어력</div>
+                        <ResizeHandle column='player_defense' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_attack_speed }}
                       >
-                        <div className="truncate">공속</div>
-                        <ResizeHandle column="player_attack_speed" />
+                        <div className='truncate'>공속</div>
+                        <ResizeHandle column='player_attack_speed' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_accuracy }}
                       >
-                        <div className="truncate">명중</div>
-                        <ResizeHandle column="player_accuracy" />
+                        <div className='truncate'>명중</div>
+                        <ResizeHandle column='player_accuracy' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_critical_rate }}
                       >
-                        <div className="truncate">크리</div>
-                        <ResizeHandle column="player_critical_rate" />
+                        <div className='truncate'>크리</div>
+                        <ResizeHandle column='player_critical_rate' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2 bg-purple-100"
+                        className='relative text-center border-r p-2 bg-purple-100'
                         style={{ width: columnWidths.player_basic_attack }}
                       >
-                        <div className="truncate">기본 공격</div>
-                        <ResizeHandle column="player_basic_attack" />
+                        <div className='truncate'>기본 공격</div>
+                        <ResizeHandle column='player_basic_attack' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_skill_1 }}
                       >
-                        <div className="truncate">스킬 1</div>
-                        <ResizeHandle column="player_skill_1" />
+                        <div className='truncate'>스킬 1</div>
+                        <ResizeHandle column='player_skill_1' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_skill_2 }}
                       >
-                        <div className="truncate">스킬 2</div>
-                        <ResizeHandle column="player_skill_2" />
+                        <div className='truncate'>스킬 2</div>
+                        <ResizeHandle column='player_skill_2' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_skill_3 }}
                       >
-                        <div className="truncate">스킬 3</div>
-                        <ResizeHandle column="player_skill_3" />
+                        <div className='truncate'>스킬 3</div>
+                        <ResizeHandle column='player_skill_3' />
                       </th>
                       <th
-                        className="relative text-center border-r p-2"
+                        className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_skill_4 }}
                       >
-                        <div className="truncate">스킬 4</div>
-                        <ResizeHandle column="player_skill_4" />
+                        <div className='truncate'>스킬 4</div>
+                        <ResizeHandle column='player_skill_4' />
                       </th>
                     </tr>
                   </thead>
@@ -1215,164 +1215,164 @@ export function PlayerDatasetViewer({
                         onClick={() => handleRowClick(index)}
                       >
                         <td
-                          className="text-center border-r p-2"
+                          className='text-center border-r p-2'
                           style={{ width: columnWidths.index }}
                         >
-                          <div className="truncate">{index}</div>
+                          <div className='truncate'>{index}</div>
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_attack_type }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_attack_type', row.player_attack_type)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_level }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_level', row.player_level)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_size }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_size', row.player_size)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_hp }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_hp', row.player_hp)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_sp }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_sp', row.player_sp)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_speed }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_speed', row.player_speed)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_attack }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_attack', row.player_attack)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_defense }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_defense', row.player_defense)}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_attack_speed }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_attack_speed',
-                            row.player_attack_speed,
+                            row.player_attack_speed
                           )}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_accuracy }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(index, 'player_accuracy', row.player_accuracy, '%')}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_critical_rate }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_critical_rate',
                             row.player_critical_rate,
-                            '%',
+                            '%'
                           )}
                         </td>
                         <td
-                          className="border-r p-1 bg-purple-50"
+                          className='border-r p-1 bg-purple-50'
                           style={{ width: columnWidths.player_basic_attack }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_basic_attack_id',
-                            row.player_basic_attack_id || 'meleeBasic',
+                            row.player_basic_attack_id || 'meleeBasic'
                           )}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_skill_1 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_skill_1_id',
-                            row.player_skill_1_id || 'powerSlash',
+                            row.player_skill_1_id || 'powerSlash'
                           )}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_skill_2 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_skill_2_id',
-                            row.player_skill_2_id || 'whirlwind',
+                            row.player_skill_2_id || 'whirlwind'
                           )}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_skill_3 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_skill_3_id',
-                            row.player_skill_3_id || 'heal',
+                            row.player_skill_3_id || 'heal'
                           )}
                         </td>
                         <td
-                          className="border-r p-1"
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_skill_4 }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           {renderEditableCell(
                             index,
                             'player_skill_4_id',
-                            row.player_skill_4_id || 'powerBuff',
+                            row.player_skill_4_id || 'powerBuff'
                           )}
                         </td>
                         <td
-                          className="text-center p-1"
+                          className='text-center p-1'
                           style={{ width: columnWidths.delete }}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         >
                           <Button
-                            size="sm"
-                            variant="ghost"
+                            size='sm'
+                            variant='ghost'
                             onClick={() => handleDeleteRow(index)}
-                            className="mx-auto"
+                            className='mx-auto'
                           >
-                            <Trash2 className="w-3 h-3 text-destructive" />
+                            <Trash2 className='w-3 h-3 text-destructive' />
                           </Button>
                         </td>
                       </tr>
@@ -1383,17 +1383,17 @@ export function PlayerDatasetViewer({
             </div>
 
             {/* Action buttons at bottom */}
-            <div className="flex gap-2 mt-4">
+            <div className='flex gap-2 mt-4'>
               <Button
                 onClick={handleApplyRow}
                 disabled={currentTick >= dataset.length || !dataset[currentTick]?.player_size}
-                className="flex-1"
+                className='flex-1'
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className='w-4 h-4 mr-2' />
                 선택한 행 불러오기 (행 {currentTick})
               </Button>
-              <Button variant="outline" onClick={handleAddRow} className="flex-1">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button variant='outline' onClick={handleAddRow} className='flex-1'>
+                <Plus className='w-4 h-4 mr-2' />
                 현재 설정 추가
               </Button>
             </div>

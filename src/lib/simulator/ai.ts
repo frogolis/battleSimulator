@@ -3,10 +3,9 @@
  * MonsterAI.ts의 패턴을 기반으로 실제 게임 루프에서 사용하는 AI 업데이트 함수들
  */
 
-import { MonsterState, CharacterState, Position } from './types';
-import { AIPattern, PatternAction, PatternCondition } from '../monsterAI';
-import { resolveCharacterConfigMid } from '../configUtils';
-import { CharacterConfig } from '../../components/CharacterSettings';
+import { CharacterConfig } from '../gameTypes';
+import { PatternAction, PatternCondition } from '../monsterAI';
+import { CharacterState, MonsterState, Position } from './types';
 
 /**
  * AI 업데이트 결과
@@ -22,7 +21,7 @@ export interface AIUpdateResult {
 function evaluateCondition(
   condition: PatternCondition,
   distanceToPlayer: number,
-  monsterHpPercent: number,
+  monsterHpPercent: number
 ): boolean {
   let value: number;
 
@@ -61,7 +60,7 @@ function evaluateCondition(
 export function matchAIPattern(
   monster: MonsterState,
   player: CharacterState,
-  distanceToPlayer: number,
+  distanceToPlayer: number
 ): AIUpdateResult | null {
   const patterns = monster.aiPatternConfig?.patterns || [];
   const monsterHpPercent = monster.stats.hp / monster.stats.maxHp;
@@ -71,8 +70,8 @@ export function matchAIPattern(
     if (!pattern.enabled) continue;
 
     // 모든 조건이 만족되는지 확인
-    const allConditionsMet = pattern.conditions.every((condition) =>
-      evaluateCondition(condition, distanceToPlayer, monsterHpPercent),
+    const allConditionsMet = pattern.conditions.every(condition =>
+      evaluateCondition(condition, distanceToPlayer, monsterHpPercent)
     );
 
     if (allConditionsMet) {
@@ -109,7 +108,7 @@ export function updateMonsterMovement(
   targetPos: Position,
   speed: number,
   deltaTime: number,
-  minDistance: number = 0,
+  minDistance: number = 0
 ): void {
   const dx = targetPos.x - monster.position.x;
   const dy = targetPos.y - monster.position.y;
@@ -136,7 +135,7 @@ export function updateMonsterRetreat(
   monster: MonsterState,
   playerPos: Position,
   speed: number,
-  deltaTime: number,
+  deltaTime: number
 ): void {
   const dx = monster.position.x - playerPos.x;
   const dy = monster.position.y - playerPos.y;
@@ -160,10 +159,14 @@ export function updateAIState(
   monster: MonsterState,
   player: CharacterState,
   distanceToPlayer: number,
-  monsterConfig: CharacterConfig,
+  monsterConfig: CharacterConfig
 ): void {
   const hpPercent = monster.stats.hp / monster.stats.maxHp;
-  const attackRange = monster.basicAttack?.range || monsterConfig.attackRange;
+  const configAttackRange =
+    typeof monsterConfig.attackRange === 'number'
+      ? monsterConfig.attackRange
+      : (monsterConfig.attackRange.min + monsterConfig.attackRange.max) / 2;
+  const attackRange = monster.basicAttack?.range || configAttackRange;
 
   // 패턴 매칭 시도
   const aiResult = matchAIPattern(monster, player, distanceToPlayer);
@@ -206,7 +209,7 @@ export function updateAIState(
 export function selectSkillByPattern(
   monster: MonsterState,
   player: CharacterState,
-  distanceToPlayer: number,
+  distanceToPlayer: number
 ): number | null {
   const aiResult = matchAIPattern(monster, player, distanceToPlayer);
 

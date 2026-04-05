@@ -3,11 +3,12 @@
  * 몬스터 리스폰 규칙과 로직을 관리합니다.
  */
 
-import { MonsterState } from './types';
-import { createMonster } from './characters';
-import { Skill } from '../skillSystem';
-import { DEFAULT_RESPAWN_DELAY } from './constants';
 import { LevelConfig } from '../levelSystem';
+import { DataRow } from '../mockData';
+import { Skill } from '../skillSystem';
+import { createMonster } from './characters';
+import { DEFAULT_RESPAWN_DELAY } from './constants';
+import { MonsterState } from './types';
 
 /**
  * 리스폰 설정
@@ -24,11 +25,11 @@ export interface RespawnConfig {
  * 리스폰 컨텍스트
  */
 export interface RespawnContext {
-  monsterDataset?: any[];
+  monsterDataset?: DataRow[];
   selectedMonsterRows?: Set<number>;
   skillConfigs?: Record<string, Skill>;
-  selectMonsterByWeight?: () => any | null;
-  currentDataRow?: any;
+  selectMonsterByWeight?: () => DataRow | null;
+  currentDataRow?: DataRow;
   nextMonsterId: number; // 다음 몬스터 ID
   monsterLevelConfig?: LevelConfig; // 몬스터 레벨 설정
 }
@@ -45,14 +46,14 @@ export function updateRespawnTimers(
   monsters: MonsterState[],
   deltaTime: number,
   config: RespawnConfig,
-  context: RespawnContext,
+  context: RespawnContext
 ): number {
   if (!config.enabled) return 0;
 
   let respawnedCount = 0;
-  const aliveCount = monsters.filter((m) => !m.isDead).length;
+  const aliveCount = monsters.filter(m => !m.isDead).length;
 
-  monsters.forEach((monster) => {
+  monsters.forEach(monster => {
     if (monster.isDead && monster.respawnTimer > 0) {
       monster.respawnTimer -= deltaTime;
 
@@ -76,7 +77,7 @@ export function updateRespawnTimers(
 export function respawnMonster(
   monster: MonsterState,
   config: RespawnConfig,
-  context: RespawnContext,
+  context: RespawnContext
 ): void {
   // 가중치 기반 선택 또는 현재 데이터 행 사용
   const selectedMonster = context.selectMonsterByWeight?.() || null;
@@ -107,7 +108,7 @@ export function respawnMonster(
  */
 export function killMonster(
   monster: MonsterState,
-  respawnDelay: number = DEFAULT_RESPAWN_DELAY,
+  respawnDelay: number = DEFAULT_RESPAWN_DELAY
 ): void {
   monster.isDead = true;
   monster.respawnTimer = respawnDelay;
@@ -120,7 +121,7 @@ export function killMonster(
  * @returns 살아있는 몬스터 수
  */
 export function countAliveMonsters(monsters: MonsterState[]): number {
-  return monsters.filter((m) => !m.isDead).length;
+  return monsters.filter(m => !m.isDead).length;
 }
 
 /**
@@ -129,7 +130,7 @@ export function countAliveMonsters(monsters: MonsterState[]): number {
  * @returns 리스폰 대기 중인 몬스터 수
  */
 export function countRespawningMonsters(monsters: MonsterState[]): number {
-  return monsters.filter((m) => m.isDead && m.respawnTimer > 0).length;
+  return monsters.filter(m => m.isDead && m.respawnTimer > 0).length;
 }
 
 /**
@@ -142,12 +143,12 @@ export function countRespawningMonsters(monsters: MonsterState[]): number {
 export function respawnAllDead(
   monsters: MonsterState[],
   config: RespawnConfig,
-  context: RespawnContext,
+  context: RespawnContext
 ): number {
   let count = 0;
   const aliveCount = countAliveMonsters(monsters);
 
-  monsters.forEach((monster) => {
+  monsters.forEach(monster => {
     if (monster.isDead && aliveCount + count < config.maxCount) {
       respawnMonster(monster, config, context);
       count++;

@@ -1,86 +1,84 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Slider } from './ui/slider';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Maximize2, Minimize2, Swords, Package } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+/* eslint-disable react-hooks/exhaustive-deps */
+
+import { Maximize2, Minimize2, Package, Swords } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { KeyBindings } from './KeyBindingSettings';
-import { CharacterConfig } from './CharacterSettings';
 import {
-  CharacterStats,
-  MonsterStats,
-  defaultPlayerStats,
-  defaultMonsterStats,
-  calculateDamage,
-  checkCollision,
-} from '../lib/gameData';
-import { calculateCritical } from '../lib/combatSystem';
-import {
-  LevelConfig,
-  addExperience,
-  calculateLevelStats,
-  calculateExpReward,
-  getLevelProgress,
-} from '../lib/levelSystem';
-import {
-  SkillSlot,
-  SPConfig,
-  defaultSPConfig,
-  updateSkillCooldown,
-  canUseSkill,
-  useSkill,
-  regenerateSP,
-  consumeSP,
-  Skill,
-  calculateSkillDamage,
-  BasicAttackSlot,
-  getDefaultBasicAttackSlot,
-} from '../lib/skillSystem';
-import {
-  ItemSlot,
-  updateItemCooldown,
-  canUseItem,
-  useItem,
-  ActiveBuff,
-  updateBuffs,
-  applyBuffsToStats,
-} from '../lib/itemSystem';
-import { resolveCharacterConfigMid, getMidInRange } from '../lib/configUtils';
-import {
-  loadPlayerSkills,
-  loadMonsterSkills,
+  CharacterSkills,
+  calculateCritical,
   loadMonsterAI,
   loadMonsterAIPattern,
   loadMonsterBasicAttack,
-  updateSkillCooldowns,
-  CharacterSkills,
+  loadMonsterSkills,
 } from '../lib/combatSystem';
-import { AIConfig, AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
+import { resolveCharacterConfigMid } from '../lib/configUtils';
 import {
-  drawPlayerAttackRange,
-  drawMonsterAttackRange,
+  CharacterStats,
+  MonsterStats,
+  calculateDamage,
+  defaultMonsterStats,
+  defaultPlayerStats,
+} from '../lib/gameData';
+import {
   drawAttackRangeIndicator,
+  drawMonsterAttackRange,
+  drawPlayerAttackRange,
 } from '../lib/gameRenderer';
+import { CharacterConfig } from '../lib/gameTypes';
+import { ICON_MAP } from '../lib/iconMap';
 import {
-  createSkillParticles,
-  createSkillEffectParticles,
-  updateParticles,
-  renderParticles,
-  ParticleUpdateStrategy,
-  createEffect,
-  updateNewParticles,
-  renderNewParticles,
-} from '../lib/simulator/particles';
+  ActiveBuff,
+  ItemSlot,
+  applyBuffsToStats,
+  canUseItem,
+  useItem as consumeItem,
+  updateBuffs,
+  updateItemCooldown,
+} from '../lib/itemSystem';
+import {
+  LevelConfig,
+  addExperience,
+  calculateExpReward,
+  calculateLevelStats,
+  getLevelProgress,
+} from '../lib/levelSystem';
+import { DataRow } from '../lib/mockData';
+import { AIConfig, AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
 import {
   checkMonsterParticleCollision,
   checkPlayerParticleCollision,
 } from '../lib/simulator/gameLoop';
-import { defaultSkills, EFFECT_PRESETS } from '../lib/skillSystem';
+import {
+  createEffect,
+  createSkillEffectParticles,
+  createSkillParticles,
+  renderNewParticles,
+  updateNewParticles,
+} from '../lib/simulator/particles';
+import {
+  BasicAttackSlot,
+  EFFECT_PRESETS,
+  SPConfig,
+  Skill,
+  SkillSlot,
+  calculateSkillDamage,
+  canUseSkill,
+  consumeSP,
+  useSkill as consumeSkill,
+  defaultSPConfig,
+  defaultSkills,
+  regenerateSP,
+  updateSkillCooldown,
+} from '../lib/skillSystem';
+import { KeyBindings } from './KeyBindingSettings';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Label } from './ui/label';
+import { Slider } from './ui/slider';
+import { Switch } from './ui/switch';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 interface Position {
   x: number;
@@ -116,6 +114,13 @@ interface CharacterState {
   shakeOffset: Position;
   skills: CharacterSkills; // 플레이어 스킬 슬롯
   basicAttack: BasicAttackSlot | null; // 기본 공격
+  skillPhase?: 'idle' | 'windup' | 'execution' | 'recovery';
+  skillPhaseStartTime?: number;
+  currentSkillTiming?: {
+    windup: number;
+    execution: number;
+    recovery: number;
+  };
 }
 
 interface MonsterState {
@@ -125,7 +130,7 @@ interface MonsterState {
   isAttacking: boolean;
   attackCooldown: number;
   isDead: boolean;
-  aiState: 'CHASE' | 'ATTACK' | 'RETREAT'; // 단순화된 AI 상태
+  aiState: 'IDLE' | 'CHASE' | 'ATTACK' | 'RETREAT' | 'FLEE' | 'DEFEND'; // 단순화된 AI 상태
   wanderTarget: Position | null; // 레거시 호환용 (사용 안 함)
   wanderCooldown: number; // 레거시 호환용 (사용 안 함)
   detectionRange: number; // 레거시 호환용 (항상 9999)
@@ -141,6 +146,13 @@ interface MonsterState {
   sp: number; // SP (스킬 포인트)
   maxSP: number; // 최대 SP
   currentSkill: number | null; // 현재 사용 중인 스킬 슬롯
+  skillPhase?: 'idle' | 'windup' | 'execution' | 'recovery';
+  skillPhaseStartTime?: number;
+  currentSkillTiming?: {
+    windup: number;
+    execution: number;
+    recovery: number;
+  };
 }
 
 interface Projectile {
@@ -168,6 +180,14 @@ interface SkillParticle {
   size: number;
   color: string;
   skillType?: string; // 스킬 타입 저장 (glowIntensity 등을 위해)
+  damage?: number;
+  owner?: 'player' | 'monster';
+  hasHit?: boolean;
+  skillName?: string;
+  strategy?: 'projectile' | 'aoe_burst' | 'static';
+  startPosition?: Position;
+  travelDistance?: number;
+  monsterId?: number;
 }
 
 interface MultiMonsterSimulatorProps {
@@ -175,7 +195,7 @@ interface MultiMonsterSimulatorProps {
   playerConfig: CharacterConfig;
   monsterConfig: CharacterConfig;
   currentTick: number;
-  currentDataRow: number;
+  currentDataRow: DataRow | null;
   enableRespawn?: boolean; // 리스폰 기능 활성화 여부 (기본값: true)
   initialMonsterCount?: number; // 초기 몬스터 수 (기본값: 3)
   maxMonsterCount?: number; // 최대 몬스터 수 (리스폰 제한용, 기본값: initialMonsterCount와 동일)
@@ -196,24 +216,54 @@ interface MultiMonsterSimulatorProps {
   initialZoom?: number; // 초기 확대/축소 비율 (testMode에서만 사용, 기본값: 3.0)
   onZoomChange?: (zoom: number) => void; // 확대/축소 변경 콜백
   selectedMonsterRows?: Set<number>; // 선택된 몬스터 행 (가중치 기반 스폰용)
-  monsterDataset?: any[]; // 몬스터 데이터셋 (가중치 기반 스폰용)
+  monsterDataset?: DataRow[]; // 몬스터 데이터셋 (가중치 기반 스폰용)
 }
 const ATTACK_COOLDOWN = 1000;
 const PROJECTILE_SPEED = 300;
-const PROJECTILE_SIZE = 8;
+const _PROJECTILE_SIZE = 8;
 const PROJECTILE_MAX_DISTANCE = 400;
 const PROJECTILE_FADE_START = 300;
 const MELEE_SWING_DURATION = 250;
 // MELEE_SWING_ARC is now calculated from attackWidth dynamically
 const MONSTER_DETECTION_RANGE = 200;
-const MONSTER_RETREAT_HP_PERCENT = 0.3;
-const MONSTER_WANDER_SPEED = 0.3;
+const _MONSTER_RETREAT_HP_PERCENT = 0.3;
+const _MONSTER_WANDER_SPEED = 0.3;
+
+const logMultiSimulator = (..._args: unknown[]): void => {};
+
+const DEFAULT_EFFECT_PRESET_BY_SKILL: Record<Skill['type'], keyof typeof EFFECT_PRESETS> = {
+  melee: 'trail_slash',
+  ranged: 'projectile_arrow_single',
+  damage: 'ring_single',
+  heal: 'glow_heal',
+  buff: 'glow_buff',
+  debuff: 'lightning_chain',
+  area: 'ring_concentric',
+  defense: 'glow_buff',
+};
+
+const resolveEffectPresetForSkill = (skill: Skill) => {
+  const presetId = skill.visual.effectPresetId ?? DEFAULT_EFFECT_PRESET_BY_SKILL[skill.type];
+  return EFFECT_PRESETS[presetId] ?? EFFECT_PRESETS[DEFAULT_EFFECT_PRESET_BY_SKILL[skill.type]];
+};
+
+const getLucideIcon = (
+  iconName: string | undefined,
+  fallback: typeof Swords
+): ComponentType<{ className?: string }> => {
+  if (!iconName) return fallback;
+  const icon = ICON_MAP[iconName ?? ''];
+  if (typeof icon === 'function') {
+    return icon as ComponentType<{ className?: string }>;
+  }
+  return fallback;
+};
 
 export function MultiMonsterSimulator({
-  keyBindings,
+  keyBindings: _keyBindings,
   playerConfig,
   monsterConfig,
-  currentTick,
+  currentTick: _currentTick,
   currentDataRow,
   enableRespawn = true,
   initialMonsterCount = 3,
@@ -226,7 +276,7 @@ export function MultiMonsterSimulator({
   skillSlots = [],
   skillConfigs,
   itemSlots = [],
-  homingProjectiles = false,
+  homingProjectiles: _homingProjectiles = false,
   playerBasicAttack,
   monsterBasicAttack,
   canvasWidth = 1200,
@@ -248,11 +298,12 @@ export function MultiMonsterSimulator({
   const [showAttackRange, setShowAttackRange] = useState(true);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
-  const [gameStartTime, setGameStartTime] = useState<number>(Date.now());
+  const [, setGameStartTime] = useState<number>(Date.now());
   const [survivalTime, setSurvivalTime] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fps, setFps] = useState<number>(60);
-  const [playerHp, setPlayerHp] = useState<{
+  const fpsRef = useRef<number>(60);
+  const [, setPlayerHp] = useState<{
     current: number;
     max: number;
   }>({
@@ -283,8 +334,8 @@ export function MultiMonsterSimulator({
 
     // 선택된 몬스터들만 필터링
     const selectedMonsters = Array.from(selectedMonsterRows)
-      .map((idx) => monsterDataset[idx])
-      .filter((row) => row !== undefined);
+      .map(idx => monsterDataset[idx])
+      .filter(row => row !== undefined);
 
     if (selectedMonsters.length === 0) {
       return null;
@@ -293,7 +344,7 @@ export function MultiMonsterSimulator({
     // 총 가중치 계산
     const totalWeight = selectedMonsters.reduce(
       (sum, row) => sum + (row.monster_spawn_weight || 1),
-      0,
+      0
     );
 
     // 랜덤 값 생성
@@ -337,7 +388,7 @@ export function MultiMonsterSimulator({
       defenseGrowth: { a: 0, b: 3 },
       speedGrowth: { a: 0, b: 2 },
       expGrowth: { type: 'exponential', a: 100, b: 1.5 },
-    },
+    }
   );
   const [currentMonsterLevel, setCurrentMonsterLevel] = useState<LevelConfig>(
     monsterLevelConfig || {
@@ -360,7 +411,7 @@ export function MultiMonsterSimulator({
       defenseGrowth: { a: 0, b: 2 },
       speedGrowth: { a: 0, b: 1 },
       expGrowth: { type: 'exponential', a: 100, b: 1.5 },
-    },
+    }
   );
   const [spConfig, setSPConfig] = useState<SPConfig>(defaultSPConfig);
   const [activeSkills, setActiveSkills] = useState<SkillSlot[]>(skillSlots);
@@ -368,6 +419,7 @@ export function MultiMonsterSimulator({
   const [activeBuffs, setActiveBuffs] = useState<ActiveBuff[]>([]);
   const [healEffectTime, setHealEffectTime] = useState<number>(0);
   const [healEffectColor, setHealEffectColor] = useState<string>('#10b981');
+  const healEffectRef = useRef<{ color: string; time: number }>({ color: '#10b981', time: 0 });
 
   // Game state refs
   const playerRef = useRef<CharacterState>({
@@ -395,7 +447,7 @@ export function MultiMonsterSimulator({
 
   const monstersRef = useRef<MonsterState[]>([]);
   const projectilesRef = useRef<Projectile[]>([]);
-  const projectileIdRef = useRef<number>(0);
+  const _projectileIdRef = useRef<number>(0);
   const monsterIdRef = useRef<number>(0);
   const skillParticlesRef = useRef<SkillParticle[]>([]);
   const particleIdRef = useRef<number>(0);
@@ -440,11 +492,6 @@ export function MultiMonsterSimulator({
 
     if (isGameStarted && !isGameOver) {
       // 게임 진행 중: HP/SP 비율 유지하면서 스탯 업데이트
-      const currentHpRatio = playerRef.current.stats.hp / playerRef.current.stats.maxHp;
-      const currentSp = spConfig.current;
-      const currentMaxSp = spConfig.max;
-      const currentSpRatio = currentMaxSp > 0 ? currentSp / currentMaxSp : 1;
-
       playerRef.current.stats = {
         ...playerRef.current.stats,
         hp: Math.min(levelStats.hp, playerRef.current.stats.hp), // Don't heal, just cap at new max
@@ -455,7 +502,7 @@ export function MultiMonsterSimulator({
       };
 
       // Update SP config
-      setSPConfig((prev) => ({
+      setSPConfig(prev => ({
         ...prev,
         current: Math.min(levelStats.sp, prev.current + (levelStats.sp - prev.max)), // Add difference to current SP
         max: levelStats.sp,
@@ -498,10 +545,8 @@ export function MultiMonsterSimulator({
       const monsterLevelStats = calculateLevelStats(currentMonsterLevel);
 
       // Update all monsters' stats while preserving current HP ratio
-      monstersRef.current.forEach((monster) => {
+      monstersRef.current.forEach(monster => {
         if (!monster.isDead) {
-          const currentHpRatio = monster.stats.hp / monster.stats.maxHp;
-
           monster.stats = {
             ...monster.stats,
             hp: Math.min(monsterLevelStats.hp, monster.stats.hp), // Don't heal, just cap at new max
@@ -535,7 +580,7 @@ export function MultiMonsterSimulator({
 
     // 기존 몬스터들의 basicAttack 완전히 교체 (스킬 정보 포함)
     if (monsterBasicAttack) {
-      monstersRef.current.forEach((monster) => {
+      monstersRef.current.forEach(monster => {
         monster.basicAttack = { ...monsterBasicAttack };
       });
     }
@@ -604,29 +649,20 @@ export function MultiMonsterSimulator({
       const monsterBasicAttackSlot = monsterBasicAttackData
         ? {
             skill: skillConfigs?.[monsterBasicAttackData.id] || {
+              ...defaultSkills.meleeAttack,
               id: monsterBasicAttackData.id,
               name: '기본 공격',
-              category: 'basicAttack' as const,
+              category: 'basicAttack',
               range: monsterBasicAttackData.range,
               area: monsterBasicAttackData.width,
               damageMultiplier: monsterBasicAttackData.damage,
               cooldown: monsterBasicAttackData.cooldown,
               spCost: monsterBasicAttackData.spCost,
               castTime: monsterBasicAttackData.castTime,
-              visual: {
-                effectShape: 'cone' as const,
-                color: '#ef4444',
-                secondaryColor: '#f87171',
-                particleCount: 0,
-                particleSize: 4,
-                particleLifetime: 300,
-              },
-              animation: {
-                castAnimation: 'none' as const,
-                castScale: 1,
-                cameraShake: 0,
-              },
+              currentCooldown: 0,
+              isOnCooldown: false,
             },
+            keyBinding: 'click' as const,
             range: monsterBasicAttackData.range,
             width: monsterBasicAttackData.width,
             damage: monsterBasicAttackData.damage,
@@ -673,8 +709,8 @@ export function MultiMonsterSimulator({
         color: monsterColor,
         skills: monsterSkills,
         basicAttack: monsterBasicAttackSlot,
-        aiConfig: aiConfig,
-        aiPatternConfig: aiPatternConfig,
+        aiConfig,
+        aiPatternConfig,
         sp: monsterData?.monster_sp || 100,
         maxSP: monsterData?.monster_sp || 100,
         currentSkill: null,
@@ -684,7 +720,16 @@ export function MultiMonsterSimulator({
       });
     }
     monstersRef.current = monsters;
-  }, [monsterCount, selectMonsterByWeight, skillConfigs, simulatorMode]);
+  }, [
+    monsterCount,
+    selectMonsterByWeight,
+    skillConfigs,
+    simulatorMode,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    currentDataRow,
+    currentMonsterLevel,
+  ]);
 
   // 게임 시작/재시작 시에만 몬스터 초기화 (값 변경 시에는 초기화하지 않음)
   // initializeMonsters는 startGame과 restartGame에서만 호출됨
@@ -693,17 +738,13 @@ export function MultiMonsterSimulator({
     // 레벨에 따른 플레이어 스탯 계산 및 적용
     const levelStats = calculateLevelStats(currentPlayerLevel);
     const playerStats: CharacterStats = {
+      ...defaultPlayerStats,
+      level: currentPlayerLevel.currentLevel,
       hp: levelStats.hp,
       maxHp: levelStats.hp,
       attack: levelStats.attack,
       defense: levelStats.defense,
       speed: levelStats.speed,
-      attackRange: defaultPlayerStats.attackRange,
-      attackWidth: defaultPlayerStats.attackWidth,
-      critRate: defaultPlayerStats.critRate || 0.1,
-      critDamage: defaultPlayerStats.critDamage || 1.5,
-      accuracy: defaultPlayerStats.accuracy || 0.9,
-      evasion: defaultPlayerStats.evasion || 0.05,
     };
 
     playerRef.current = {
@@ -749,7 +790,7 @@ export function MultiMonsterSimulator({
     if (!testMode) {
       toast.success('게임 시작!');
     }
-  }, [testMode, initializeMonsters, currentPlayerLevel]);
+  }, [testMode, initializeMonsters, currentPlayerLevel, CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   // Auto-start game in test mode
   useEffect(() => {
@@ -762,17 +803,13 @@ export function MultiMonsterSimulator({
     // 레벨에 따른 스탯 계산
     const levelStats = calculateLevelStats(currentPlayerLevel);
     const playerStats: CharacterStats = {
+      ...defaultPlayerStats,
+      level: currentPlayerLevel.currentLevel,
       hp: levelStats.hp,
       maxHp: levelStats.hp,
       attack: levelStats.attack,
       defense: levelStats.defense,
       speed: levelStats.speed,
-      attackRange: defaultPlayerStats.attackRange,
-      attackWidth: defaultPlayerStats.attackWidth,
-      critRate: defaultPlayerStats.critRate || 0.1,
-      critDamage: defaultPlayerStats.critDamage || 1.5,
-      accuracy: defaultPlayerStats.accuracy || 0.9,
-      evasion: defaultPlayerStats.evasion || 0.05,
     };
 
     playerRef.current = {
@@ -816,7 +853,7 @@ export function MultiMonsterSimulator({
     });
     setActiveBuffs([]);
     setActiveSkills(
-      skillSlots.map((s) => ({
+      skillSlots.map(s => ({
         ...s,
         skill: s.skill
           ? {
@@ -825,10 +862,10 @@ export function MultiMonsterSimulator({
               isOnCooldown: false,
             }
           : null,
-      })),
+      }))
     );
     setActiveItems(
-      itemSlots.map((i) => ({
+      itemSlots.map(i => ({
         ...i,
         item: i.item
           ? {
@@ -837,10 +874,18 @@ export function MultiMonsterSimulator({
               isOnCooldown: false,
             }
           : null,
-      })),
+      }))
     );
     toast.success('게임 재시작!');
-  }, [initializeMonsters, skillSlots, itemSlots, testMode, currentPlayerLevel]);
+  }, [
+    initializeMonsters,
+    skillSlots,
+    itemSlots,
+    testMode,
+    currentPlayerLevel,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+  ]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -884,13 +929,13 @@ export function MultiMonsterSimulator({
       });
 
       // SP 업데이트
-      setSPConfig((prev) => ({
+      setSPConfig(prev => ({
         ...prev,
-        maxSP: levelStats.sp,
-        currentSP: Math.min(prev.currentSP, levelStats.sp),
+        max: levelStats.sp,
+        current: Math.min(prev.current, levelStats.sp),
       }));
     }
-  }, [currentPlayerLevel.currentLevel, isGameStarted, isGameOver]);
+  }, [currentPlayerLevel, isGameStarted, isGameOver]);
 
   // Keyboard and mouse event handlers
   useEffect(() => {
@@ -900,7 +945,7 @@ export function MultiMonsterSimulator({
       // Skill keys (1-4)
       if (!isGameOverRef.current && isGameStarted) {
         const skillKey = e.key;
-        const skillSlot = activeSkills.find((s) => s.skill && s.keyBinding === skillKey);
+        const skillSlot = activeSkills.find(s => s.skill && s.keyBinding === skillKey);
 
         if (skillSlot?.skill) {
           // Get the actual skill configuration from skillConfigs
@@ -914,15 +959,15 @@ export function MultiMonsterSimulator({
             if (actualSkill.type === 'heal') {
               // SkillTestCanvas와 동일한 로직 사용 (testMode에서는 SP 소모 안함)
               if (!testMode) {
-                setSPConfig((prev) => consumeSP(prev, actualSkill.spCost));
+                setSPConfig(prev => consumeSP(prev, actualSkill.spCost));
               }
-              setPlayerHp((prev) => ({
+              setPlayerHp(prev => ({
                 ...prev,
                 current: Math.min(prev.max, prev.current + actualSkill.healAmount),
               }));
               playerRef.current.stats.hp = Math.min(
                 playerRef.current.stats.maxHp,
-                playerRef.current.stats.hp + actualSkill.healAmount,
+                playerRef.current.stats.hp + actualSkill.healAmount
               );
 
               // 시전 애니메이션 (SkillTestCanvas와 동일)
@@ -944,7 +989,7 @@ export function MultiMonsterSimulator({
                 // 새로운 이펙트 시스템 사용
                 if (actualSkill.visual.effectType) {
                   const newEffectParticles = createEffect({
-                    preset: actualSkill.visual,
+                    preset: resolveEffectPresetForSkill(actualSkill),
                     position: playerRef.current.position,
                     targetPosition: mousePositionRef.current,
                     owner: 'player',
@@ -978,11 +1023,12 @@ export function MultiMonsterSimulator({
                         distance =
                           actualSkill.range * 0.8 + Math.random() * actualSkill.range * 0.2;
                         break;
-                      case 'star':
+                      case 'star': {
                         const starPoint = Math.floor(Math.random() * 5);
                         angle = (starPoint * Math.PI * 2) / 5 + (Math.random() - 0.5) * 0.3;
                         distance = Math.random() * actualSkill.range;
                         break;
+                      }
                     }
 
                     const speed = 2 + Math.random() * 3;
@@ -1000,7 +1046,7 @@ export function MultiMonsterSimulator({
                       life: actualSkill.visual.particleLifetime,
                       maxLife: actualSkill.visual.particleLifetime,
                       size: actualSkill.visual.particleSize,
-                      color: color,
+                      color,
                       skillType: actualSkill.id,
                     });
                   }
@@ -1032,22 +1078,24 @@ export function MultiMonsterSimulator({
 
               // Trigger heal wave effect
               setHealEffectTime(Date.now());
+              healEffectRef.current.time = Date.now();
               setHealEffectColor(actualSkill.visual.color);
+              healEffectRef.current.color = actualSkill.visual.color;
 
               toast.success(`${actualSkill.name} 사용! HP ${actualSkill.healAmount} 회복!`);
-              setActiveSkills((prev) =>
-                prev.map((s) =>
+              setActiveSkills(prev =>
+                prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: useSkill(s.skill) }
-                    : s,
-                ),
+                    ? { ...s, skill: consumeSkill(s.skill) }
+                    : s
+                )
               );
             } else if (actualSkill.type === 'buff') {
               // SkillTestCanvas와 동일한 로직 사용 (testMode에서는 SP 소모 안함)
               if (!testMode) {
-                setSPConfig((prev) => consumeSP(prev, actualSkill.spCost));
+                setSPConfig(prev => consumeSP(prev, actualSkill.spCost));
               }
-              setActiveBuffs((prev) => [
+              setActiveBuffs(prev => [
                 ...prev,
                 {
                   id: actualSkill.id,
@@ -1076,7 +1124,7 @@ export function MultiMonsterSimulator({
                 // 새로운 이펙트 시스템 사용
                 if (actualSkill.visual.effectType) {
                   const newEffectParticles = createEffect({
-                    preset: actualSkill.visual,
+                    preset: resolveEffectPresetForSkill(actualSkill),
                     position: playerRef.current.position,
                     targetPosition: mousePositionRef.current,
                     owner: 'player',
@@ -1118,12 +1166,13 @@ export function MultiMonsterSimulator({
                         distance =
                           actualSkill.range * 0.8 + Math.random() * actualSkill.range * 0.2;
                         break;
-                      case 'star':
+                      case 'star': {
                         const starPoint = Math.floor(Math.random() * 5);
                         angle =
                           baseAngle + (starPoint * Math.PI * 2) / 5 + (Math.random() - 0.5) * 0.3;
                         distance = Math.random() * actualSkill.range;
                         break;
+                      }
                     }
 
                     const speed = 2 + Math.random() * 3;
@@ -1141,7 +1190,7 @@ export function MultiMonsterSimulator({
                       life: actualSkill.visual.particleLifetime,
                       maxLife: actualSkill.visual.particleLifetime,
                       size: actualSkill.visual.particleSize,
-                      color: color,
+                      color,
                       skillType: actualSkill.id,
                     });
                   }
@@ -1172,17 +1221,17 @@ export function MultiMonsterSimulator({
               }, actualSkill.castTime);
 
               toast.success(`${actualSkill.name} 버프 활성화!`);
-              setActiveSkills((prev) =>
-                prev.map((s) =>
+              setActiveSkills(prev =>
+                prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: useSkill(s.skill) }
-                    : s,
-                ),
+                    ? { ...s, skill: consumeSkill(s.skill) }
+                    : s
+                )
               );
             } else if (actualSkill.type === 'damage' || actualSkill.type === 'area') {
               // 공격 스킬 - SkillTestCanvas와 동일한 로직 사용 (testMode에서는 SP 소모 안함)
               if (!testMode) {
-                setSPConfig((prev) => consumeSP(prev, actualSkill.spCost));
+                setSPConfig(prev => consumeSP(prev, actualSkill.spCost));
               }
               playerRef.current.isSkilling = true;
               playerRef.current.skillSwingStart = Date.now();
@@ -1206,7 +1255,7 @@ export function MultiMonsterSimulator({
                 // 새로운 이펙트 시스템 사용
                 if (actualSkill.visual.effectType) {
                   const newEffectParticles = createEffect({
-                    preset: actualSkill.visual,
+                    preset: resolveEffectPresetForSkill(actualSkill),
                     position: playerRef.current.position,
                     targetPosition: mousePositionRef.current,
                     owner: 'player',
@@ -1223,7 +1272,7 @@ export function MultiMonsterSimulator({
                       skill: actualSkill,
                       strategy: 'projectile',
                     },
-                    particleIdRef,
+                    particleIdRef
                   );
                   skillParticlesRef.current.push(...newParticles);
                 }
@@ -1253,12 +1302,12 @@ export function MultiMonsterSimulator({
               }, actualSkill.castTime);
 
               toast.success(`${actualSkill.name} 사용!`);
-              setActiveSkills((prev) =>
-                prev.map((s) =>
+              setActiveSkills(prev =>
+                prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: useSkill(s.skill) }
-                    : s,
-                ),
+                    ? { ...s, skill: consumeSkill(s.skill) }
+                    : s
+                )
               );
             }
           } else {
@@ -1268,7 +1317,7 @@ export function MultiMonsterSimulator({
 
         // Item keys (F1-F4)
         const itemKey = e.key.toUpperCase();
-        const itemSlot = activeItems.find((i) => i.item && i.keyBinding === itemKey);
+        const itemSlot = activeItems.find(i => i.item && i.keyBinding === itemKey);
 
         if (itemSlot?.item) {
           const item = itemSlot.item;
@@ -1278,13 +1327,13 @@ export function MultiMonsterSimulator({
             e.preventDefault();
             // Apply item effect
             if (item.healAmount > 0) {
-              setPlayerHp((prev) => ({
+              setPlayerHp(prev => ({
                 ...prev,
                 current: Math.min(prev.max, prev.current + item.healAmount),
               }));
               playerRef.current.stats.hp = Math.min(
                 playerRef.current.stats.maxHp,
-                playerRef.current.stats.hp + item.healAmount,
+                playerRef.current.stats.hp + item.healAmount
               );
 
               // Create heal particles for potion (새 구조)
@@ -1306,15 +1355,17 @@ export function MultiMonsterSimulator({
                 });
               }
               setHealEffectTime(Date.now());
+              healEffectRef.current.time = Date.now();
               setHealEffectColor('#ef4444'); // Red for health potion
+              healEffectRef.current.color = '#ef4444';
 
               toast.success(
-                `${item.name} 사용! HP ${item.healAmount} 회복! (남은 개수: ${item.quantity - 1})`,
+                `${item.name} 사용! HP ${item.healAmount} 회복! (남은 개수: ${item.quantity - 1})`
               );
             }
 
             if (item.spRestore > 0) {
-              setSPConfig((prev) => ({
+              setSPConfig(prev => ({
                 ...prev,
                 current: Math.min(prev.max, prev.current + item.spRestore),
               }));
@@ -1339,13 +1390,13 @@ export function MultiMonsterSimulator({
               }
 
               toast.success(
-                `${item.name} 사용! SP ${item.spRestore} 회복! (남은 개수: ${item.quantity - 1})`,
+                `${item.name} 사용! SP ${item.spRestore} 회복! (남은 개수: ${item.quantity - 1})`
               );
             }
 
             if (item.damageAmount > 0) {
               let hitCount = 0;
-              monstersRef.current.forEach((monster) => {
+              monstersRef.current.forEach(monster => {
                 if (!monster.isDead) {
                   const dx = monster.position.x - playerRef.current.position.x;
                   const dy = monster.position.y - playerRef.current.position.y;
@@ -1358,23 +1409,23 @@ export function MultiMonsterSimulator({
                     if (monster.stats.hp <= 0) {
                       monster.isDead = true;
                       monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                      setKillCount((prev) => prev + 1);
+                      setKillCount(prev => prev + 1);
 
                       if (playerLevelConfig) {
                         const monsterStats = calculateLevelStats(currentMonsterLevel);
                         const expReward = calculateExpReward(monsterStats.level);
                         const newLevel = addExperience(currentPlayerLevel, expReward);
-                        if (newLevel.currentLevel > currentPlayerLevel.currentLevel) {
-                          toast.success(`레벨 업! LV.${newLevel.currentLevel}`);
+                        if (newLevel.levelsGained > 0) {
+                          toast.success(`레벨 업! LV.${newLevel.newConfig.currentLevel}`);
                         }
-                        setCurrentPlayerLevel(newLevel);
+                        setCurrentPlayerLevel(newLevel.newConfig);
                       }
                     }
                   }
                 }
               });
               toast.success(
-                `${item.name} 사용! ${hitCount}명 명중! (남은 개수: ${item.quantity - 1})`,
+                `${item.name} 사용! ${hitCount}명 명중! (남은 개수: ${item.quantity - 1})`
               );
             }
 
@@ -1384,7 +1435,7 @@ export function MultiMonsterSimulator({
               !item.spRestore &&
               !item.damageAmount
             ) {
-              setActiveBuffs((prev) => [
+              setActiveBuffs(prev => [
                 ...prev,
                 {
                   id: item.id,
@@ -1396,12 +1447,12 @@ export function MultiMonsterSimulator({
               toast.success(`${item.name} 버프 활성화! (남은 개수: ${item.quantity - 1})`);
             }
 
-            setActiveItems((prev) =>
-              prev.map((i) =>
+            setActiveItems(prev =>
+              prev.map(i =>
                 i.slotNumber === itemSlot.slotNumber && i.item
-                  ? { ...i, item: useItem(i.item) }
-                  : i,
-              ),
+                  ? { ...i, item: consumeItem(i.item) }
+                  : i
+              )
             );
           } else {
             toast.error(canUse.reason || '아이템을 사용할 수 없습니다');
@@ -1426,20 +1477,24 @@ export function MultiMonsterSimulator({
 
             // 플레이어 기본 공격 - 파티클 기반 투사체 (원거리인 경우)
             const basicAttackSkill = playerBasicAttackRef.current;
-            if (basicAttackSkill && basicAttackSkill.type === 'ranged' && distance > 0) {
-              const damage = calculateSkillDamage(basicAttackSkill, playerRef.current.stats);
+            if (
+              basicAttackSkill?.skill &&
+              basicAttackSkill.skill.type === 'ranged' &&
+              distance > 0
+            ) {
+              const damage = calculateSkillDamage(basicAttackSkill.skill, playerRef.current.stats);
 
               // 파티클 기반 투사체 생성
               const newParticles = createSkillParticles(
                 {
                   position: playerRef.current.position,
                   targetPosition: mousePositionRef.current,
-                  skill: basicAttackSkill,
+                  skill: basicAttackSkill.skill,
                   strategy: 'projectile',
-                  damage: damage,
+                  damage,
                   owner: 'player',
                 },
-                particleIdRef,
+                particleIdRef
               );
               skillParticlesRef.current.push(...newParticles);
             }
@@ -1507,9 +1562,9 @@ export function MultiMonsterSimulator({
           // 근접 공격 파티클 이펙트 생성
           if (basicAttack) {
             // 디버깅: 근접 공격 스킬 정보 확인
-            console.log('⚔️ [Melee Attack] 공격 시작', {
-              range: basicAttack.range + 'px',
-              area: basicAttack.area + '°',
+            logMultiSimulator('⚔️ [Melee Attack] 공격 시작', {
+              range: `${basicAttack.range}px`,
+              area: `${basicAttack.area}°`,
               effect: basicAttack.visual.effectPresetId,
             });
 
@@ -1520,7 +1575,7 @@ export function MultiMonsterSimulator({
                 skill: basicAttack,
                 strategy: 'projectile', // effectPresetId가 있으면 무시됨
               },
-              particleIdRef,
+              particleIdRef
             );
             skillParticlesRef.current.push(...newParticles);
           }
@@ -1540,10 +1595,10 @@ export function MultiMonsterSimulator({
                 targetPosition: mousePositionRef.current,
                 skill: basicAttack,
                 strategy: 'projectile',
-                damage: damage,
+                damage,
                 owner: 'player',
               },
-              particleIdRef,
+              particleIdRef
             );
             skillParticlesRef.current.push(...newParticles);
           }
@@ -1583,6 +1638,9 @@ export function MultiMonsterSimulator({
     currentMonsterLevel,
     zoom,
     testMode,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    skillConfigs,
   ]);
 
   // Game loop
@@ -1605,6 +1663,7 @@ export function MultiMonsterSimulator({
       frameCount++;
       fpsTime += deltaTime;
       if (fpsTime >= 1) {
+        fpsRef.current = frameCount;
         setFps(frameCount);
         frameCount = 0;
         fpsTime = 0;
@@ -1635,11 +1694,11 @@ export function MultiMonsterSimulator({
       if (!testMode) {
         playerRef.current.position.x = Math.max(
           plConfig.size / 2,
-          Math.min(CANVAS_WIDTH - plConfig.size / 2, playerRef.current.position.x),
+          Math.min(CANVAS_WIDTH - plConfig.size / 2, playerRef.current.position.x)
         );
         playerRef.current.position.y = Math.max(
           plConfig.size / 2,
-          Math.min(CANVAS_HEIGHT - plConfig.size / 2, playerRef.current.position.y),
+          Math.min(CANVAS_HEIGHT - plConfig.size / 2, playerRef.current.position.y)
         );
       }
 
@@ -1649,14 +1708,14 @@ export function MultiMonsterSimulator({
       }
 
       // Update SP regeneration
-      setSPConfig((prev) => regenerateSP(prev, deltaTime));
+      setSPConfig(prev => regenerateSP(prev, deltaTime));
 
       // Update active buffs
-      setActiveBuffs((prev) => updateBuffs(prev, deltaTime));
+      setActiveBuffs(prev => updateBuffs(prev, deltaTime));
 
       // Update skill cooldowns
-      setActiveSkills((prev) =>
-        prev.map((slot) => {
+      setActiveSkills(prev =>
+        prev.map(slot => {
           if (slot.skill && slot.skill.isOnCooldown) {
             return {
               ...slot,
@@ -1664,12 +1723,12 @@ export function MultiMonsterSimulator({
             };
           }
           return slot;
-        }),
+        })
       );
 
       // Update item cooldowns
-      setActiveItems((prev) =>
-        prev.map((slot) => {
+      setActiveItems(prev =>
+        prev.map(slot => {
           if (slot.item && slot.item.isOnCooldown) {
             return {
               ...slot,
@@ -1677,7 +1736,7 @@ export function MultiMonsterSimulator({
             };
           }
           return slot;
-        }),
+        })
       );
 
       // Apply player config stats and buffs
@@ -1704,14 +1763,14 @@ export function MultiMonsterSimulator({
       const monConfig = resolveCharacterConfigMid(monConfigRaw);
       const monSpeed = monConfig.speed * deltaTime;
 
-      monstersRef.current.forEach((monster) => {
+      monstersRef.current.forEach(monster => {
         if (monster.isDead) {
           // 리스폰 활성화된 경우만 리스폰 타이머 처리
           if (enableRespawn) {
             monster.respawnTimer -= deltaTime * 1000;
             if (monster.respawnTimer <= 0) {
               // 현재 살아있는 몬스터 수 체크
-              const aliveMonsterCount = monstersRef.current.filter((m) => !m.isDead).length;
+              const aliveMonsterCount = monstersRef.current.filter(m => !m.isDead).length;
 
               // 최대 몬스터 수 제한 체크 (1:1 모드일 때는 1개로 제한)
               const maxAllowedMonsters = simulatorMode === '1v1' ? 1 : effectiveMaxMonsterCount;
@@ -1871,7 +1930,7 @@ export function MultiMonsterSimulator({
               }
               break;
 
-            case 'ATTACK':
+            case 'ATTACK': {
               // ATTACK 상태에서는 공격 범위 내로 접근하면서 공격 수행
               // 공격 쿨다운이 끝나면 공격, 아니면 천천히 접근
               const monsterAttackRange = monster.basicAttack?.range || monConfig.attackRange;
@@ -1966,7 +2025,6 @@ export function MultiMonsterSimulator({
                   // basicAttack을 우선 사용하고, 없으면 스킬 슬롯 range 사용
                   const skillRange =
                     monster.basicAttack?.range || monsterSkillSlot.range || monConfig.attackRange;
-                  const skillDamage = monsterSkillSlot.damage;
                   const skillCooldown = monsterSkillSlot.cooldown || ATTACK_COOLDOWN;
 
                   // 범위 체크 - 스킬 범위 내에 있을 때만 공격
@@ -2018,7 +2076,7 @@ export function MultiMonsterSimulator({
 
                           playerRef.current.stats.hp = Math.max(
                             0,
-                            playerRef.current.stats.hp - damage,
+                            playerRef.current.stats.hp - damage
                           );
                           setPlayerHp({
                             current: playerRef.current.stats.hp,
@@ -2047,11 +2105,11 @@ export function MultiMonsterSimulator({
                         // 새로운 이펙트 시스템 사용
                         if (actualSkill.visual.effectType) {
                           const newEffectParticles = createEffect({
-                            preset: actualSkill.visual,
+                            preset: resolveEffectPresetForSkill(actualSkill),
                             position: monster.position,
                             targetPosition: playerRef.current.position,
                             owner: 'monster',
-                            damage: damage,
+                            damage,
                             skillName: actualSkill.name,
                           });
                           skillParticlesRef.current.push(...newEffectParticles);
@@ -2063,11 +2121,11 @@ export function MultiMonsterSimulator({
                               targetPosition: playerRef.current.position,
                               skill: actualSkill,
                               strategy: 'projectile',
-                              damage: damage,
+                              damage,
                               owner: 'monster',
                               monsterId: monster.id,
                             },
-                            particleIdRef,
+                            particleIdRef
                           );
                           skillParticlesRef.current.push(...newParticles);
                         }
@@ -2128,7 +2186,7 @@ export function MultiMonsterSimulator({
 
                           playerRef.current.stats.hp = Math.max(
                             0,
-                            playerRef.current.stats.hp - damage,
+                            playerRef.current.stats.hp - damage
                           );
                           setPlayerHp({
                             current: playerRef.current.stats.hp,
@@ -2143,7 +2201,7 @@ export function MultiMonsterSimulator({
                           }
 
                           toast.error(
-                            `${monster.name} ${basicAttackSkill.name}! ${damage} 데미지!`,
+                            `${monster.name} ${basicAttackSkill.name}! ${damage} 데미지!`
                           );
 
                           // 근접 공격 파티클 이펙트 생성
@@ -2167,7 +2225,7 @@ export function MultiMonsterSimulator({
                               life: basicAttackSkill.visual.particleLifetime,
                               maxLife: basicAttackSkill.visual.particleLifetime,
                               size: basicAttackSkill.visual.particleSize,
-                              color: color,
+                              color,
                               skillType: basicAttackSkill.id,
                             });
                           }
@@ -2185,11 +2243,11 @@ export function MultiMonsterSimulator({
                         // 새로운 이펙트 시스템 사용
                         if (basicAttackSkill.visual.effectType) {
                           const newEffectParticles = createEffect({
-                            preset: basicAttackSkill.visual,
+                            preset: resolveEffectPresetForSkill(basicAttackSkill),
                             position: monster.position,
                             targetPosition: playerRef.current.position,
                             owner: 'monster',
-                            damage: damage,
+                            damage,
                             skillName: basicAttackSkill.name,
                           });
                           skillParticlesRef.current.push(...newEffectParticles);
@@ -2201,11 +2259,11 @@ export function MultiMonsterSimulator({
                               targetPosition: playerRef.current.position,
                               skill: basicAttackSkill,
                               strategy: 'projectile',
-                              damage: damage,
+                              damage,
                               owner: 'monster',
                               monsterId: monster.id,
                             },
-                            particleIdRef,
+                            particleIdRef
                           );
                           skillParticlesRef.current.push(...newParticles);
                         }
@@ -2222,6 +2280,7 @@ export function MultiMonsterSimulator({
                 }
               }
               break;
+            }
 
             case 'FLEE':
               // 플레이어로부터 도망
@@ -2260,11 +2319,11 @@ export function MultiMonsterSimulator({
         if (!testMode) {
           monster.position.x = Math.max(
             monConfig.size / 2,
-            Math.min(CANVAS_WIDTH - monConfig.size / 2, monster.position.x),
+            Math.min(CANVAS_WIDTH - monConfig.size / 2, monster.position.x)
           );
           monster.position.y = Math.max(
             monConfig.size / 2,
-            Math.min(CANVAS_HEIGHT - monConfig.size / 2, monster.position.y),
+            Math.min(CANVAS_HEIGHT - monConfig.size / 2, monster.position.y)
           );
         }
       });
@@ -2278,7 +2337,7 @@ export function MultiMonsterSimulator({
           projectile.targetId !== undefined
         ) {
           const targetMonster = monstersRef.current.find(
-            (m) => m.id === projectile.targetId && !m.isDead,
+            m => m.id === projectile.targetId && !m.isDead
           );
 
           if (targetMonster) {
@@ -2302,7 +2361,7 @@ export function MultiMonsterSimulator({
               // Normalize velocity to maintain constant speed
               const currentSpeed = Math.sqrt(
                 projectile.velocity.x * projectile.velocity.x +
-                  projectile.velocity.y * projectile.velocity.y,
+                  projectile.velocity.y * projectile.velocity.y
               );
               if (currentSpeed > 0) {
                 projectile.velocity.x = (projectile.velocity.x / currentSpeed) * PROJECTILE_SPEED;
@@ -2347,7 +2406,7 @@ export function MultiMonsterSimulator({
 
         // Check collision with monsters (player projectiles)
         if (projectile.owner === 'player') {
-          monstersRef.current.forEach((monster) => {
+          monstersRef.current.forEach(monster => {
             if (monster.isDead) return;
 
             const mdx = projectile.position.x - monster.position.x;
@@ -2355,7 +2414,10 @@ export function MultiMonsterSimulator({
             const distance = Math.sqrt(mdx * mdx + mdy * mdy);
 
             if (distance < monConfig.size / 2 + projectile.size) {
-              const baseDamage = calculateDamage(playerRef.current.stats, monster.stats);
+              const baseDamage = calculateDamage(
+                { atk: playerRef.current.stats.atk },
+                { def: monster.stats.def ?? monster.stats.defense }
+              );
 
               // 크리티컬 판정
               const critResult = calculateCritical(0.15, 1.5);
@@ -2380,7 +2442,7 @@ export function MultiMonsterSimulator({
               if (monster.stats.hp <= 0) {
                 monster.isDead = true;
                 monster.respawnTimer = enableRespawn ? propRespawnDelay : 0; // 리스폰 비활성화 시 타이머 0
-                setKillCount((prev) => prev + 1);
+                setKillCount(prev => prev + 1);
                 toast.success(`몬스터 처치! +1`);
               }
 
@@ -2405,11 +2467,11 @@ export function MultiMonsterSimulator({
       skillParticlesRef.current = updateNewParticles(
         skillParticlesRef.current,
         deltaTime,
-        monstersRef.current,
+        monstersRef.current
       );
 
       // Handle particle-projectile collisions (파티클이 투사체 역할)
-      skillParticlesRef.current = skillParticlesRef.current.filter((particle) => {
+      skillParticlesRef.current = skillParticlesRef.current.filter(particle => {
         // 투사체가 아닌 파티클은 그대로 유지 (시각 효과만)
         if (!particle.damage || !particle.owner || particle.hasHit) {
           return true;
@@ -2418,7 +2480,12 @@ export function MultiMonsterSimulator({
         // 몬스터의 투사체 파티클 → 플레이어 충돌 체크
         if (particle.owner === 'monster') {
           // 새로운 충돌 감지 함수 사용
-          if (checkPlayerParticleCollision(playerRef.current as any, particle)) {
+          if (
+            checkPlayerParticleCollision(
+              playerRef.current as unknown as Parameters<typeof checkPlayerParticleCollision>[0],
+              particle
+            )
+          ) {
             // 충돌! 플레이어 데미지
             playerRef.current.stats.hp = Math.max(0, playerRef.current.stats.hp - particle.damage);
 
@@ -2451,11 +2518,16 @@ export function MultiMonsterSimulator({
         if (particle.owner === 'player') {
           let hit = false;
 
-          monstersRef.current.forEach((monster) => {
+          monstersRef.current.forEach(monster => {
             if (monster.isDead || hit) return;
 
             // 새로운 충돌 감지 함수 사용
-            if (checkMonsterParticleCollision(monster as any, particle)) {
+            if (
+              checkMonsterParticleCollision(
+                monster as unknown as Parameters<typeof checkMonsterParticleCollision>[0],
+                particle
+              )
+            ) {
               // 충돌! 몬스터 데미지
               const finalDamage = particle.damage || 0;
               monster.stats.hp = Math.max(0, monster.stats.hp - finalDamage);
@@ -2475,7 +2547,7 @@ export function MultiMonsterSimulator({
               if (monster.stats.hp <= 0) {
                 monster.isDead = true;
                 monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                setKillCount((prev) => prev + 1);
+                setKillCount(prev => prev + 1);
 
                 // 경험치 획득
                 if (playerLevelConfig) {
@@ -2532,7 +2604,7 @@ export function MultiMonsterSimulator({
 
           playerRef.current.meleeSwingAngle = currentAngle;
 
-          monstersRef.current.forEach((monster) => {
+          monstersRef.current.forEach(monster => {
             if (monster.isDead || playerRef.current.meleeSwingHit.has(monster.id)) return;
 
             const mdx = monster.position.x - playerX;
@@ -2549,7 +2621,7 @@ export function MultiMonsterSimulator({
               // 데미지 계산: attack - defense, 최소 1
               const baseDamage = Math.max(
                 1,
-                playerRef.current.stats.attack - monster.stats.defense,
+                playerRef.current.stats.attack - monster.stats.defense
               );
 
               // 크리티컬 판정
@@ -2577,7 +2649,7 @@ export function MultiMonsterSimulator({
               if (monster.stats.hp <= 0) {
                 monster.isDead = true;
                 monster.respawnTimer = enableRespawn ? propRespawnDelay : 0; // 리스폰 비활성화 시 타이머 0
-                setKillCount((prev) => prev + 1);
+                setKillCount(prev => prev + 1);
                 toast.success(`몬스터 처치! +1`);
               } else if (critResult.isCritical) {
                 toast.success(`💥 크리티컬! ${finalDamage} 데미지!`);
@@ -2611,9 +2683,7 @@ export function MultiMonsterSimulator({
             const targetAngle = Math.atan2(dy, dx);
 
             // Get skill parameters from activeSkillsRef (use ref for latest value in game loop)
-            const powerSlashSlot = activeSkillsRef.current.find(
-              (s) => s.skill?.id === 'powerSlash',
-            );
+            const powerSlashSlot = activeSkillsRef.current.find(s => s.skill?.id === 'powerSlash');
             const skillRange = powerSlashSlot?.skill?.range || 100; // powerSlash range
             const skillArc = ((powerSlashSlot?.skill?.area || 120) * Math.PI) / 180; // powerSlash area
             const startAngle = targetAngle - skillArc / 2;
@@ -2622,7 +2692,7 @@ export function MultiMonsterSimulator({
 
             playerRef.current.skillSwingAngle = currentAngle;
 
-            monstersRef.current.forEach((monster) => {
+            monstersRef.current.forEach(monster => {
               if (monster.isDead || playerRef.current.skillSwingHit.has(monster.id)) return;
 
               const mdx = monster.position.x - playerX;
@@ -2690,7 +2760,7 @@ export function MultiMonsterSimulator({
                 if (monster.stats.hp <= 0) {
                   monster.isDead = true;
                   monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                  setKillCount((prev) => prev + 1);
+                  setKillCount(prev => prev + 1);
 
                   if (playerLevelConfig) {
                     const monsterStats = calculateLevelStats(currentMonsterLevel);
@@ -2710,14 +2780,14 @@ export function MultiMonsterSimulator({
           } else if (playerRef.current.activeSkillType === 'whirlwind') {
             // 회오리 베기 - 360도 회전 공격
             // Get skill parameters from activeSkillsRef (use ref for latest value in game loop)
-            const whirlwindSlot = activeSkillsRef.current.find((s) => s.skill?.id === 'whirlwind');
+            const whirlwindSlot = activeSkillsRef.current.find(s => s.skill?.id === 'whirlwind');
             const skillRange = whirlwindSlot?.skill?.range || 150; // whirlwind range
             const fullCircle = Math.PI * 2;
             const currentAngle = fullCircle * swingProgress;
 
             playerRef.current.skillSwingAngle = currentAngle;
 
-            monstersRef.current.forEach((monster) => {
+            monstersRef.current.forEach(monster => {
               if (monster.isDead || playerRef.current.skillSwingHit.has(monster.id)) return;
 
               const mdx = monster.position.x - playerX;
@@ -2742,7 +2812,7 @@ export function MultiMonsterSimulator({
                 if (monster.stats.hp <= 0) {
                   monster.isDead = true;
                   monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                  setKillCount((prev) => prev + 1);
+                  setKillCount(prev => prev + 1);
 
                   if (playerLevelConfig) {
                     const monsterStats = calculateLevelStats(currentMonsterLevel);
@@ -2765,7 +2835,7 @@ export function MultiMonsterSimulator({
 
       // Handle monster respawn
       if (enableRespawn) {
-        monstersRef.current.forEach((monster) => {
+        monstersRef.current.forEach(monster => {
           if (monster.isDead && monster.respawnTimer > 0) {
             monster.respawnTimer -= deltaTime * 1000;
 
@@ -2904,11 +2974,11 @@ export function MultiMonsterSimulator({
         mousePositionRef.current,
         playerRange,
         playerWidth,
-        showAttackRange,
+        showAttackRange
       );
 
       // 몬스터 공격 범위 표시 (항상 부채꼴 표시, 원형은 showAttackRange로 제어)
-      monstersRef.current.forEach((monster) => {
+      monstersRef.current.forEach(monster => {
         if (monster.isDead) return;
 
         const monsterRange = monster.basicAttack?.range || monConfig.attackRange;
@@ -2920,7 +2990,7 @@ export function MultiMonsterSimulator({
           playerRef.current.position,
           monsterRange,
           monsterWidth,
-          showAttackRange,
+          showAttackRange
         );
       });
 
@@ -2936,7 +3006,7 @@ export function MultiMonsterSimulator({
         playerRef.current.position.y,
         finalPlayerRadius,
         0,
-        Math.PI * 2,
+        Math.PI * 2
       );
       ctx.fill();
       ctx.stroke();
@@ -2952,7 +3022,7 @@ export function MultiMonsterSimulator({
         playerRef.current.position.x - playerHpBarWidth / 2,
         playerRef.current.position.y - plConfig.size / 2 - 20,
         playerHpBarWidth,
-        playerHpBarHeight,
+        playerHpBarHeight
       );
       // HP bar fill (red)
       ctx.fillStyle = '#ef4444';
@@ -2960,7 +3030,7 @@ export function MultiMonsterSimulator({
         playerRef.current.position.x - playerHpBarWidth / 2,
         playerRef.current.position.y - plConfig.size / 2 - 20,
         playerHpBarWidth * playerHpPercent,
-        playerHpBarHeight,
+        playerHpBarHeight
       );
 
       // Draw player SP bar (if level system enabled)
@@ -2973,7 +3043,7 @@ export function MultiMonsterSimulator({
           playerRef.current.position.x - playerHpBarWidth / 2,
           playerRef.current.position.y - plConfig.size / 2 - 13,
           playerHpBarWidth,
-          playerHpBarHeight,
+          playerHpBarHeight
         );
         // SP bar fill (blue)
         ctx.fillStyle = '#3b82f6';
@@ -2981,7 +3051,7 @@ export function MultiMonsterSimulator({
           playerRef.current.position.x - playerHpBarWidth / 2,
           playerRef.current.position.y - plConfig.size / 2 - 13,
           playerHpBarWidth * playerSpPercent,
-          playerHpBarHeight,
+          playerHpBarHeight
         );
       }
 
@@ -2997,12 +3067,12 @@ export function MultiMonsterSimulator({
         ctx.strokeText(
           levelText,
           playerRef.current.position.x,
-          playerRef.current.position.y - plConfig.size / 2 - 28,
+          playerRef.current.position.y - plConfig.size / 2 - 28
         );
         ctx.fillText(
           levelText,
           playerRef.current.position.x,
-          playerRef.current.position.y - plConfig.size / 2 - 28,
+          playerRef.current.position.y - plConfig.size / 2 - 28
         );
       }
 
@@ -3024,7 +3094,7 @@ export function MultiMonsterSimulator({
           playerRef.current.position.y,
           plConfig.size / 2 + pulseSize,
           0,
-          Math.PI * 2,
+          Math.PI * 2
         );
         ctx.stroke();
 
@@ -3037,7 +3107,7 @@ export function MultiMonsterSimulator({
           playerRef.current.position.y,
           plConfig.size / 2 + pulseSize + 8,
           0,
-          Math.PI * 2,
+          Math.PI * 2
         );
         ctx.stroke();
 
@@ -3045,8 +3115,8 @@ export function MultiMonsterSimulator({
       }
 
       // Draw heal wave effect
-      if (healEffectTime > 0) {
-        const elapsed = Date.now() - healEffectTime;
+      if (healEffectRef.current.time > 0) {
+        const elapsed = Date.now() - healEffectRef.current.time;
         const duration = 800; // 0.8 seconds
 
         if (elapsed < duration) {
@@ -3056,9 +3126,9 @@ export function MultiMonsterSimulator({
 
           ctx.save();
           ctx.globalAlpha = alpha * 0.5;
-          ctx.strokeStyle = healEffectColor;
+          ctx.strokeStyle = healEffectRef.current.color;
           ctx.lineWidth = 6;
-          ctx.shadowColor = healEffectColor;
+          ctx.shadowColor = healEffectRef.current.color;
           ctx.shadowBlur = 20;
           ctx.beginPath();
           ctx.arc(
@@ -3066,7 +3136,7 @@ export function MultiMonsterSimulator({
             playerRef.current.position.y,
             radius,
             0,
-            Math.PI * 2,
+            Math.PI * 2
           );
           ctx.stroke();
 
@@ -3080,18 +3150,19 @@ export function MultiMonsterSimulator({
             playerRef.current.position.y,
             secondRadius,
             0,
-            Math.PI * 2,
+            Math.PI * 2
           );
           ctx.stroke();
 
           ctx.restore();
         } else {
-          setHealEffectTime(0); // Reset
+          setHealEffectTime(0);
+          healEffectRef.current.time = 0; // Reset
         }
       }
 
       // Draw monsters (red circles)
-      monstersRef.current.forEach((monster) => {
+      monstersRef.current.forEach(monster => {
         if (monster.isDead) {
           // Draw respawn timer
           const timerText = `${(monster.respawnTimer / 1000).toFixed(1)}s`;
@@ -3103,11 +3174,13 @@ export function MultiMonsterSimulator({
           return;
         }
 
-        const aiStateColors = {
+        const aiStateColors: Record<MonsterState['aiState'], string> = {
           IDLE: '#94a3b8',
           CHASE: '#f59e0b',
           ATTACK: '#ef4444',
           RETREAT: '#3b82f6',
+          FLEE: '#2563eb',
+          DEFEND: '#1d4ed8',
         };
 
         // Draw monster circle with knockback effect
@@ -3124,7 +3197,7 @@ export function MultiMonsterSimulator({
 
           // Use monster color but add white flash
           const baseColor = monster.color || '#ef4444';
-          const rgb = baseColor.match(/\w\w/g)?.map((x) => parseInt(x, 16)) || [239, 68, 68];
+          const rgb = baseColor.match(/\w\w/g)?.map(x => parseInt(x, 16)) || [239, 68, 68];
           const r = rgb[0];
           const g = rgb[1] + Math.floor((255 - rgb[1]) * flashIntensity * 0.5);
           const b = rgb[2] + Math.floor((255 - rgb[2]) * flashIntensity * 0.5);
@@ -3151,7 +3224,7 @@ export function MultiMonsterSimulator({
           ctx.strokeText(
             levelText,
             monster.position.x,
-            monster.position.y - monConfig.size / 2 - 15,
+            monster.position.y - monConfig.size / 2 - 15
           );
           ctx.fillText(levelText, monster.position.x, monster.position.y - monConfig.size / 2 - 15);
         }
@@ -3165,14 +3238,14 @@ export function MultiMonsterSimulator({
           monster.position.x - monsterHpBarWidth / 2,
           monster.position.y - monConfig.size / 2 - 10,
           monsterHpBarWidth,
-          monsterHpBarHeight,
+          monsterHpBarHeight
         );
         ctx.fillStyle = '#ef4444';
         ctx.fillRect(
           monster.position.x - monsterHpBarWidth / 2,
           monster.position.y - monConfig.size / 2 - 10,
           monsterHpBarWidth * monsterHpPercent,
-          monsterHpBarHeight,
+          monsterHpBarHeight
         );
 
         // Draw monster name
@@ -3185,12 +3258,12 @@ export function MultiMonsterSimulator({
           ctx.strokeText(
             monster.name,
             monster.position.x,
-            monster.position.y + monConfig.size / 2 + 20,
+            monster.position.y + monConfig.size / 2 + 20
           );
           ctx.fillText(
             monster.name,
             monster.position.x,
-            monster.position.y + monConfig.size / 2 + 20,
+            monster.position.y + monConfig.size / 2 + 20
           );
         }
 
@@ -3208,7 +3281,7 @@ export function MultiMonsterSimulator({
           ctx.save();
           ctx.globalAlpha = 0.4;
           const monsterAttackColor = monster.color || '#ef4444';
-          ctx.fillStyle = monsterAttackColor + '60'; // Add transparency
+          ctx.fillStyle = `${monsterAttackColor}60`; // Add transparency
           ctx.beginPath();
           ctx.moveTo(monster.position.x, monster.position.y);
           ctx.arc(
@@ -3216,7 +3289,7 @@ export function MultiMonsterSimulator({
             monster.position.y,
             attackRange,
             angleToPlayer - meleeSwingArc / 2,
-            angleToPlayer + meleeSwingArc / 2,
+            angleToPlayer + meleeSwingArc / 2
           );
           ctx.closePath();
           ctx.fill();
@@ -3236,6 +3309,8 @@ export function MultiMonsterSimulator({
           CHASE: '추적',
           ATTACK: '공격',
           RETREAT: '후퇴',
+          FLEE: '도주',
+          DEFEND: '방어',
         };
         ctx.fillStyle = aiStateColors[monster.aiState];
         ctx.font = '9px monospace';
@@ -3244,12 +3319,12 @@ export function MultiMonsterSimulator({
         ctx.fillText(
           aiText,
           monster.position.x - textWidth / 2,
-          monster.position.y + monConfig.size / 2 + 32,
+          monster.position.y + monConfig.size / 2 + 32
         );
       });
 
       // Draw projectiles
-      projectilesRef.current.forEach((projectile) => {
+      projectilesRef.current.forEach(projectile => {
         // 안전성 체크: 유효한 값인지 확인
         if (
           !projectile ||
@@ -3264,7 +3339,7 @@ export function MultiMonsterSimulator({
         const fadeProgress = Math.min(
           1,
           (projectile.travelDistance - PROJECTILE_FADE_START) /
-            (PROJECTILE_MAX_DISTANCE - PROJECTILE_FADE_START),
+            (PROJECTILE_MAX_DISTANCE - PROJECTILE_FADE_START)
         );
         const opacity = Math.max(0, 1 - fadeProgress);
 
@@ -3275,7 +3350,7 @@ export function MultiMonsterSimulator({
           projectile.targetId !== undefined
         ) {
           const targetMonster = monstersRef.current.find(
-            (m) => m.id === projectile.targetId && !m.isDead,
+            m => m.id === projectile.targetId && !m.isDead
           );
           if (targetMonster) {
             ctx.save();
@@ -3316,7 +3391,7 @@ export function MultiMonsterSimulator({
             projectile.position.y,
             projectile.size + 2,
             0,
-            Math.PI * 2,
+            Math.PI * 2
           );
           ctx.stroke();
         } else {
@@ -3335,13 +3410,13 @@ export function MultiMonsterSimulator({
 
       // Update damage texts
       const deltaMs = deltaTime * 1000;
-      damageTextsRef.current = damageTextsRef.current.filter((text) => {
+      damageTextsRef.current = damageTextsRef.current.filter(text => {
         text.lifetime += deltaMs;
         return text.lifetime < text.maxLifetime;
       });
 
       // Render damage texts
-      damageTextsRef.current.forEach((text) => {
+      damageTextsRef.current.forEach(text => {
         const progress = text.lifetime / text.maxLifetime;
         const yOffset = -50 * progress; // 위로 이동
         const opacity = 1 - progress; // 페이드아웃
@@ -3380,9 +3455,9 @@ export function MultiMonsterSimulator({
 
       // 디버깅: 범위 UI 값 출력
       if (!isRanged && Math.random() < 0.01) {
-        console.log('🔵 [Range UI] 범위 표시', {
-          range: sharedAttackRange + 'px',
-          area: sharedAttackWidth + '°',
+        logMultiSimulator('🔵 [Range UI] 범위 표시', {
+          range: `${sharedAttackRange}px`,
+          area: `${sharedAttackWidth}°`,
         });
       }
 
@@ -3420,10 +3495,10 @@ export function MultiMonsterSimulator({
             0,
             playerX,
             playerY,
-            meleeRange,
+            meleeRange
           );
-          gradient.addColorStop(0, swingColor + '80');
-          gradient.addColorStop(1, swingColor + '00');
+          gradient.addColorStop(0, `${swingColor}80`);
+          gradient.addColorStop(1, `${swingColor}00`);
           ctx.fillStyle = gradient;
 
           ctx.beginPath();
@@ -3452,7 +3527,9 @@ export function MultiMonsterSimulator({
 
         for (const skillSlot of activeSkills) {
           if (skillSlot.skill) {
-            const cooldownRatio = skillSlot.skill.cooldown / skillSlot.skill.maxCooldown;
+            const cooldownRatio =
+              skillSlot.skill.cooldown /
+              (skillSlot.skill.maxCooldown ?? skillSlot.skill.cooldown ?? 1);
             // 쿨다운이 99% 이상인 스킬 = 방금 사용된 스킬
             if (cooldownRatio > maxCooldownRatio && cooldownRatio >= 0.99) {
               maxCooldownRatio = cooldownRatio;
@@ -3527,12 +3604,12 @@ export function MultiMonsterSimulator({
         ctx.moveTo(playerX, playerY);
         ctx.lineTo(
           playerX + Math.cos(angle - spreadAngle) * range,
-          playerY + Math.sin(angle - spreadAngle) * range,
+          playerY + Math.sin(angle - spreadAngle) * range
         );
         ctx.moveTo(playerX, playerY);
         ctx.lineTo(
           playerX + Math.cos(angle + spreadAngle) * range,
-          playerY + Math.sin(angle + spreadAngle) * range,
+          playerY + Math.sin(angle + spreadAngle) * range
         );
         ctx.stroke();
         ctx.restore();
@@ -3567,7 +3644,7 @@ export function MultiMonsterSimulator({
         ctx.globalAlpha = 0.3;
         // 기본 공격 스킬의 색상 사용
         const attackColor = basicAttack?.visual.color || '#fee2e2';
-        ctx.fillStyle = attackColor + '40'; // 25% opacity
+        ctx.fillStyle = `${attackColor}40`; // 25% opacity
         ctx.beginPath();
         ctx.moveTo(playerX, playerY);
         ctx.arc(
@@ -3575,7 +3652,7 @@ export function MultiMonsterSimulator({
           playerY,
           meleeRange,
           targetAngle - meleeSwingArc / 2,
-          targetAngle + meleeSwingArc / 2,
+          targetAngle + meleeSwingArc / 2
         );
         ctx.closePath();
         ctx.fill();
@@ -3598,14 +3675,15 @@ export function MultiMonsterSimulator({
 
       // Draw FPS (hide in test mode) - UI elements are not affected by shake
       if (!testMode) {
-        const fpsColor = fps >= 55 ? '#4ade80' : fps >= 30 ? '#facc15' : '#f87171';
+        const fpsColor =
+          fpsRef.current >= 55 ? '#4ade80' : fpsRef.current >= 30 ? '#facc15' : '#f87171';
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.fillRect(10, CANVAS_HEIGHT - 35, 80, 25);
         ctx.fillStyle = '#94a3b8';
         ctx.font = '12px monospace';
         ctx.fillText('FPS:', 15, CANVAS_HEIGHT - 18);
         ctx.fillStyle = fpsColor;
-        ctx.fillText(String(fps), 50, CANVAS_HEIGHT - 18);
+        ctx.fillText(String(fpsRef.current), 50, CANVAS_HEIGHT - 18);
 
         // Draw HUD (top-right stats)
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -3618,7 +3696,7 @@ export function MultiMonsterSimulator({
         ctx.fillText(
           `HP: ${Math.round(playerRef.current.stats.hp)}/${playerRef.current.stats.maxHp}`,
           CANVAS_WIDTH - 190,
-          32,
+          32
         );
 
         // SP Bar (if level system enabled)
@@ -3627,7 +3705,7 @@ export function MultiMonsterSimulator({
           ctx.fillText(
             `SP: ${Math.round(spConfig.current)}/${spConfig.max}`,
             CANVAS_WIDTH - 190,
-            52,
+            52
           );
 
           // SP bar visualization
@@ -3646,7 +3724,7 @@ export function MultiMonsterSimulator({
           ctx.fillText(
             `EXP: ${currentPlayerLevel.currentExp}/${currentPlayerLevel.expToNextLevel}`,
             CANVAS_WIDTH - 190,
-            102,
+            102
           );
 
           // EXP bar
@@ -3713,7 +3791,7 @@ export function MultiMonsterSimulator({
         ctx.fillText(
           `생존 시간: ${survivalTime.toFixed(1)}초`,
           CANVAS_WIDTH / 2,
-          CANVAS_HEIGHT / 2 + 25,
+          CANVAS_HEIGHT / 2 + 25
         );
         ctx.fillText(`처치 수: ${killCount}`, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 50);
 
@@ -3745,44 +3823,52 @@ export function MultiMonsterSimulator({
     title,
     zoom,
     testMode,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    currentDataRow,
+    effectiveMaxMonsterCount,
+    monsterLevelConfig,
+    selectMonsterByWeight,
+    simulatorMode,
+    skillConfigs,
   ]);
 
   // Test mode: render canvas only with zoom control
   if (testMode) {
     return (
-      <div className="relative flex flex-col">
+      <div className='relative flex flex-col'>
         {/* Zoom Control */}
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-800">
-          <Label htmlFor="zoom-slider" className="text-white text-sm whitespace-nowrap">
+        <div className='flex items-center gap-3 px-4 py-2 bg-slate-800'>
+          <Label htmlFor='zoom-slider' className='text-white text-sm whitespace-nowrap'>
             확대/축소:
           </Label>
-          <span className="text-white text-sm font-mono w-14">{(zoom * 100).toFixed(0)}%</span>
+          <span className='text-white text-sm font-mono w-14'>{(zoom * 100).toFixed(0)}%</span>
           <Slider
-            id="zoom-slider"
+            id='zoom-slider'
             min={0.5}
             max={5.0}
             step={0.1}
             value={[zoom]}
-            onValueChange={(value) => handleZoomChange(value[0])}
-            className="flex-1 [&_[role=slider]]:bg-white [&_[role=slider]]:border-slate-400 [&>span:first-child]:bg-slate-600 [&>span>span]:bg-white"
+            onValueChange={value => handleZoomChange(value[0])}
+            className='flex-1 [&_[role=slider]]:bg-white [&_[role=slider]]:border-slate-400 [&>span:first-child]:bg-slate-600 [&>span>span]:bg-white'
           />
           <Button
-            size="sm"
-            variant="outline"
+            size='sm'
+            variant='outline'
             onClick={() => handleZoomChange(1.0)}
-            className="h-7 px-2 text-xs bg-slate-700 hover:bg-slate-600 text-white border-slate-600"
+            className='h-7 px-2 text-xs bg-slate-700 hover:bg-slate-600 text-white border-slate-600'
           >
             1:1
           </Button>
         </div>
 
         {/* Canvas */}
-        <div className="relative">
+        <div className='relative'>
           <canvas
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
-            className="bg-slate-900 cursor-crosshair block"
+            className='bg-slate-900 cursor-crosshair block'
             style={{
               imageRendering: 'crisp-edges',
               width: `${CANVAS_WIDTH}px`,
@@ -3804,13 +3890,13 @@ export function MultiMonsterSimulator({
     >
       <Card className={isFullscreen ? 'w-full h-full border-0 rounded-none' : ''}>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center gap-3'>
               <CardTitle>{title}</CardTitle>
               {/* Simulator Mode Toggle */}
-              <div className="flex items-center gap-1 border border-slate-200 rounded-lg p-1 bg-white">
+              <div className='flex items-center gap-1 border border-slate-200 rounded-lg p-1 bg-white'>
                 <Button
-                  size="sm"
+                  size='sm'
                   variant={simulatorMode === '1v1' ? 'default' : 'ghost'}
                   onClick={() => {
                     setSimulatorMode('1v1');
@@ -3820,12 +3906,12 @@ export function MultiMonsterSimulator({
                       restartGame();
                     }
                   }}
-                  className="h-7 px-3 text-xs"
+                  className='h-7 px-3 text-xs'
                 >
                   1:1 모드
                 </Button>
                 <Button
-                  size="sm"
+                  size='sm'
                   variant={simulatorMode === '1vMany' ? 'default' : 'ghost'}
                   onClick={() => {
                     setSimulatorMode('1vMany');
@@ -3835,14 +3921,14 @@ export function MultiMonsterSimulator({
                       restartGame();
                     }
                   }}
-                  className="h-7 px-3 text-xs"
+                  className='h-7 px-3 text-xs'
                 >
                   1:다 모드
                 </Button>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
+            <div className='flex items-center gap-2'>
+              <Badge variant='outline' className='bg-yellow-100 text-yellow-800'>
                 처치: {killCount}
               </Badge>
               <Badge variant={isGameOver ? 'destructive' : 'default'}>
@@ -3851,27 +3937,27 @@ export function MultiMonsterSimulator({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 relative">
+        <CardContent className='space-y-4 relative'>
           {/* Respawn Settings */}
           {showRespawnControls && simulatorMode === '1vMany' && (
-            <div className="grid grid-cols-2 gap-4 p-4 bg-slate-100 rounded-lg">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
+            <div className='grid grid-cols-2 gap-4 p-4 bg-slate-100 rounded-lg'>
+              <div className='space-y-2'>
+                <div className='flex items-center gap-2'>
                   <Label>최대 몬스터 수: {monsterCount}</Label>
                   {enableRespawn && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant='secondary' className='text-xs'>
                       리스폰 활성화
                     </Badge>
                   )}
                   {!enableRespawn && (
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant='outline' className='text-xs'>
                       리스폰 비활성화
                     </Badge>
                   )}
                 </div>
                 <Slider
                   value={[monsterCount]}
-                  onValueChange={(v) => {
+                  onValueChange={v => {
                     setMonsterCount(v[0]);
                     // Adjust monster array
                     const currentCount = monstersRef.current.length;
@@ -3921,8 +4007,9 @@ export function MultiMonsterSimulator({
                           name: monsterName,
                           color: monsterColor,
                           skills: monsterSkills,
-                          aiConfig: aiConfig,
-                          aiPatternConfig: aiPatternConfig,
+                          basicAttack: monsterBasicAttackRef.current || null,
+                          aiConfig,
+                          aiPatternConfig,
                           sp: currentDataRow?.monster_sp || 100,
                           maxSP: currentDataRow?.monster_sp || 100,
                           currentSkill: null,
@@ -3938,20 +4025,20 @@ export function MultiMonsterSimulator({
                   min={1}
                   max={10}
                   step={1}
-                  className="w-full"
+                  className='w-full'
                   disabled={!enableRespawn}
                 />
-                <div className="flex justify-between text-xs text-slate-600">
+                <div className='flex justify-between text-xs text-slate-600'>
                   <span>1</span>
                   <span>10</span>
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 <Label>리스폰 간격: {(propRespawnDelay / 1000).toFixed(1)}초</Label>
-                <div className="text-sm text-muted-foreground px-2">
+                <div className='text-sm text-muted-foreground px-2'>
                   (몬스터 데이터셋 뷰어에서 조정)
                 </div>
-                <div className="flex justify-between text-xs text-slate-600">
+                <div className='flex justify-between text-xs text-slate-600'>
                   <span>0.5초</span>
                   <span>10초</span>
                 </div>
@@ -3967,7 +4054,7 @@ export function MultiMonsterSimulator({
               ref={canvasRef}
               width={CANVAS_WIDTH}
               height={CANVAS_HEIGHT}
-              className="border border-slate-300 rounded-lg bg-slate-50 cursor-crosshair w-full h-auto"
+              className='border border-slate-300 rounded-lg bg-slate-50 cursor-crosshair w-full h-auto'
               style={{
                 imageRendering: 'crisp-edges',
                 maxWidth: '100%',
@@ -3976,16 +4063,16 @@ export function MultiMonsterSimulator({
             />
 
             {!isGameStarted && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Button onClick={startGame} size="lg" className="text-lg px-8 py-6">
+              <div className='absolute inset-0 flex items-center justify-center'>
+                <Button onClick={startGame} size='lg' className='text-lg px-8 py-6'>
                   👥 게임 시작
                 </Button>
               </div>
             )}
 
             {isGameOver && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Button onClick={restartGame} size="lg" className="mt-32">
+              <div className='absolute inset-0 flex items-center justify-center'>
+                <Button onClick={restartGame} size='lg' className='mt-32'>
                   재시작
                 </Button>
               </div>
@@ -3996,44 +4083,41 @@ export function MultiMonsterSimulator({
               isGameStarted &&
               !isGameOver && (
                 <TooltipProvider delayDuration={1500}>
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-6">
+                  <div className='absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-6'>
                     {/* Skill Slots */}
                     {activeSkills.length > 0 && (
-                      <div className="flex gap-2">
-                        {activeSkills.map((slot) => {
-                          const SkillIcon =
-                            slot.skill && (LucideIcons as any)[slot.skill.iconName]
-                              ? (LucideIcons as any)[slot.skill.iconName]
-                              : Swords;
+                      <div className='flex gap-2'>
+                        {activeSkills.map(slot => {
+                          const SkillIcon = getLucideIcon(slot.skill?.iconName, Swords);
 
                           return (
                             <Tooltip key={slot.slotNumber}>
                               <TooltipTrigger asChild>
-                                <div className="relative w-16 h-16 bg-slate-900/80 rounded-lg border-2 border-slate-600 flex items-center justify-center cursor-pointer">
+                                <div className='relative w-16 h-16 bg-slate-900/80 rounded-lg border-2 border-slate-600 flex items-center justify-center cursor-pointer'>
                                   {slot.skill ? (
                                     <>
                                       {/* Skill Icon */}
-                                      <SkillIcon className="w-8 h-8 text-white" />
+                                      <SkillIcon className='w-8 h-8 text-white' />
 
                                       {/* Key Binding */}
-                                      <div className="absolute top-0 right-0 bg-purple-600 text-white text-xs px-1 rounded-bl rounded-tr">
+                                      <div className='absolute top-0 right-0 bg-purple-600 text-white text-xs px-1 rounded-bl rounded-tr'>
                                         {slot.keyBinding}
                                       </div>
                                       {/* Cooldown Overlay */}
                                       {slot.skill.isOnCooldown && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
-                                          <span className="text-white text-sm">
+                                        <div className='absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg'>
+                                          <span className='text-white text-sm'>
                                             {(slot.skill.currentCooldown / 1000).toFixed(1)}
                                           </span>
                                         </div>
                                       )}
                                       {/* SP Cost */}
-                                      <div className="absolute bottom-0 left-0 bg-blue-600 text-white text-xs px-1 rounded-br rounded-tl">
+                                      <div className='absolute bottom-0 left-0 bg-blue-600 text-white text-xs px-1 rounded-br rounded-tl'>
                                         {slot.skill.spCost}
                                       </div>
                                     </>
                                   ) : (
-                                    <span className="text-slate-500 text-xs">
+                                    <span className='text-slate-500 text-xs'>
                                       {slot.keyBinding}
                                     </span>
                                   )}
@@ -4041,15 +4125,15 @@ export function MultiMonsterSimulator({
                               </TooltipTrigger>
                               {slot.skill && (
                                 <TooltipContent
-                                  side="top"
-                                  className="bg-slate-900 text-white border-purple-600"
+                                  side='top'
+                                  className='bg-slate-900 text-white border-purple-600'
                                 >
-                                  <div className="space-y-1">
-                                    <div className="font-semibold">{slot.skill.name}</div>
-                                    <div className="text-xs text-slate-300">
+                                  <div className='space-y-1'>
+                                    <div className='font-semibold'>{slot.skill.name}</div>
+                                    <div className='text-xs text-slate-300'>
                                       {slot.skill.description}
                                     </div>
-                                    <div className="text-xs text-blue-400">
+                                    <div className='text-xs text-blue-400'>
                                       SP: {slot.skill.spCost}
                                     </div>
                                   </div>
@@ -4063,41 +4147,38 @@ export function MultiMonsterSimulator({
 
                     {/* Item Slots */}
                     {activeItems.length > 0 && (
-                      <div className="flex gap-2">
-                        {activeItems.map((slot) => {
-                          const ItemIcon =
-                            slot.item && (LucideIcons as any)[slot.item.iconName]
-                              ? (LucideIcons as any)[slot.item.iconName]
-                              : Package;
+                      <div className='flex gap-2'>
+                        {activeItems.map(slot => {
+                          const ItemIcon = getLucideIcon(slot.item?.iconName, Package);
 
                           return (
                             <Tooltip key={slot.slotNumber}>
                               <TooltipTrigger asChild>
-                                <div className="relative w-16 h-16 bg-slate-900/80 rounded-lg border-2 border-yellow-600 flex items-center justify-center cursor-pointer">
+                                <div className='relative w-16 h-16 bg-slate-900/80 rounded-lg border-2 border-yellow-600 flex items-center justify-center cursor-pointer'>
                                   {slot.item ? (
                                     <>
                                       {/* Item Icon */}
-                                      <ItemIcon className="w-8 h-8 text-white" />
+                                      <ItemIcon className='w-8 h-8 text-white' />
 
                                       {/* Key Binding */}
-                                      <div className="absolute top-0 right-0 bg-yellow-600 text-white text-xs px-1 rounded-bl rounded-tr">
+                                      <div className='absolute top-0 right-0 bg-yellow-600 text-white text-xs px-1 rounded-bl rounded-tr'>
                                         {slot.keyBinding}
                                       </div>
                                       {/* Cooldown Overlay */}
                                       {slot.item.isOnCooldown && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
-                                          <span className="text-white text-sm">
+                                        <div className='absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg'>
+                                          <span className='text-white text-sm'>
                                             {(slot.item.currentCooldown / 1000).toFixed(1)}
                                           </span>
                                         </div>
                                       )}
                                       {/* Quantity */}
-                                      <div className="absolute bottom-0 right-0 bg-green-600 text-white text-xs px-1 rounded-tl rounded-br">
+                                      <div className='absolute bottom-0 right-0 bg-green-600 text-white text-xs px-1 rounded-tl rounded-br'>
                                         x{slot.item.quantity}
                                       </div>
                                     </>
                                   ) : (
-                                    <span className="text-slate-500 text-xs">
+                                    <span className='text-slate-500 text-xs'>
                                       {slot.keyBinding}
                                     </span>
                                   )}
@@ -4105,15 +4186,15 @@ export function MultiMonsterSimulator({
                               </TooltipTrigger>
                               {slot.item && (
                                 <TooltipContent
-                                  side="top"
-                                  className="bg-slate-900 text-white border-yellow-600"
+                                  side='top'
+                                  className='bg-slate-900 text-white border-yellow-600'
                                 >
-                                  <div className="space-y-1">
-                                    <div className="font-semibold">{slot.item.name}</div>
-                                    <div className="text-xs text-slate-300">
+                                  <div className='space-y-1'>
+                                    <div className='font-semibold'>{slot.item.name}</div>
+                                    <div className='text-xs text-slate-300'>
                                       {slot.item.description}
                                     </div>
-                                    <div className="text-xs text-green-400">
+                                    <div className='text-xs text-green-400'>
                                       보유: {slot.item.quantity}개
                                     </div>
                                   </div>
@@ -4130,20 +4211,20 @@ export function MultiMonsterSimulator({
           </div>
 
           {/* Display Options & Fullscreen */}
-          <div className="flex gap-4 p-4 bg-slate-100 rounded-lg items-center justify-between">
-            <div className="flex gap-4">
-              <div className="flex items-center space-x-2">
+          <div className='flex gap-4 p-4 bg-slate-100 rounded-lg items-center justify-between'>
+            <div className='flex gap-4'>
+              <div className='flex items-center space-x-2'>
                 <Switch
-                  id="multi-attack-range"
+                  id='multi-attack-range'
                   checked={showAttackRange}
                   onCheckedChange={setShowAttackRange}
                 />
-                <Label htmlFor="multi-attack-range">공격 범위 표시</Label>
+                <Label htmlFor='multi-attack-range'>공격 범위 표시</Label>
               </div>
             </div>
 
-            <Button onClick={toggleFullscreen} variant="outline" size="icon">
-              {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            <Button onClick={toggleFullscreen} variant='outline' size='icon'>
+              {isFullscreen ? <Minimize2 className='h-4 w-4' /> : <Maximize2 className='h-4 w-4' />}
             </Button>
           </div>
         </CardContent>

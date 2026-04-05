@@ -1,35 +1,28 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
-import { Skill, BasicAttackSlot, SkillSlot } from '../lib/skillSystem';
+import type { LucideIcon } from 'lucide-react';
 import {
-  FlaskConical,
-  Sparkles,
-  RotateCcw,
-  Info,
-  Sword,
-  Target,
-  Plus,
-  Edit2,
   Copy,
+  Edit2,
+  FlaskConical,
+  Info,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Sword,
   Trash2,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import * as LucideIcons from 'lucide-react';
+import { CharacterConfig } from '../lib/gameTypes';
+import { ICON_MAP } from '../lib/iconMap';
+import { defaultMonsterLevelConfig, defaultPlayerLevelConfig } from '../lib/levelSystem';
+import { BasicAttackSlot, Skill, SkillSlot } from '../lib/skillSystem';
+import { defaultBindings } from './KeyBindingSettings';
 import { MultiMonsterSimulator } from './MultiMonsterSimulator';
-import { CharacterConfig } from './CharacterSettings';
-import { KeyBindings, defaultBindings } from './KeyBindingSettings';
-import {
-  LevelConfig,
-  defaultPlayerLevelConfig,
-  defaultMonsterLevelConfig,
-} from '../lib/levelSystem';
-import { ItemSlot } from '../lib/itemSystem';
-import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { ScrollArea } from './ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 
 interface SkillTestLabProps {
   skills: Record<string, Skill>;
@@ -47,13 +40,6 @@ interface SkillTestLabProps {
   onDuplicateSkill?: (skill: Skill) => void;
 }
 
-interface TestSlot {
-  id: string;
-  skill: Skill | null;
-  keyBinding: string;
-  type: 'skill';
-}
-
 // 테스트용 기본 플레이어 설정
 const DEFAULT_TEST_PLAYER_CONFIG: CharacterConfig = {
   size: { min: 20, max: 20 },
@@ -65,6 +51,7 @@ const DEFAULT_TEST_PLAYER_CONFIG: CharacterConfig = {
   criticalRate: { min: 10, max: 10 },
   attackRange: { min: 300, max: 300 },
   attackWidth: { min: 90, max: 90 },
+  typeId: 'archer',
   attackType: 'ranged',
 };
 
@@ -79,6 +66,7 @@ const DEFAULT_TEST_MONSTER_CONFIG: CharacterConfig = {
   criticalRate: { min: 10, max: 10 },
   attackRange: { min: 60, max: 60 },
   attackWidth: { min: 80, max: 80 },
+  typeId: 'warrior',
   attackType: 'melee',
 };
 
@@ -88,14 +76,14 @@ const SIMULATOR_HEIGHT = 640;
 
 export function SkillTestLab({
   skills,
-  playerBasicAttack,
-  monsterBasicAttack,
+  playerBasicAttack: _playerBasicAttack,
+  monsterBasicAttack: _monsterBasicAttack,
   selectedSkillId,
   selectedBasicAttackId = 'meleeBasic',
-  selectedType = 'basic',
+  selectedType: _selectedType = 'basic',
   onSkillSelect,
   onBasicAttackSelect,
-  onTypeChange,
+  onTypeChange: _onTypeChange,
   onAddSkill,
   onEditSkill,
   onDeleteSkill,
@@ -108,8 +96,8 @@ export function SkillTestLab({
   const allSkillsList = Object.values(skills);
 
   // 태그 기반으로 스킬 분류 (기본 공격 / 스킬)
-  const basicAttacksList = allSkillsList.filter((s) => s.tags?.includes('basicAttack'));
-  const regularSkillsList = allSkillsList.filter((s) => s.tags?.includes('skill'));
+  const basicAttacksList = allSkillsList.filter(s => s.tags?.includes('basicAttack'));
+  const regularSkillsList = allSkillsList.filter(s => s.tags?.includes('skill'));
 
   // 선택된 기본 공격 가져오기
   const selectedBasicAttack = skills[selectedBasicAttackId];
@@ -179,47 +167,47 @@ export function SkillTestLab({
 
   // 아이콘 렌더링
   const getIcon = (iconName: string) => {
-    const IconComponent = (LucideIcons as any)[iconName];
-    return IconComponent ? <IconComponent className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />;
+    const IconComponent = ICON_MAP[iconName] as LucideIcon | undefined;
+    return IconComponent ? <IconComponent className='w-4 h-4' /> : <Sparkles className='w-4 h-4' />;
   };
 
   return (
-    <Card className="h-full flex flex-col overflow-hidden">
-      <CardHeader className="pb-2 pt-1 px-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-1.5 text-sm">
-            <FlaskConical className="w-3.5 h-3.5 text-purple-600" />
+    <Card className='h-full flex flex-col overflow-hidden'>
+      <CardHeader className='pb-2 pt-1 px-3 flex-shrink-0'>
+        <div className='flex items-center justify-between'>
+          <CardTitle className='flex items-center gap-1.5 text-sm'>
+            <FlaskConical className='w-3.5 h-3.5 text-purple-600' />
             스킬 테스트 랩
           </CardTitle>
           <Button
-            size="sm"
-            variant="outline"
+            size='sm'
+            variant='outline'
             onClick={() => {
               onBasicAttackSelect?.('meleeBasic');
               onSkillSelect?.(regularSkillsList[0]?.id || '');
               toast.success('테스트 랩이 초기화되었습니다!');
             }}
-            className="h-7 text-xs"
+            className='h-7 text-xs'
           >
-            <RotateCcw className="w-3 h-3 mr-1" />
+            <RotateCcw className='w-3 h-3 mr-1' />
             초기화
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-3 min-h-0 flex gap-3">
+      <CardContent className='flex-1 overflow-hidden p-3 min-h-0 flex gap-3'>
         {/* 왼쪽: MultiMonsterSimulator */}
         <div
-          className="flex-shrink-0 flex flex-col"
+          className='flex-shrink-0 flex flex-col'
           style={{ width: SIMULATOR_WIDTH, height: SIMULATOR_HEIGHT + 90 }}
         >
-          <div className="flex flex-col gap-2.5 h-full">
-            <div className="border-2 border-slate-700 rounded-lg overflow-hidden bg-slate-900">
+          <div className='flex flex-col gap-2.5 h-full'>
+            <div className='border-2 border-slate-700 rounded-lg overflow-hidden bg-slate-900'>
               <MultiMonsterSimulator
                 keyBindings={defaultBindings}
                 playerConfig={getPlayerConfig()}
                 monsterConfig={DEFAULT_TEST_MONSTER_CONFIG}
                 currentTick={0}
-                currentDataRow={0}
+                currentDataRow={null}
                 playerLevelConfig={defaultPlayerLevelConfig}
                 monsterLevelConfig={defaultMonsterLevelConfig}
                 skillSlots={convertToSkillSlots()}
@@ -234,38 +222,38 @@ export function SkillTestLab({
                 initialMonsterCount={0}
                 maxMonsterCount={0}
                 showRespawnControls={false}
-                title=""
+                title=''
                 initialZoom={zoom}
                 onZoomChange={setZoom}
               />
             </div>
 
             {/* 조작 방법 설명 */}
-            <div className="px-3 py-1.5 bg-slate-100 border border-slate-300 rounded-md flex-shrink-0">
-              <p className="text-[10px] text-slate-700 text-center">
-                <span className="font-semibold text-slate-800">근접 공격 테스트:</span> 마우스 클릭
-                <span className="mx-2 text-slate-400">|</span>
-                <span className="font-semibold text-slate-800">스킬 테스트:</span> Space 키
+            <div className='px-3 py-1.5 bg-slate-100 border border-slate-300 rounded-md flex-shrink-0'>
+              <p className='text-[10px] text-slate-700 text-center'>
+                <span className='font-semibold text-slate-800'>근접 공격 테스트:</span> 마우스 클릭
+                <span className='mx-2 text-slate-400'>|</span>
+                <span className='font-semibold text-slate-800'>스킬 테스트:</span> Space 키
               </p>
             </div>
 
             {/* 안내 메시지 */}
-            <div className="flex items-center justify-between gap-2 p-2 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg flex-shrink-0">
-              <div className="flex items-center gap-1.5 text-[10px] text-purple-700">
-                <Info className="w-3 h-3 flex-shrink-0" />
+            <div className='flex items-center justify-between gap-2 p-2 bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-200 rounded-lg flex-shrink-0'>
+              <div className='flex items-center gap-1.5 text-[10px] text-purple-700'>
+                <Info className='w-3 h-3 flex-shrink-0' />
                 <p>{selectedBasicAttack.name} ~ 마우스클릭 ~ WASD 이동</p>
               </div>
               {selectedSkill ? (
-                <div className="flex items-center gap-2 px-2 py-1 bg-white border border-purple-300 rounded-md">
-                  <kbd className="px-2 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold shadow-sm">
+                <div className='flex items-center gap-2 px-2 py-1 bg-white border border-purple-300 rounded-md'>
+                  <kbd className='px-2 py-0.5 bg-purple-600 text-white rounded text-[10px] font-bold shadow-sm'>
                     SPACE
                   </kbd>
-                  <span className="text-[10px] text-purple-800 font-medium">
+                  <span className='text-[10px] text-purple-800 font-medium'>
                     {selectedSkill.name}
                   </span>
                 </div>
               ) : (
-                <span className="text-[10px] text-slate-400 italic">스킬을 선택하세요</span>
+                <span className='text-[10px] text-slate-400 italic'>스킬을 선택하세요</span>
               )}
             </div>
           </div>
@@ -273,38 +261,38 @@ export function SkillTestLab({
 
         {/* 오른쪽: 스킬 라이브러리 */}
         <div
-          className="flex-1 flex flex-col min-w-[300px] border-2 border-purple-200 rounded-lg bg-white overflow-hidden"
+          className='flex-1 flex flex-col min-w-[300px] border-2 border-purple-200 rounded-lg bg-white overflow-hidden'
           style={{ height: SIMULATOR_HEIGHT + 90 }}
         >
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex items-center gap-2 px-2 pt-2 pb-2 bg-gradient-to-r from-purple-50 to-blue-50 border-b-2 border-purple-100">
-              <Sparkles className="w-4 h-4 text-purple-600" />
-              <h3 className="text-sm font-semibold text-purple-700">스킬 라이브러리</h3>
-              <div className="flex-1"></div>
-              <Button size="sm" variant="outline" onClick={onAddSkill} className="h-7 text-xs">
-                <Plus className="w-3 h-3 mr-1" />
+          <div className='flex-1 flex flex-col min-h-0 overflow-hidden'>
+            <div className='flex items-center gap-2 px-2 pt-2 pb-2 bg-gradient-to-r from-purple-50 to-blue-50 border-b-2 border-purple-100'>
+              <Sparkles className='w-4 h-4 text-purple-600' />
+              <h3 className='text-sm font-semibold text-purple-700'>스킬 라이브러리</h3>
+              <div className='flex-1'></div>
+              <Button size='sm' variant='outline' onClick={onAddSkill} className='h-7 text-xs'>
+                <Plus className='w-3 h-3 mr-1' />
                 스킬 추가
               </Button>
             </div>
 
             {/* 탭으로 구분된 스킬 라이브러리 */}
-            <Tabs defaultValue="basic" className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <TabsList className="mx-2 mt-2 grid w-auto grid-cols-2">
-                <TabsTrigger value="basic" className="text-xs">
-                  <Sword className="w-3 h-3 mr-1" />
+            <Tabs defaultValue='basic' className='flex-1 flex flex-col min-h-0 overflow-hidden'>
+              <TabsList className='mx-2 mt-2 grid w-auto grid-cols-2'>
+                <TabsTrigger value='basic' className='text-xs'>
+                  <Sword className='w-3 h-3 mr-1' />
                   기본 공격
                 </TabsTrigger>
-                <TabsTrigger value="skill" className="text-xs">
-                  <Sparkles className="w-3 h-3 mr-1" />
+                <TabsTrigger value='skill' className='text-xs'>
+                  <Sparkles className='w-3 h-3 mr-1' />
                   스킬
                 </TabsTrigger>
               </TabsList>
 
               {/* 기본 공격 탭 (근접 + 원거리) */}
-              <TabsContent value="basic" className="flex-1 p-2 m-0 overflow-hidden min-h-0 mt-2">
-                <ScrollArea className="h-full w-full">
-                  <div className="space-y-2 pr-2">
-                    {basicAttacksList.map((skill) => (
+              <TabsContent value='basic' className='flex-1 p-2 m-0 overflow-hidden min-h-0 mt-2'>
+                <ScrollArea className='h-full w-full'>
+                  <div className='space-y-2 pr-2'>
+                    {basicAttacksList.map(skill => (
                       <div
                         key={skill.id}
                         className={`
@@ -319,49 +307,49 @@ export function SkillTestLab({
                         onClick={() => {
                           onBasicAttackSelect?.(skill.id);
                           const emoji = skill.tags?.includes('melee') ? '⚔️' : '🎯';
-                          toast.success(`${emoji} \"${skill.name}\" 선택됨 (마우스 클릭으로 발동)`);
+                          toast.success(`${emoji} "${skill.name}" 선택됨 (마우스 클릭으로 발동)`);
                         }}
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className='flex items-center gap-2.5'>
                           {/* 아이콘 */}
                           <div
-                            className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0"
+                            className='w-9 h-9 rounded flex items-center justify-center flex-shrink-0'
                             style={{
                               backgroundColor: skill.visual.color,
                               boxShadow: `0 0 10px ${skill.visual.color}50`,
                             }}
                           >
-                            <div className="text-white">{getIcon(skill.iconName)}</div>
+                            <div className='text-white'>{getIcon(skill.iconName)}</div>
                           </div>
 
                           {/* 정보 */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <h4 className="text-xs font-medium text-slate-900">{skill.name}</h4>
+                          <div className='flex-1 min-w-0'>
+                            <div className='flex items-center gap-1.5 mb-0.5'>
+                              <h4 className='text-xs font-medium text-slate-900'>{skill.name}</h4>
                               {/* 타입별 배지 */}
                               {skill.tags?.includes('melee') && (
                                 <Badge
-                                  variant="outline"
-                                  className="text-[8px] px-1 py-0 bg-orange-50 border-orange-300 text-orange-700"
+                                  variant='outline'
+                                  className='text-[8px] px-1 py-0 bg-orange-50 border-orange-300 text-orange-700'
                                 >
                                   근접
                                 </Badge>
                               )}
                               {skill.tags?.includes('ranged') && (
                                 <Badge
-                                  variant="outline"
-                                  className="text-[8px] px-1 py-0 bg-blue-50 border-blue-300 text-blue-700"
+                                  variant='outline'
+                                  className='text-[8px] px-1 py-0 bg-blue-50 border-blue-300 text-blue-700'
                                 >
                                   원거리
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-[10px] text-slate-600 mb-1.5">{skill.description}</p>
-                            <div className="flex items-center gap-2 text-[9px]">
-                              <span className="text-slate-500">사거리: {skill.range}</span>
-                              <span className="text-slate-500">범위: {skill.area}°</span>
-                              <span className="text-blue-600">{skill.spCost} SP</span>
-                              <span className="text-slate-500">
+                            <p className='text-[10px] text-slate-600 mb-1.5'>{skill.description}</p>
+                            <div className='flex items-center gap-2 text-[9px]'>
+                              <span className='text-slate-500'>사거리: {skill.range}</span>
+                              <span className='text-slate-500'>범위: {skill.area}°</span>
+                              <span className='text-blue-600'>{skill.spCost} SP</span>
+                              <span className='text-slate-500'>
                                 {skill.timing
                                   ? skill.timing.windup +
                                     skill.timing.execution +
@@ -376,9 +364,9 @@ export function SkillTestLab({
                     ))}
 
                     {basicAttacksList.length === 0 && (
-                      <div className="text-center py-8 text-slate-400">
-                        <Sword className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">기본 공격이 없습니다</p>
+                      <div className='text-center py-8 text-slate-400'>
+                        <Sword className='w-10 h-10 mx-auto mb-2 opacity-50' />
+                        <p className='text-xs'>기본 공격이 없습니다</p>
                       </div>
                     )}
                   </div>
@@ -386,10 +374,10 @@ export function SkillTestLab({
               </TabsContent>
 
               {/* 스킬 탭 */}
-              <TabsContent value="skill" className="flex-1 p-2 m-0 overflow-hidden min-h-0 mt-2">
-                <ScrollArea className="h-full w-full">
-                  <div className="space-y-2 pr-2">
-                    {regularSkillsList.map((skill) => (
+              <TabsContent value='skill' className='flex-1 p-2 m-0 overflow-hidden min-h-0 mt-2'>
+                <ScrollArea className='h-full w-full'>
+                  <div className='space-y-2 pr-2'>
+                    {regularSkillsList.map(skill => (
                       <div
                         key={skill.id}
                         className={`
@@ -403,77 +391,77 @@ export function SkillTestLab({
                         `}
                         onClick={() => {
                           onSkillSelect?.(skill.id);
-                          toast.success(`✨ \"${skill.name}\" 선택됨 (Space로 발동)`);
+                          toast.success(`✨ "${skill.name}" 선택됨 (Space로 발동)`);
                         }}
                       >
-                        <div className="flex items-center gap-2.5">
+                        <div className='flex items-center gap-2.5'>
                           {/* 아이콘 */}
                           <div
-                            className="w-9 h-9 rounded flex items-center justify-center flex-shrink-0"
+                            className='w-9 h-9 rounded flex items-center justify-center flex-shrink-0'
                             style={{
                               backgroundColor: skill.visual.color,
                               boxShadow: `0 0 10px ${skill.visual.color}50`,
                             }}
                           >
-                            <div className="text-white">{getIcon(skill.iconName)}</div>
+                            <div className='text-white'>{getIcon(skill.iconName)}</div>
                           </div>
 
                           {/* 정보 */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 mb-0.5">
-                              <h4 className="text-xs font-medium text-slate-900">{skill.name}</h4>
+                          <div className='flex-1 min-w-0'>
+                            <div className='flex items-center gap-1.5 mb-0.5'>
+                              <h4 className='text-xs font-medium text-slate-900'>{skill.name}</h4>
                               <Badge
-                                variant="outline"
-                                className="text-[8px] px-1 py-0 bg-purple-50 border-purple-300 text-purple-700"
+                                variant='outline'
+                                className='text-[8px] px-1 py-0 bg-purple-50 border-purple-300 text-purple-700'
                               >
                                 스킬
                               </Badge>
                             </div>
-                            <p className="text-[10px] text-slate-600 mb-1.5">{skill.description}</p>
-                            <div className="flex items-center gap-2 text-[9px]">
-                              <span className="text-slate-500">사거리: {skill.range}</span>
-                              <span className="text-slate-500">범위: {skill.area}°</span>
-                              <span className="text-blue-600">{skill.spCost} SP</span>
-                              <span className="text-slate-500">
+                            <p className='text-[10px] text-slate-600 mb-1.5'>{skill.description}</p>
+                            <div className='flex items-center gap-2 text-[9px]'>
+                              <span className='text-slate-500'>사거리: {skill.range}</span>
+                              <span className='text-slate-500'>범위: {skill.area}°</span>
+                              <span className='text-blue-600'>{skill.spCost} SP</span>
+                              <span className='text-slate-500'>
                                 {(skill.cooldown / 1000).toFixed(1)}s
                               </span>
                             </div>
                           </div>
 
                           {/* 액션 버튼들 */}
-                          <div className="flex flex-col gap-1 flex-shrink-0">
+                          <div className='flex flex-col gap-1 flex-shrink-0'>
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
+                              size='sm'
+                              variant='ghost'
+                              onClick={e => {
                                 e.stopPropagation();
                                 onEditSkill?.(skill);
                               }}
-                              className="h-6 w-6 p-0"
+                              className='h-6 w-6 p-0'
                             >
-                              <Edit2 className="w-3 h-3 text-blue-600" />
+                              <Edit2 className='w-3 h-3 text-blue-600' />
                             </Button>
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
+                              size='sm'
+                              variant='ghost'
+                              onClick={e => {
                                 e.stopPropagation();
                                 onDuplicateSkill?.(skill);
                               }}
-                              className="h-6 w-6 p-0"
+                              className='h-6 w-6 p-0'
                             >
-                              <Copy className="w-3 h-3 text-green-600" />
+                              <Copy className='w-3 h-3 text-green-600' />
                             </Button>
                             <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
+                              size='sm'
+                              variant='ghost'
+                              onClick={e => {
                                 e.stopPropagation();
                                 onDeleteSkill?.(skill.id);
                               }}
-                              className="h-6 w-6 p-0"
+                              className='h-6 w-6 p-0'
                             >
-                              <Trash2 className="w-3 h-3 text-red-600" />
+                              <Trash2 className='w-3 h-3 text-red-600' />
                             </Button>
                           </div>
                         </div>
@@ -481,10 +469,10 @@ export function SkillTestLab({
                     ))}
 
                     {regularSkillsList.length === 0 && (
-                      <div className="text-center py-8 text-slate-400">
-                        <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">스킬이 없습니다</p>
-                        <p className="text-[10px] mt-1">스킬을 추가하세요</p>
+                      <div className='text-center py-8 text-slate-400'>
+                        <Sparkles className='w-10 h-10 mx-auto mb-2 opacity-50' />
+                        <p className='text-xs'>스킬이 없습니다</p>
+                        <p className='text-[10px] mt-1'>스킬을 추가하세요</p>
                       </div>
                     )}
                   </div>

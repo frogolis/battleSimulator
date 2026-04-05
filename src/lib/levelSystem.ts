@@ -5,6 +5,10 @@
  * - 레벨별 능력치 상승 (ax + b 형태)
  */
 
+import type { FormulaBlock } from './formulaTypes';
+
+const logger = (..._args: unknown[]): void => {};
+
 export interface StatGrowthFormula {
   a: number; // 계수 (기울기)
   b: number; // 상수 (y절편)
@@ -72,11 +76,11 @@ export interface LevelConfig {
   speedGrowth: StatGrowthFormula;
 
   // 비주얼 포뮬라 빌더 블록 (고급 모드)
-  hpFormulaBlocks?: any[];
-  spFormulaBlocks?: any[];
-  attackFormulaBlocks?: any[];
-  defenseFormulaBlocks?: any[];
-  speedFormulaBlocks?: any[];
+  hpFormulaBlocks?: FormulaBlock[];
+  spFormulaBlocks?: FormulaBlock[];
+  attackFormulaBlocks?: FormulaBlock[];
+  defenseFormulaBlocks?: FormulaBlock[];
+  speedFormulaBlocks?: FormulaBlock[];
 
   // 포뮬라 모드 ('simple' | 'advanced')
   formulaMode?: 'simple' | 'advanced';
@@ -114,14 +118,14 @@ export interface LevelStats {
 export function evaluateFormula(formula: string, x: number): number {
   try {
     // 수식을 안전하게 평가하기 위해 변환
-    let sanitized = formula.replace(/x/gi, String(x)).replace(/\^/g, '**'); // ^ -> **로 변환 (거듭제곱)
+    const sanitized = formula.replace(/x/gi, String(x)).replace(/\^/g, '**'); // ^ -> **로 변환 (거듭제곱)
 
     // eval 대신 Function을 사용하여 안전하게 계산
     const result = new Function(`return ${sanitized}`)();
 
     return Math.floor(Number(result) || 0);
   } catch (error) {
-    console.error('수식 평가 오류:', error);
+    logger('수식 평가 오류:', error);
     return 0;
   }
 }
@@ -170,7 +174,7 @@ export function calculateExpForLevelWithSegments(level: number, config?: ExpGrow
   // 베지어 곡선 모드인지 확인
   if (config.useBezier && config.bezierSegments && config.bezierSegments.length > 0) {
     // 해당 레벨이 속한 베지어 구간 찾기
-    const segment = config.bezierSegments.find((s) => level >= s.startLevel && level <= s.endLevel);
+    const segment = config.bezierSegments.find(s => level >= s.startLevel && level <= s.endLevel);
 
     if (segment) {
       return calculateExpWithBezier(level, segment);
@@ -180,7 +184,7 @@ export function calculateExpForLevelWithSegments(level: number, config?: ExpGrow
   // 수식 모드
   if (config.segments && config.segments.length > 0) {
     // 해당 레벨이 속한 구간 찾기
-    const segment = config.segments.find((s) => level >= s.startLevel && level <= s.endLevel);
+    const segment = config.segments.find(s => level >= s.startLevel && level <= s.endLevel);
 
     if (segment) {
       // 수식 평가
@@ -215,7 +219,7 @@ export function calculateExpForLevel(level: number, formula?: ExpGrowthFormula):
  */
 export function addExperience(
   config: LevelConfig,
-  expGained: number,
+  expGained: number
 ): { newConfig: LevelConfig; leveledUp: boolean; levelsGained: number } {
   let currentLevel = config.currentLevel;
   let currentExp = config.currentExp + expGained;
@@ -463,7 +467,7 @@ export interface LevelStatsTableRow {
 export function generateLevelStatsTable(
   config: LevelConfig,
   startLevel: number = 1,
-  endLevel: number = 20,
+  endLevel: number = 20
 ): LevelStatsTableRow[] {
   const table: LevelStatsTableRow[] = [];
 
@@ -520,7 +524,7 @@ export interface ExpChartData {
 export function generateExpChartData(
   expFormula: ExpGrowthFormula,
   startLevel: number = 1,
-  endLevel: number = 20,
+  endLevel: number = 20
 ): ExpChartData[] {
   const data: ExpChartData[] = [];
   let cumulative = 0;
@@ -545,7 +549,7 @@ export function generateExpChartData(
 export function generateExpChartDataWithSegments(
   config?: ExpGrowthConfig,
   startLevel: number = 1,
-  endLevel: number = 20,
+  endLevel: number = 20
 ): ExpChartData[] {
   const data: ExpChartData[] = [];
   let cumulative = 0;

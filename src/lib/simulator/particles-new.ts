@@ -7,10 +7,12 @@
  * - glow: 글로우 + 상승 파티클
  */
 
-import { SkillParticle, Position, LightningSegment, MonsterState, TrailEffect } from './types';
 import { EffectPreset } from '../skillSystem';
+import { LightningSegment, MonsterState, Position, SkillParticle, TrailEffect } from './types';
 
 let particleIdCounter = 0;
+
+const logParticlesNew = (..._args: unknown[]): void => {};
 
 /**
  * 파티클 생성 옵션
@@ -68,7 +70,7 @@ export function createProjectileEffect(options: CreateEffectOptions): SkillParti
         angle = (i / count) * Math.PI * 2;
         break;
 
-      case 'cone':
+      case 'cone': {
         // 부채꼴 발사
         const spreadAngle = preset.spreadAngle || Math.PI / 4;
         if (count > 1) {
@@ -76,6 +78,7 @@ export function createProjectileEffect(options: CreateEffectOptions): SkillParti
           angle += offset;
         }
         break;
+      }
     }
 
     // 속도 벡터 계산
@@ -200,7 +203,7 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
   const particles: SkillParticle[] = [];
 
   // 🔍 디버깅: 전달받은 모든 값 확인
-  console.log('🔴 [createTrailEffect] 호출됨', {
+  logParticlesNew('🔴 [createTrailEffect] 호출됨', {
     presetId: preset.id,
     skillRange,
     skillArea,
@@ -210,7 +213,7 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
   // CRITICAL: skillRange가 없으면 궤적 이펙트를 생성하지 않음
   // 궤적 이펙트는 반드시 스킬의 실제 범위를 따라야 하므로
   if (!skillRange) {
-    console.warn('⚠️ [Trail Effect] skillRange가 없어서 궤적 이펙트를 생성하지 않습니다');
+    logParticlesNew('⚠️ [Trail Effect] skillRange가 없어서 궤적 이펙트를 생성하지 않습니다');
     return particles;
   }
 
@@ -233,10 +236,10 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
 
   // 디버깅: 실제 사용되는 값 출력
   if (preset.id === 'trail_slash' && Math.random() < 0.1) {
-    console.log('🔴 [Trail Effect] 궤적 생성', {
-      radius: radius + 'px',
-      skillArea: skillArea + '°',
-      skillRange: skillRange + 'px',
+    logParticlesNew('🔴 [Trail Effect] 궤적 생성', {
+      radius: `${radius}px`,
+      skillArea: `${skillArea}°`,
+      skillRange: `${skillRange}px`,
     });
   }
 
@@ -497,7 +500,7 @@ export function createEffect(options: CreateEffectOptions): SkillParticle[] {
   const { preset, skillRange, skillArea } = options;
 
   // 🔍 디버깅: 진입점 확인
-  console.log('🟢 [createEffect] 호출됨', {
+  logParticlesNew('🟢 [createEffect] 호출됨', {
     presetId: preset.id,
     effectType: preset.effectType,
     skillRange,
@@ -526,7 +529,7 @@ export function createEffect(options: CreateEffectOptions): SkillParticle[] {
 export function updateNewParticle(
   particle: SkillParticle,
   deltaTime: number,
-  monsters?: MonsterState[],
+  monsters?: MonsterState[]
 ): SkillParticle {
   const updated = { ...particle };
 
@@ -537,7 +540,7 @@ export function updateNewParticle(
     case 'projectile':
       // 유도 처리
       if (particle.isHoming && particle.targetId !== undefined && monsters) {
-        const target = monsters.find((m) => m.id === particle.targetId && !m.isDead);
+        const target = monsters.find(m => m.id === particle.targetId && !m.isDead);
         if (target) {
           const dx = target.position.x - particle.x;
           const dy = target.position.y - particle.y;
@@ -622,11 +625,11 @@ export function updateNewParticle(
 export function updateNewParticles(
   particles: SkillParticle[],
   deltaTime: number,
-  monsters?: MonsterState[],
+  monsters?: MonsterState[]
 ): SkillParticle[] {
   return particles
-    .map((p) => updateNewParticle(p, deltaTime, monsters))
-    .filter((p) => p.life > 0 && isFinite(p.x) && isFinite(p.y));
+    .map(p => updateNewParticle(p, deltaTime, monsters))
+    .filter(p => p.life > 0 && isFinite(p.x) && isFinite(p.y));
 }
 
 /**
@@ -709,7 +712,7 @@ function renderTrail(ctx: CanvasRenderingContext2D, particle: SkillParticle, alp
 function renderParticleBody(
   ctx: CanvasRenderingContext2D,
   particle: SkillParticle,
-  alpha: number,
+  alpha: number
 ): void {
   const glowRadius = particle.size * 2 * (particle.glowIntensity || 0.5);
 
@@ -721,13 +724,13 @@ function renderParticleBody(
       0,
       particle.x,
       particle.y,
-      glowRadius,
+      glowRadius
     );
     const glowAlpha = Math.floor(alpha * particle.glowIntensity * 255)
       .toString(16)
       .padStart(2, '0');
     gradient.addColorStop(0, particle.color + glowAlpha);
-    gradient.addColorStop(1, particle.color + '00');
+    gradient.addColorStop(1, `${particle.color}00`);
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -757,7 +760,7 @@ function renderParticleBody(
         particle.x - particle.size,
         particle.y - particle.size,
         particle.size * 2,
-        particle.size * 2,
+        particle.size * 2
       );
       break;
 
@@ -782,7 +785,7 @@ function renderParticleBody(
 function renderLightning(
   ctx: CanvasRenderingContext2D,
   particle: SkillParticle,
-  alpha: number,
+  alpha: number
 ): void {
   if (!particle.lightningSegments) return;
 
@@ -817,7 +820,7 @@ function renderLightning(
 function renderRingParticle(
   ctx: CanvasRenderingContext2D,
   particle: SkillParticle,
-  alpha: number,
+  alpha: number
 ): void {
   renderParticleBody(ctx, particle, alpha);
 }
@@ -828,7 +831,7 @@ function renderRingParticle(
 function renderGlowParticle(
   ctx: CanvasRenderingContext2D,
   particle: SkillParticle,
-  alpha: number,
+  alpha: number
 ): void {
   // 큰 글로우 파티클 (중앙)
   if (particle.size > 20) {
@@ -838,7 +841,7 @@ function renderGlowParticle(
       0,
       particle.x,
       particle.y,
-      particle.size,
+      particle.size
     );
     const centerAlpha = Math.floor(alpha * 0.3 * 255)
       .toString(16)
@@ -848,7 +851,7 @@ function renderGlowParticle(
       .padStart(2, '0');
     gradient.addColorStop(0, particle.color + centerAlpha);
     gradient.addColorStop(0.5, particle.secondaryColor + edgeAlpha);
-    gradient.addColorStop(1, particle.color + '00');
+    gradient.addColorStop(1, `${particle.color}00`);
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
@@ -868,7 +871,7 @@ function renderStar(
   x: number,
   y: number,
   size: number,
-  points: number,
+  points: number
 ): void {
   ctx.beginPath();
   for (let i = 0; i < points * 2; i++) {
@@ -917,35 +920,38 @@ function renderSpark(ctx: CanvasRenderingContext2D, x: number, y: number, size: 
 export function renderNewParticles(
   ctx: CanvasRenderingContext2D,
   particles: SkillParticle[],
-  zoom?: number,
-  testMode?: boolean,
+  _zoom?: number,
+  _testMode?: boolean
 ): void {
   // trail 파티클 그룹화 (skillType으로)
   const trailGroups = new Map<string, SkillParticle[]>();
   const otherParticles: SkillParticle[] = [];
 
-  particles.forEach((particle) => {
+  particles.forEach(particle => {
     if (particle.effectType === 'trail' && particle.skillType) {
       // skillType이 trail_xxx 형태로 그룹 ID가 포함되어 있음
       const key = particle.skillType;
       if (!trailGroups.has(key)) {
         trailGroups.set(key, []);
       }
-      trailGroups.get(key)!.push(particle);
+      const group = trailGroups.get(key);
+      if (group) {
+        group.push(particle);
+      }
     } else {
       otherParticles.push(particle);
     }
   });
 
   // trail 그룹을 선으로 연결하여 렌더링
-  trailGroups.forEach((group) => {
+  trailGroups.forEach(group => {
     if (group.length > 1) {
       renderTrailGroup(ctx, group);
     }
   });
 
   // 나머지 파티클 렌더링
-  otherParticles.forEach((particle) => {
+  otherParticles.forEach(particle => {
     if (particle.effectType) {
       renderNewParticle(ctx, particle);
     }
@@ -959,8 +965,8 @@ function renderTrailGroup(ctx: CanvasRenderingContext2D, particles: SkillParticl
   if (particles.length === 0) return;
 
   // 생명력이 가장 높은 파티클의 알파값 사용
-  const maxLife = Math.max(...particles.map((p) => p.life));
-  const maxMaxLife = Math.max(...particles.map((p) => p.maxLife));
+  const maxLife = Math.max(...particles.map(p => p.life));
+  const maxMaxLife = Math.max(...particles.map(p => p.maxLife));
   const alpha = Math.max(0, Math.min(1, maxLife / maxMaxLife));
 
   const firstParticle = particles[0];

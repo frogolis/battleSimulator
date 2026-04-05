@@ -1,5 +1,4 @@
-import { CharacterConfig, StatRange } from '../components/CharacterSettings';
-import { CharacterType } from './gameTypes';
+import { CharacterConfig, CharacterType, StatRange } from './gameTypes';
 
 /**
  * 범위(StatRange)에서 랜덤 값을 반환합니다
@@ -28,7 +27,7 @@ export interface ResolvedCharacterStats {
   criticalRate: number;
   attackRange: number;
   attackWidth: number;
-  attackType: CharacterType;
+  attackType: CharacterType | undefined;
 }
 
 export function resolveCharacterConfig(config: CharacterConfig): ResolvedCharacterStats {

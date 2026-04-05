@@ -112,7 +112,7 @@ export function EffectPreviewCanvasNew({
       ref={canvasRef}
       width={width}
       height={height}
-      className="border border-slate-700 rounded-lg bg-slate-950"
+      className='border border-slate-700 rounded-lg bg-slate-950'
     />
   );
 }

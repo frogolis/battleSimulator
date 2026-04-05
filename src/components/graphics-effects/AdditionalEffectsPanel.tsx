@@ -51,43 +51,43 @@ export function AdditionalEffectsPanel({
   onConfigUpdate,
 }: AdditionalEffectsPanelProps) {
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-slate-400 mb-3">
+    <div className='space-y-2'>
+      <p className='text-xs text-slate-400 mb-3'>
         기본 효과에 추가할 수 있는 선택적 효과들입니다. 각 효과는 독립적으로 활성화/비활성화할 수
         있습니다.
       </p>
 
-      {effects.map((effect) => (
+      {effects.map(effect => (
         <Card
           key={effect.id}
           className={effect.enabled ? 'bg-purple-500/5 border-purple-500/30' : ''}
         >
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
+          <CardContent className='p-3'>
+            <div className='flex items-center justify-between mb-2'>
+              <div className='flex items-center gap-2'>
                 {effect.icon}
-                <span className="font-semibold text-sm">{effect.name}</span>
+                <span className='font-semibold text-sm'>{effect.name}</span>
                 <Switch
                   checked={effect.enabled}
                   onCheckedChange={() => onToggleEffect(effect.id)}
                 />
               </div>
               {effect.enabled && (
-                <Button size="sm" variant="ghost" onClick={() => onRemoveEffect(effect.id)}>
-                  <Trash2 className="h-3 w-3" />
+                <Button size='sm' variant='ghost' onClick={() => onRemoveEffect(effect.id)}>
+                  <Trash2 className='h-3 w-3' />
                 </Button>
               )}
             </div>
-            <p className="text-xs text-slate-400">{effect.description}</p>
+            <p className='text-xs text-slate-400'>{effect.description}</p>
 
             {effect.enabled && (
-              <div className="mt-3 space-y-2">
+              <div className='mt-3 space-y-2'>
                 {effect.type === 'cameraShake' && (
                   <>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">흔들림 강도</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>흔들림 강도</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.cameraShake}
                         </Badge>
                       </div>
@@ -99,10 +99,10 @@ export function AdditionalEffectsPanel({
                         step={1}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">지속 시간</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>지속 시간</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.cameraShakeDuration}ms
                         </Badge>
                       </div>
@@ -119,10 +119,10 @@ export function AdditionalEffectsPanel({
 
                 {effect.type === 'rings' && (
                   <>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">링 개수</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>링 개수</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.ringCount}
                         </Badge>
                       </div>
@@ -134,10 +134,10 @@ export function AdditionalEffectsPanel({
                         step={1}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">확장 속도</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>확장 속도</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.ringSpeed}
                         </Badge>
                       </div>
@@ -149,10 +149,10 @@ export function AdditionalEffectsPanel({
                         step={10}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">링 두께</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>링 두께</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.ringThickness}px
                         </Badge>
                       </div>
@@ -169,10 +169,10 @@ export function AdditionalEffectsPanel({
 
                 {effect.type === 'screenFlash' && (
                   <>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">플래시 강도</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>플래시 강도</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.flashIntensity.toFixed(1)}
                         </Badge>
                       </div>
@@ -184,23 +184,23 @@ export function AdditionalEffectsPanel({
                         step={0.1}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">플래시 색상</Label>
+                    <div className='space-y-1'>
+                      <Label className='text-xs'>플래시 색상</Label>
                       <Input
-                        type="color"
+                        type='color'
                         value={config.flashColor}
-                        onChange={(e) => onConfigUpdate({ flashColor: e.target.value })}
-                        className="h-8"
+                        onChange={e => onConfigUpdate({ flashColor: e.target.value })}
+                        className='h-8'
                       />
                     </div>
                   </>
                 )}
 
                 {effect.type === 'glow' && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <Label className="text-xs">글로우 강도</Label>
-                      <Badge variant="outline" className="text-xs">
+                  <div className='space-y-1'>
+                    <div className='flex justify-between'>
+                      <Label className='text-xs'>글로우 강도</Label>
+                      <Badge variant='outline' className='text-xs'>
                         {config.glowIntensity.toFixed(1)}
                       </Badge>
                     </div>
@@ -215,10 +215,10 @@ export function AdditionalEffectsPanel({
                 )}
 
                 {effect.type === 'rotation' && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <Label className="text-xs">회전 속도</Label>
-                      <Badge variant="outline" className="text-xs">
+                  <div className='space-y-1'>
+                    <div className='flex justify-between'>
+                      <Label className='text-xs'>회전 속도</Label>
+                      <Badge variant='outline' className='text-xs'>
                         {config.rotationSpeed}°/s
                       </Badge>
                     </div>
@@ -233,10 +233,10 @@ export function AdditionalEffectsPanel({
                 )}
 
                 {effect.type === 'pulse' && (
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <Label className="text-xs">펄스 속도</Label>
-                      <Badge variant="outline" className="text-xs">
+                  <div className='space-y-1'>
+                    <div className='flex justify-between'>
+                      <Label className='text-xs'>펄스 속도</Label>
+                      <Badge variant='outline' className='text-xs'>
                         {config.pulseSpeed}
                       </Badge>
                     </div>
@@ -252,10 +252,10 @@ export function AdditionalEffectsPanel({
 
                 {effect.type === 'trail' && (
                   <>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">궤적 길이</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>궤적 길이</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.trailLength}점
                         </Badge>
                       </div>
@@ -267,10 +267,10 @@ export function AdditionalEffectsPanel({
                         step={1}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between">
-                        <Label className="text-xs">궤적 두께</Label>
-                        <Badge variant="outline" className="text-xs">
+                    <div className='space-y-1'>
+                      <div className='flex justify-between'>
+                        <Label className='text-xs'>궤적 두께</Label>
+                        <Badge variant='outline' className='text-xs'>
                           {config.trailWidth}px
                         </Badge>
                       </div>
@@ -300,7 +300,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '모션 트레일',
       type: 'trail',
       enabled: config.trailEnabled,
-      icon: <TrendingUp className="h-4 w-4" />,
+      icon: <TrendingUp className='h-4 w-4' />,
       description: '이동 궤적을 시각화 (파티클이 남긴 자취)',
     },
     {
@@ -308,7 +308,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '카메라 흔들림',
       type: 'cameraShake',
       enabled: config.cameraShake > 0,
-      icon: <Camera className="h-4 w-4" />,
+      icon: <Camera className='h-4 w-4' />,
       description: '충격 시 화면 흔들림 효과',
     },
     {
@@ -316,7 +316,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '동심원 효과',
       type: 'rings',
       enabled: config.enableRings,
-      icon: <Circle className="h-4 w-4" />,
+      icon: <Circle className='h-4 w-4' />,
       description: '확장되는 원형 파동',
     },
     {
@@ -324,7 +324,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '화면 플래시',
       type: 'screenFlash',
       enabled: config.enableScreenFlash,
-      icon: <Zap className="h-4 w-4" />,
+      icon: <Zap className='h-4 w-4' />,
       description: '순간적인 화면 섬광',
     },
     {
@@ -332,7 +332,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '글로우 효과',
       type: 'glow',
       enabled: config.glowIntensity > 0,
-      icon: <Star className="h-4 w-4" />,
+      icon: <Star className='h-4 w-4' />,
       description: '빛나는 후광 효과',
     },
     {
@@ -340,7 +340,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '회전 효과',
       type: 'rotation',
       enabled: config.rotationSpeed > 0,
-      icon: <Wind className="h-4 w-4" />,
+      icon: <Wind className='h-4 w-4' />,
       description: '파티클이 회전하며 이동',
     },
     {
@@ -348,7 +348,7 @@ export function createInitialEffects(config: GraphicsEffectConfig): AdditionalEf
       name: '펄스 효과',
       type: 'pulse',
       enabled: config.pulseSpeed > 0,
-      icon: <Droplet className="h-4 w-4" />,
+      icon: <Droplet className='h-4 w-4' />,
       description: '크기가 맥동하는 효과',
     },
   ];

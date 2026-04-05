@@ -5,6 +5,8 @@
  * - 스킬 효과 적용
  */
 
+import type { CharacterSkills } from './combatSystem';
+
 export type SkillType =
   | 'melee'
   | 'ranged'
@@ -92,8 +94,53 @@ export interface EffectPreset {
   repeatInterval?: number; // 반복 간격 (ms)
 }
 
+type LegacyVisualFields = {
+  effectPresetId?: string;
+  particleCount: number;
+  particleSize: number;
+  particleLifetime: number;
+  effectShape: EffectShape;
+};
+
+export type EffectPresetWithLegacy = EffectPreset & LegacyVisualFields;
+
+const getEffectShapeFromPreset = (preset: EffectPreset): EffectShape => {
+  switch (preset.effectType) {
+    case 'projectile':
+      return preset.projectilePattern === 'cone' ? 'cone' : 'circle';
+    case 'trail':
+      return preset.trailType === 'spin' ? 'spiral' : 'line';
+    case 'lightning':
+      return 'line';
+    case 'ring':
+      return 'ring';
+    case 'glow':
+      return 'star';
+    default:
+      return 'circle';
+  }
+};
+
+const withLegacyVisualFields = (preset: EffectPreset): EffectPresetWithLegacy => ({
+  ...preset,
+  effectPresetId: preset.id,
+  particleCount:
+    preset.projectileCount ??
+    preset.trailParticleCount ??
+    preset.glowParticleCount ??
+    preset.ringCount ??
+    12,
+  particleSize:
+    preset.projectileSize ??
+    preset.trailWidth ??
+    Math.max(6, Math.round((preset.glowRadius ?? preset.ringRadius ?? 48) / 8)),
+  particleLifetime: preset.projectileLifetime ?? preset.ringInterval ?? 800,
+  effectShape: getEffectShapeFromPreset(preset),
+});
+
 // ===== 새로운 이펙트 프리셋 라이브러리 =====
-export const EFFECT_PRESETS: Record<string, EffectPreset> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RAW_EFFECT_PRESETS: Record<string, EffectPreset> = {
   // ===== 투사체 발사 이펙트 =====
   projectile_arrow_single: {
     id: 'projectile_arrow_single',
@@ -390,10 +437,17 @@ export const EFFECT_PRESETS: Record<string, EffectPreset> = {
     glowFadeSpeed: 0.6,
     repeatCount: 1,
   },
-};
+} satisfies Record<string, EffectPreset>;
+
+export const EFFECT_PRESETS: Record<string, EffectPresetWithLegacy> = Object.keys(
+  RAW_EFFECT_PRESETS
+).reduce<Record<string, EffectPresetWithLegacy>>((accumulator, key) => {
+  accumulator[key] = withLegacyVisualFields(RAW_EFFECT_PRESETS[key]);
+  return accumulator;
+}, {});
 
 // 하위 호환성을 위한 레거시 프리셋 (기존 시스템 지원)
-export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
+export const DETAILED_EFFECT_PRESETS: Record<string, unknown> = {
   projectile_arrow: {
     name: '화살 (직선)',
     category: 'projectile',
@@ -647,6 +701,39 @@ export const DETAILED_EFFECT_PRESETS: Record<string, any> = {
   },
 };
 
+export type EffectCategory = 'trail' | 'projectile' | 'area' | 'target';
+
+export type AnimationPattern =
+  | 'linear'
+  | 'homing'
+  | 'curve'
+  | 'arc'
+  | 'upward'
+  | 'radial'
+  | 'static';
+
+export type EffectShape =
+  | 'circle'
+  | 'cone'
+  | 'line'
+  | 'ring'
+  | 'star'
+  | 'shield'
+  | 'dome'
+  | 'spiral'
+  | 'cross'
+  | 'wave';
+
+export type ProjectileType =
+  | 'none'
+  | 'arrow'
+  | 'fireball'
+  | 'lightning'
+  | 'energy'
+  | 'ice'
+  | 'wave'
+  | 'wind';
+
 // 이펙트 카테고리 정의
 export const EFFECT_CATEGORY_INFO: Record<
   EffectCategory,
@@ -700,6 +787,12 @@ export interface SkillEffectConfig {
   speeds: { min: number; max: number };
 }
 
+export type SkillVisual = LegacyVisualFields & {
+  color: string;
+  secondaryColor: string;
+  glowIntensity: number;
+} & Partial<EffectPreset>;
+
 export interface Skill {
   id: string;
   name: string;
@@ -737,19 +830,11 @@ export interface Skill {
     attack?: number; // 공격력 증가
     defense?: number; // 방어력 증가
     speed?: number; // 속도 증가
+    attackSpeed?: number; // 공격 속도 증가
   };
 
   // 시각 효과 설정 (스킬 시스템 설정에서만 조정)
-  visual: {
-    effectPresetId?: string; // 이펙트 프리셋 ID (새 시스템)
-    color: string; // 주 색상
-    secondaryColor: string; // 보조 색상
-    particleCount: number; // 파티클 수
-    particleSize: number; // 파티클 크기 (px)
-    particleLifetime: number; // 파티클 수명 (ms)
-    glowIntensity: number; // 발광 강도 (0-1)
-    effectShape: EffectShape; // 이펙트 모양
-  };
+  visual: SkillVisual;
 
   // 투사체 설정 (스킬 시스템 설정에서만 조정)
   projectile: {
@@ -780,6 +865,7 @@ export interface Skill {
 
   // 상태 (런타임)
   currentCooldown: number; // 현재 쿨타임 (ms)
+  maxCooldown?: number; // 레거시 UI 호환용
   isOnCooldown: boolean;
 }
 
@@ -794,8 +880,16 @@ export interface SkillSlot {
  */
 export interface BasicAttackSlot {
   skill: Skill;
-  keyBinding: 'click'; // 마우스 클릭
+  keyBinding?: 'click' | 'auto'; // 레거시 호환 포함
+  range?: number;
+  width?: number;
+  damage?: number;
+  cooldown?: number;
+  spCost?: number;
+  castTime?: number;
 }
+
+export type { CharacterSkills };
 
 /**
  * 기본 공격 스킬 정의
@@ -1882,7 +1976,7 @@ export function useSkill(skill: Skill): Skill {
  */
 export function getDefaultBasicAttackSlot(
   attackType: 'melee' | 'ranged' = 'melee',
-  skillId?: string,
+  skillId?: string
 ): BasicAttackSlot {
   // skillId가 지정된 경우 해당 스킬을 찾음
   let skill;
@@ -2352,7 +2446,7 @@ export function createSkill(
   name: string,
   description: string,
   type: SkillType,
-  customizations?: Partial<Skill>,
+  customizations?: Partial<Skill>
 ): Skill {
   const template = SKILL_TEMPLATES[type];
   const id = `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -2423,7 +2517,7 @@ export function validateSkill(skill: Partial<Skill>): { valid: boolean; errors: 
  */
 export function calculateSkillDamage(
   skill: Skill,
-  attackerStats: { attack: number; defense: number; magic: number; speed: number },
+  attackerStats: { attack: number; defense: number; magic: number; speed: number }
 ): number {
   // damageFormula가 없으면 0 반환
   if (!skill.damageFormula) {

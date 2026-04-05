@@ -4,6 +4,8 @@
 
 import { FormulaBlock, generateBlockId } from './formulaTypes';
 
+const logFormulaParser = (..._args: unknown[]): void => {};
+
 // 토큰 타입
 type TokenType = 'NUMBER' | 'VARIABLE' | 'FUNCTION' | 'OPERATOR' | 'LPAREN' | 'RPAREN' | 'COMMA';
 
@@ -131,11 +133,9 @@ class Parser {
   // 표현식 파싱 (덧셈/뺄셈 우선순위)
   private parseExpression(): FormulaBlock {
     let left = this.parseTerm();
+    let token = this.peek();
 
-    while (
-      this.peek()?.type === 'OPERATOR' &&
-      (this.peek()!.value === '+' || this.peek()!.value === '-')
-    ) {
+    while (token?.type === 'OPERATOR' && (token.value === '+' || token.value === '-')) {
       const operator = this.consume().value as '+' | '-';
       const right = this.parseTerm();
 
@@ -146,6 +146,8 @@ class Parser {
         color: '#f59e0b',
         children: [left, right],
       };
+
+      token = this.peek();
     }
 
     return left;
@@ -154,11 +156,9 @@ class Parser {
   // 항 파싱 (곱셈/나눗셈 우선순위)
   private parseTerm(): FormulaBlock {
     let left = this.parseFactor();
+    let token = this.peek();
 
-    while (
-      this.peek()?.type === 'OPERATOR' &&
-      (this.peek()!.value === '*' || this.peek()!.value === '/')
-    ) {
+    while (token?.type === 'OPERATOR' && (token.value === '*' || token.value === '/')) {
       const operator = this.consume().value as '*' | '/';
       const right = this.parseFactor();
 
@@ -169,6 +169,8 @@ class Parser {
         color: '#f59e0b',
         children: [left, right],
       };
+
+      token = this.peek();
     }
 
     return left;
@@ -176,10 +178,11 @@ class Parser {
 
   // 인자 파싱 (거듭제곱, 괄호, 변수, 함수, 숫자)
   private parseFactor(): FormulaBlock {
-    let base = this.parsePrimary();
+    const base = this.parsePrimary();
+    const token = this.peek();
 
     // 거듭제곱 (우결합)
-    if (this.peek()?.type === 'OPERATOR' && this.peek()!.value === '^') {
+    if (token?.type === 'OPERATOR' && token.value === '^') {
       this.consume();
       const exponent = this.parseFactor(); // 재귀적 호출
 
@@ -244,7 +247,7 @@ class Parser {
   // 함수 파싱
   private parseFunction(): FormulaBlock {
     const funcToken = this.expect('FUNCTION');
-    const funcName = funcToken.value as any;
+    const funcName = funcToken.value as FormulaBlock['functionName'];
 
     this.expect('LPAREN');
 
@@ -282,7 +285,7 @@ export function parseFormulaToBlocks(formula: string): FormulaBlock[] {
     const block = parser.parse();
     return [block];
   } catch (error) {
-    console.error('수식 파싱 오류:', error);
+    logFormulaParser('수식 파싱 오류:', error);
     throw error;
   }
 }

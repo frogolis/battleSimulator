@@ -3,34 +3,37 @@
  * 스킬 이펙트 파티클 생성, 업데이트, 렌더링
  */
 
-import { SkillParticle, Position, MonsterState } from './types';
-import { Skill, EFFECT_PRESETS } from '../skillSystem';
+import type { EffectShape, ProjectileType } from '../skillSystem';
+import { EFFECT_PRESETS, Skill } from '../skillSystem';
 import {
   createEffect,
-  createProjectileEffect,
-  createTrailEffect,
-  createLightningEffect,
-  createRingEffect,
   createGlowEffect,
-  updateNewParticle,
-  updateNewParticles,
+  createLightningEffect,
+  createProjectileEffect,
+  createRingEffect,
+  createTrailEffect,
   renderNewParticle,
   renderNewParticles,
+  updateNewParticle,
+  updateNewParticles,
   type CreateEffectOptions,
 } from './particles-new';
+import { Position, SkillParticle } from './types';
+
+const logParticles = (..._args: unknown[]): void => {};
 
 // 새로운 5가지 이펙트 시스템 re-export
 export {
   createEffect,
-  createProjectileEffect,
-  createTrailEffect,
-  createLightningEffect,
-  createRingEffect,
   createGlowEffect,
-  updateNewParticle,
-  updateNewParticles,
+  createLightningEffect,
+  createProjectileEffect,
+  createRingEffect,
+  createTrailEffect,
   renderNewParticle,
   renderNewParticles,
+  updateNewParticle,
+  updateNewParticles,
   type CreateEffectOptions,
 };
 
@@ -38,6 +41,7 @@ export {
  * 파티클 타입별 업데이트 전략
  */
 export type ParticleUpdateStrategy = 'projectile' | 'aoe_burst' | 'static';
+export type { EffectShape, ProjectileType };
 
 export interface ParticleCreateOptions {
   position: Position;
@@ -56,7 +60,7 @@ export interface ParticleCreateOptions {
  */
 export function createProjectileParticles(
   options: ParticleCreateOptions,
-  particleIdCounter: { current: number },
+  particleIdCounter: { current: number }
 ): SkillParticle[] {
   const { position, targetPosition, skill, count } = options;
   const particles: SkillParticle[] = [];
@@ -85,7 +89,7 @@ export function createProjectileParticles(
       life: skill.visual.particleLifetime,
       maxLife: skill.visual.particleLifetime,
       size: skill.visual.particleSize,
-      color: color,
+      color,
       skillType: skill.id,
       strategy: 'projectile',
     });
@@ -99,7 +103,7 @@ export function createProjectileParticles(
  */
 export function createAoeBurstParticles(
   options: ParticleCreateOptions,
-  particleIdCounter: { current: number },
+  particleIdCounter: { current: number }
 ): SkillParticle[] {
   const { position, skill, count } = options;
   const particles: SkillParticle[] = [];
@@ -118,7 +122,7 @@ export function createAoeBurstParticles(
       life: skill.visual.particleLifetime * 1.5,
       maxLife: skill.visual.particleLifetime * 1.5,
       size: skill.visual.particleSize * 1.2,
-      color: color,
+      color,
       skillType: skill.id,
       strategy: 'aoe_burst',
     });
@@ -133,7 +137,7 @@ export function createAoeBurstParticles(
  */
 export function createSkillEffectParticles(
   options: ParticleCreateOptions,
-  particleIdCounter: { current: number },
+  particleIdCounter: { current: number }
 ): SkillParticle[] {
   const { position, targetPosition, skill, count, damage, owner, monsterId } = options;
   const particles: SkillParticle[] = [];
@@ -170,7 +174,7 @@ export function createSkillEffectParticles(
         }
         break;
 
-      case 'cone':
+      case 'cone': {
         // 부채꼴 형태
         const coneSpread = (skill.area * Math.PI) / 180 / 2;
         angle = baseAngle + (Math.random() - 0.5) * coneSpread * 2;
@@ -179,6 +183,7 @@ export function createSkillEffectParticles(
           ? projectileSpeed * (0.8 + Math.random() * 0.4)
           : 3 + Math.random() * 4;
         break;
+      }
 
       case 'line':
         // 직선 형태 (좁은 스프레드)
@@ -196,7 +201,7 @@ export function createSkillEffectParticles(
         speed = 2 + Math.random() * 2;
         break;
 
-      case 'star':
+      case 'star': {
         // 별 모양 (5개 꼭지점)
         const starPoint = Math.floor(i / (particleCount / 5));
         const pointAngle = (starPoint * Math.PI * 2) / 5;
@@ -206,6 +211,7 @@ export function createSkillEffectParticles(
           ? projectileSpeed * (0.8 + Math.random() * 0.4)
           : 3 + Math.random() * 3;
         break;
+      }
 
       case 'shield':
         // 방패 형태 (반원)
@@ -221,15 +227,16 @@ export function createSkillEffectParticles(
         speed = 1.5 + Math.random() * 1.5;
         break;
 
-      case 'spiral':
+      case 'spiral': {
         // 나선 형태
         const spiralRot = (i / particleCount) * Math.PI * 4;
         angle = baseAngle + spiralRot;
         distance = (i / particleCount) * skill.range * 0.5;
         speed = isProjectile ? projectileSpeed * 0.8 : 2 + Math.random() * 2;
         break;
+      }
 
-      case 'cross':
+      case 'cross': {
         // 십자 형태
         const crossArm = Math.floor((i / particleCount) * 4);
         angle = baseAngle + (crossArm * Math.PI) / 2 + (Math.random() - 0.5) * 0.2;
@@ -238,8 +245,9 @@ export function createSkillEffectParticles(
           ? projectileSpeed * (0.8 + Math.random() * 0.4)
           : 3 + Math.random() * 3;
         break;
+      }
 
-      case 'wave':
+      case 'wave': {
         // 파동 형태 (sine wave)
         const waveOffset = (i / particleCount - 0.5) * skill.range * 0.8;
         const perpAngle = baseAngle + Math.PI / 2;
@@ -264,7 +272,7 @@ export function createSkillEffectParticles(
           life: skill.visual.particleLifetime,
           maxLife: skill.visual.particleLifetime,
           size: skill.visual.particleSize,
-          color: color,
+          color,
           skillType: skill.id,
           strategy: isProjectile ? 'projectile' : 'aoe_burst',
           // 투사체 정보
@@ -276,6 +284,7 @@ export function createSkillEffectParticles(
           travelDistance: 0,
         });
         continue;
+      }
 
       default:
         angle = Math.random() * Math.PI * 2;
@@ -297,7 +306,7 @@ export function createSkillEffectParticles(
       life: skill.visual.particleLifetime,
       maxLife: skill.visual.particleLifetime,
       size: skill.visual.particleSize,
-      color: color,
+      color,
       skillType: skill.id,
       strategy: isProjectile ? 'projectile' : 'aoe_burst',
       // 투사체 정보
@@ -318,7 +327,7 @@ export function createSkillEffectParticles(
  */
 export function createSkillParticles(
   options: ParticleCreateOptions,
-  particleIdCounter: { current: number },
+  particleIdCounter: { current: number }
 ): SkillParticle[] {
   const { skill, strategy, position, targetPosition, damage, owner, monsterId } = options;
 
@@ -327,7 +336,7 @@ export function createSkillParticles(
     const preset = EFFECT_PRESETS[skill.visual.effectPresetId];
     if (preset) {
       // 🔍 디버깅: createEffect 호출 전 값 확인
-      console.log('🔵 [createSkillParticles] createEffect 호출 직전', {
+      logParticles('🔵 [createSkillParticles] createEffect 호출 직전', {
         skillId: skill.id,
         skillName: skill.name,
         presetId: skill.visual.effectPresetId,
@@ -381,7 +390,7 @@ export function updateParticle(particle: SkillParticle, deltaTime: number): Skil
 
   switch (strategy) {
     case 'projectile':
-    case 'aoe_burst':
+    case 'aoe_burst': {
       // deltaTime 기반 업데이트 (픽셀/초)
       const newX = particle.x + particle.vx * deltaTime;
       const newY = particle.y + particle.vy * deltaTime;
@@ -414,6 +423,7 @@ export function updateParticle(particle: SkillParticle, deltaTime: number): Skil
         travelDistance: newTravelDistance,
         trailHistory: newTrailHistory,
       };
+    }
 
     case 'static':
       // 위치 고정, 수명만 감소
@@ -452,7 +462,7 @@ export function updateParticles(particles: SkillParticle[], deltaTime: number): 
         p.size > 0
       );
     })
-    .map((p) => updateParticle(p, deltaTime))
+    .map(p => updateParticle(p, deltaTime))
     .filter((p): p is SkillParticle => {
       // 수명이 다한 파티클 제거
       return isFinite(p.x) && isFinite(p.y) && isFinite(p.size) && p.size > 0 && p.life > 0;
@@ -465,7 +475,7 @@ export function updateParticles(particles: SkillParticle[], deltaTime: number): 
 export function renderParticle(
   ctx: CanvasRenderingContext2D,
   particle: SkillParticle,
-  skillConfigs?: Record<string, Skill>,
+  skillConfigs?: Record<string, Skill>
 ): void {
   // 안전성 체크
   if (
@@ -551,16 +561,16 @@ export function renderParticle(
         0,
         particle.x,
         particle.y,
-        glowRadius,
+        glowRadius
       );
       gradient.addColorStop(
         0,
         particle.color +
           Math.floor(alpha * skill.visual.glowIntensity * 255)
             .toString(16)
-            .padStart(2, '0'),
+            .padStart(2, '0')
       );
-      gradient.addColorStop(1, particle.color + '00');
+      gradient.addColorStop(1, `${particle.color}00`);
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(particle.x, particle.y, glowRadius, 0, Math.PI * 2);
@@ -585,9 +595,9 @@ export function renderParticle(
 export function renderParticles(
   ctx: CanvasRenderingContext2D,
   particles: SkillParticle[],
-  skillConfigs?: Record<string, Skill>,
+  skillConfigs?: Record<string, Skill>
 ): void {
-  particles.forEach((particle) => {
+  particles.forEach(particle => {
     if (!particle || typeof particle.x !== 'number') return;
     renderParticle(ctx, particle, skillConfigs);
   });

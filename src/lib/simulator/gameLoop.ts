@@ -3,9 +3,12 @@
  * 프레임 업데이트, 쿨다운 관리, 충돌 감지 등
  */
 
-import { CharacterState, MonsterState, Projectile, SkillParticle, Position } from './types';
 import { checkCollision } from '../gameData';
 import { PROJECTILE_MAX_DISTANCE } from './constants';
+import { CharacterState, MonsterState, Position, Projectile, SkillParticle } from './types';
+
+const PLAYER_HITBOX_SIZE = 20;
+const MONSTER_HITBOX_SIZE = 24;
 
 /**
  * 공격 쿨다운 업데이트
@@ -14,7 +17,7 @@ import { PROJECTILE_MAX_DISTANCE } from './constants';
  */
 export function updateAttackCooldown(
   character: CharacterState | MonsterState,
-  deltaTime: number,
+  deltaTime: number
 ): void {
   if (character.attackCooldown > 0) {
     character.attackCooldown = Math.max(0, character.attackCooldown - deltaTime);
@@ -30,7 +33,7 @@ export function updateAttackCooldown(
 export function updateKnockback(
   monster: MonsterState,
   deltaTime: number,
-  decayRate: number = 0.9,
+  decayRate: number = 0.9
 ): void {
   const knockbackDuration = 300; // 300ms
   const timeSinceKnockback = Date.now() - monster.knockbackTime;
@@ -75,7 +78,7 @@ export function updateHomingProjectile(
   projectile: Projectile,
   target: Position,
   homingStrength: number = 0.1,
-  deltaTime: number,
+  _deltaTime: number
 ): void {
   if (!projectile.isHoming) return;
 
@@ -85,7 +88,7 @@ export function updateHomingProjectile(
 
   if (distance > 0) {
     const currentSpeed = Math.sqrt(
-      projectile.velocity.x * projectile.velocity.x + projectile.velocity.y * projectile.velocity.y,
+      projectile.velocity.x * projectile.velocity.x + projectile.velocity.y * projectile.velocity.y
     );
 
     // 타겟 방향으로 속도 조정
@@ -107,7 +110,7 @@ export function updateHomingProjectile(
 export function isProjectileValid(
   projectile: Projectile,
   canvasWidth: number,
-  canvasHeight: number,
+  canvasHeight: number
 ): boolean {
   // 화면 밖으로 나갔는지 체크
   if (
@@ -155,11 +158,9 @@ export function isParticleValid(particle: SkillParticle): boolean {
  */
 export function checkPlayerProjectileCollision(
   player: CharacterState,
-  projectile: Projectile,
+  projectile: Projectile
 ): boolean {
-  return checkCollision(player.position, { size: player.stats.size }, projectile.position, {
-    size: projectile.size,
-  });
+  return checkCollision(player.position, PLAYER_HITBOX_SIZE, projectile.position, projectile.size);
 }
 
 /**
@@ -170,13 +171,16 @@ export function checkPlayerProjectileCollision(
  */
 export function checkMonsterProjectileCollision(
   monster: MonsterState,
-  projectile: Projectile,
+  projectile: Projectile
 ): boolean {
   if (monster.isDead) return false;
 
-  return checkCollision(monster.position, { size: monster.stats.size }, projectile.position, {
-    size: projectile.size,
-  });
+  return checkCollision(
+    monster.position,
+    MONSTER_HITBOX_SIZE,
+    projectile.position,
+    projectile.size
+  );
 }
 
 /**
@@ -187,7 +191,7 @@ export function checkMonsterProjectileCollision(
  */
 export function checkMonsterParticleCollision(
   monster: MonsterState,
-  particle: SkillParticle,
+  particle: SkillParticle
 ): boolean {
   if (monster.isDead || particle.hasHit) return false;
 
@@ -196,9 +200,9 @@ export function checkMonsterParticleCollision(
 
   return checkCollision(
     monster.position,
-    { size: monster.stats.size },
+    MONSTER_HITBOX_SIZE,
     { x: particle.x, y: particle.y },
-    { size: particle.size },
+    particle.size
   );
 }
 
@@ -210,7 +214,7 @@ export function checkMonsterParticleCollision(
  */
 export function checkPlayerParticleCollision(
   player: CharacterState,
-  particle: SkillParticle,
+  particle: SkillParticle
 ): boolean {
   if (particle.hasHit) return false;
 
@@ -219,9 +223,9 @@ export function checkPlayerParticleCollision(
 
   return checkCollision(
     player.position,
-    { size: player.stats.size },
+    PLAYER_HITBOX_SIZE,
     { x: particle.x, y: particle.y },
-    { size: particle.size },
+    particle.size
   );
 }
 
@@ -239,7 +243,7 @@ export function checkMeleeAttackHit(
   playerAngle: number,
   monsterPos: Position,
   attackRange: number,
-  attackArc: number,
+  attackArc: number
 ): boolean {
   const dx = monsterPos.x - playerPos.x;
   const dy = monsterPos.y - playerPos.y;
@@ -293,7 +297,7 @@ export function safeNumber(value: number, defaultValue: number = 0): number {
  */
 export function safePosition(
   position: Position,
-  defaultPosition: Position = { x: 0, y: 0 },
+  defaultPosition: Position = { x: 0, y: 0 }
 ): Position {
   return {
     x: safeNumber(position.x, defaultPosition.x),

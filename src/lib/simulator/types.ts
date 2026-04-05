@@ -4,8 +4,8 @@
  */
 
 import { CharacterStats, MonsterStats } from '../gameData';
-import { CharacterSkills, BasicAttackSlot } from '../skillSystem';
 import { AIConfig, AIPatternConfig } from '../monsterAI';
+import { BasicAttackSlot, CharacterSkills } from '../skillSystem';
 
 /**
  * 2D 좌표
@@ -55,7 +55,7 @@ export interface MonsterState {
   isAttacking: boolean;
   attackCooldown: number;
   isDead: boolean;
-  aiState: 'CHASE' | 'ATTACK' | 'RETREAT';
+  aiState: 'IDLE' | 'CHASE' | 'ATTACK' | 'RETREAT' | 'FLEE' | 'DEFEND';
   wanderTarget: Position | null; // 레거시 호환용
   wanderCooldown: number; // 레거시 호환용
   detectionRange: number; // 레거시 호환용 (항상 9999)

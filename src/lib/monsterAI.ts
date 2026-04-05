@@ -199,6 +199,14 @@ export interface SkillCondition {
   value: number; // HP/거리는 절대값, SP는 퍼센트
 }
 
+interface AISkillData {
+  id?: string;
+  range?: number;
+  width?: number;
+  damage?: number;
+  condition?: SkillCondition;
+}
+
 /**
  * 스킬 사용 가능 여부 체크 (조건 확인)
  */
@@ -208,7 +216,7 @@ export function checkSkillCondition(
   monsterMaxHP: number,
   monsterSP: number,
   monsterMaxSP: number,
-  playerDistance: number,
+  playerDistance: number
 ): boolean {
   if (!condition || condition.type === 'always') return true;
 
@@ -237,13 +245,13 @@ export function checkSkillCondition(
 export function checkPatternConditions(
   conditions: PatternCondition[],
   distance: number,
-  hpPercent: number,
+  hpPercent: number
 ): boolean {
   // 조건이 없으면 항상 true
   if (conditions.length === 0) return true;
 
   // 모든 조건을 만족해야 함 (AND 조건)
-  return conditions.every((condition) => {
+  return conditions.every(condition => {
     const value = condition.type === 'distance' ? distance : hpPercent;
 
     switch (condition.operator) {
@@ -269,7 +277,7 @@ export function evaluateAIPatterns(
   config: AIPatternConfig,
   distance: number,
   monsterHP: number,
-  monsterMaxHP: number,
+  monsterMaxHP: number
 ): { action: PatternAction; skillSlot?: number; skillId?: string } | null {
   const hpPercent = (monsterHP / monsterMaxHP) * 100;
 
@@ -314,7 +322,7 @@ export function decideSkillToUse(
   monsterMaxHP: number,
   monsterSP: number,
   monsterMaxSP: number,
-  skillData: any[], // 각 스킬의 데이터 배열
+  skillData: AISkillData[] // 각 스킬의 데이터 배열
 ): number {
   if (availableSkills.length === 0) {
     return 0; // 기본 공격
@@ -323,12 +331,13 @@ export function decideSkillToUse(
   const hpPercent = monsterHP / monsterMaxHP;
 
   // 조건을 만족하는 스킬만 필터링
-  const validSkills = availableSkills.filter((slot) => {
+  const validSkills = availableSkills.filter(slot => {
     const skill = skillData[slot - 1];
     if (!skill || !skill.id) return false; // 스킬이 없으면 제외
 
     // 거리 체크
-    if (skill.range > 0 && playerDistance > skill.range) return false;
+    const skillRange = skill.range ?? 0;
+    if (skillRange > 0 && playerDistance > skillRange) return false;
 
     // 조건 체크
     return checkSkillCondition(
@@ -337,7 +346,7 @@ export function decideSkillToUse(
       monsterMaxHP,
       monsterSP,
       monsterMaxSP,
-      playerDistance,
+      playerDistance
     );
   });
 
@@ -347,36 +356,40 @@ export function decideSkillToUse(
 
   // 스킬 우선순위에 따른 결정
   switch (aiConfig.skillPriority) {
-    case 'damage':
+    case 'damage': {
       // 가장 높은 데미지의 스킬 선택
       let maxDamage = 0;
       let bestSkill = 0;
-      validSkills.forEach((slot) => {
+      validSkills.forEach(slot => {
         const skill = skillData[slot - 1];
-        if (skill && skill.damage > maxDamage) {
-          maxDamage = skill.damage;
+        const skillDamage = skill?.damage ?? 0;
+        if (skillDamage > maxDamage) {
+          maxDamage = skillDamage;
           bestSkill = slot;
         }
       });
       return bestSkill || validSkills[0];
+    }
 
-    case 'control':
+    case 'control': {
       // 가장 넓은 범위의 스킬 선택
       let maxWidth = 0;
       let bestControlSkill = 0;
-      validSkills.forEach((slot) => {
+      validSkills.forEach(slot => {
         const skill = skillData[slot - 1];
-        if (skill && skill.width > maxWidth) {
-          maxWidth = skill.width;
+        const skillWidth = skill?.width ?? 0;
+        if (skillWidth > maxWidth) {
+          maxWidth = skillWidth;
           bestControlSkill = slot;
         }
       });
       return bestControlSkill || validSkills[0];
+    }
 
     case 'survival':
       // HP가 낮으면 힐/버프 스킬 우선
       if (hpPercent < 0.5) {
-        const healSkill = validSkills.find((slot) => {
+        const healSkill = validSkills.find(slot => {
           const skill = skillData[slot - 1];
           return skill && (skill.id === 'heal' || skill.id === 'powerBuff');
         });
@@ -389,7 +402,7 @@ export function decideSkillToUse(
     default:
       // HP가 낮으면 생존 우선
       if (hpPercent < 0.3) {
-        const healSkill = validSkills.find((slot) => {
+        const healSkill = validSkills.find(slot => {
           const skill = skillData[slot - 1];
           return skill && skill.id === 'heal';
         });
@@ -412,7 +425,7 @@ export function decideMovementDirection(
   playerX: number,
   playerY: number,
   monsterHP: number,
-  monsterMaxHP: number,
+  monsterMaxHP: number
 ): number | null {
   const dx = playerX - monsterX;
   const dy = playerY - monsterY;

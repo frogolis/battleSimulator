@@ -41,7 +41,7 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
       }
       return 0;
 
-    case 'operator':
+    case 'operator': {
       if (!block.children || block.children.length < 2) return 0;
       const left = blockToExpression(block.children[0], level, baseValue);
       const right = blockToExpression(block.children[1], level, baseValue);
@@ -60,10 +60,11 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
         default:
           return 0;
       }
+    }
 
-    case 'function':
+    case 'function': {
       if (!block.children) return 0;
-      const params = block.children.map((child) => blockToExpression(child, level, baseValue));
+      const params = block.children.map(child => blockToExpression(child, level, baseValue));
 
       switch (block.functionName) {
         case 'MIN':
@@ -88,6 +89,7 @@ export function blockToExpression(block: FormulaBlock, level: number, baseValue:
         default:
           return 0;
       }
+    }
 
     default:
       return 0;
@@ -109,10 +111,11 @@ export function blockToText(block: FormulaBlock): string {
       if (!block.children || block.children.length < 2) return '';
       return `(${blockToText(block.children[0])} ${block.operator} ${blockToText(block.children[1])})`;
 
-    case 'function':
+    case 'function': {
       if (!block.children) return `${block.functionName}()`;
-      const params = block.children.map((child) => blockToText(child)).join(', ');
+      const params = block.children.map(child => blockToText(child)).join(', ');
       return `${block.functionName}(${params})`;
+    }
 
     default:
       return '';
@@ -148,7 +151,8 @@ export function textToBlocks(expression: string): FormulaBlock | null {
     }
 
     return null;
-  } catch (error) {
+  } catch {
+    // eslint-disable-next-line no-unused-vars
     return null;
   }
 }

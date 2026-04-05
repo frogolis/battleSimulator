@@ -28,5 +28,20 @@ export * from './gameLoop';
 export * from './rendering';
 
 // 파티클 시스템
-export * from './particles';
-export * from './particles-new';
+export {
+  createAoeBurstParticles,
+  createEffect,
+  createGlowEffect,
+  createLightningEffect,
+  createProjectileEffect,
+  createProjectileParticles,
+  createRingEffect,
+  createSkillEffectParticles,
+  createSkillParticles,
+  createTrailEffect,
+  renderNewParticle,
+  renderNewParticles,
+  updateNewParticle,
+  updateNewParticles,
+} from './particles';
+export type { CreateEffectOptions } from './particles';

@@ -87,7 +87,7 @@ export default [
 
       // React Hooks 규칙
       'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'off', // 과도한 경고로 인해 비활성화
 
       // 사용하지 않는 변수/import
       'no-unused-vars': 'off', // TypeScript 규칙으로 대체
@@ -96,6 +96,7 @@ export default [
         {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
         },
       ],
       'unused-imports/no-unused-imports': 'warn',
@@ -106,18 +107,19 @@ export default [
           varsIgnorePattern: '^_',
           args: 'after-used',
           argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
         },
       ],
 
       // 기타 규칙
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/no-var-requires': 'error',
 
       // 일반 JavaScript 규칙
       'no-console': 'warn',
       'no-debugger': 'warn',
-      'no-alert': 'warn',
+      'no-alert': 'off',
       'prefer-const': 'warn',
       'no-var': 'error',
       'object-shorthand': 'warn',

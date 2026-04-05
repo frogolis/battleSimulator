@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Card } from './ui/card';
 import { Wand2 } from 'lucide-react';
-import { Skill, BasicAttackSlot, cloneSkill, defaultBasicAttacks } from '../lib/skillSystem';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { BasicAttackSlot, cloneSkill, defaultBasicAttacks, Skill } from '../lib/skillSystem';
+import { SkillBuilder } from './SkillBuilder';
 import { SkillDetailPanel } from './SkillDetailPanel';
 import { SkillTestLab } from './SkillTestLab';
-import { SkillBuilder } from './SkillBuilder';
+import { Card } from './ui/card';
 
 interface SkillWorkspaceProps {
   skills: Record<string, Skill>;
@@ -21,8 +21,8 @@ export function SkillWorkspace({
   onSkillsChange,
   playerBasicAttack,
   monsterBasicAttack,
-  onPlayerBasicAttackChange,
-  onMonsterBasicAttackChange,
+  onPlayerBasicAttackChange: _onPlayerBasicAttackChange,
+  onMonsterBasicAttackChange: _onMonsterBasicAttackChange,
 }: SkillWorkspaceProps) {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
   const [selectedBasicAttackId, setSelectedBasicAttackId] = useState<string>('meleeBasic');
@@ -32,7 +32,7 @@ export function SkillWorkspace({
 
   // 선택된 스킬 또는 기본 공격
   const selectedSkill = selectedSkillId ? skills[selectedSkillId] : null;
-  const selectedBasicAttack = defaultBasicAttacks[selectedBasicAttackId];
+  const _selectedBasicAttack = defaultBasicAttacks[selectedBasicAttackId];
 
   // 스킬 목록
   const skillList = Object.values(skills);
@@ -42,7 +42,7 @@ export function SkillWorkspace({
     if (!selectedSkillId && skillList.length > 0) {
       setSelectedSkillId(skillList[0].id);
     }
-  }, [skillList.length]);
+  }, [selectedSkillId, skillList]);
 
   // 스킬 생성/수정
   const handleSkillCreate = (skill: Skill) => {
@@ -99,7 +99,7 @@ export function SkillWorkspace({
   };
 
   return (
-    <div className="h-full flex flex-col gap-4">
+    <div className='h-full flex flex-col gap-4'>
       {/* 상단: 스킬 테스트 랩 (100%) */}
       <div style={{ height: '760px' }}>
         <SkillTestLab
@@ -123,7 +123,7 @@ export function SkillWorkspace({
       </div>
 
       {/* 하단: 스킬 상세 설정 */}
-      <div style={{ height: '800px' }} className="min-h-0 overflow-hidden">
+      <div style={{ height: '800px' }} className='min-h-0 overflow-hidden'>
         {selectedSkill ? (
           <SkillDetailPanel
             skill={selectedSkill}
@@ -133,10 +133,10 @@ export function SkillWorkspace({
             onDelete={deleteSkill}
           />
         ) : (
-          <Card className="flex items-center justify-center h-full">
-            <div className="text-center text-slate-400">
-              <Wand2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">스킬을 선택하거나 새로 만들어보세요</p>
+          <Card className='flex items-center justify-center h-full'>
+            <div className='text-center text-slate-400'>
+              <Wand2 className='w-12 h-12 mx-auto mb-3 opacity-50' />
+              <p className='text-sm'>스킬을 선택하거나 새로 만들어보세요</p>
             </div>
           </Card>
         )}

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
 import { Label } from './ui/label';
 import { Keyboard, Mouse, RotateCcw } from 'lucide-react';
 
@@ -81,125 +80,125 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className='flex items-center justify-between'>
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <Keyboard className="w-5 h-5" />키 설정
+            <CardTitle className='flex items-center gap-2'>
+              <Keyboard className='w-5 h-5' />키 설정
             </CardTitle>
             <CardDescription>키보드와 마우스 컨트롤 설정</CardDescription>
           </div>
-          <Button onClick={resetToDefaults} variant="outline" size="sm">
-            <RotateCcw className="w-4 h-4 mr-2" />
+          <Button onClick={resetToDefaults} variant='outline' size='sm'>
+            <RotateCcw className='w-4 h-4 mr-2' />
             초기화
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6" onKeyDown={handleKeyDown} tabIndex={0}>
+        <div className='space-y-6' onKeyDown={handleKeyDown} tabIndex={0}>
           {/* Keyboard Bindings */}
-          <div className="space-y-3">
-            <h4 className="flex items-center gap-2 text-sm">
-              <Keyboard className="w-4 h-4" />
+          <div className='space-y-3'>
+            <h4 className='flex items-center gap-2 text-sm'>
+              <Keyboard className='w-4 h-4' />
               키보드
             </h4>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">위로 이동</Label>
+            <div className='grid grid-cols-3 gap-3'>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>위로 이동</Label>
                 <Button
                   onClick={() => startListening('moveUp')}
                   variant={listening === 'moveUp' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'moveUp' ? '키 입력 대기...' : getKeyDisplay(bindings.moveUp)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">아래로 이동</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>아래로 이동</Label>
                 <Button
                   onClick={() => startListening('moveDown')}
                   variant={listening === 'moveDown' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'moveDown' ? '키 입력 대기...' : getKeyDisplay(bindings.moveDown)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">왼쪽 이동</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>왼쪽 이동</Label>
                 <Button
                   onClick={() => startListening('moveLeft')}
                   variant={listening === 'moveLeft' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'moveLeft' ? '키 입력 대기...' : getKeyDisplay(bindings.moveLeft)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">오른쪽 이동</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>오른쪽 이동</Label>
                 <Button
                   onClick={() => startListening('moveRight')}
                   variant={listening === 'moveRight' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'moveRight'
                     ? '키 입력 대기...'
                     : getKeyDisplay(bindings.moveRight)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">공격</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>공격</Label>
                 <Button
                   onClick={() => startListening('attack')}
                   variant={listening === 'attack' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'attack' ? '키 입력 대기...' : getKeyDisplay(bindings.attack)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">스킬 1</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>스킬 1</Label>
                 <Button
                   onClick={() => startListening('skill1')}
                   variant={listening === 'skill1' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'skill1' ? '키 입력 대기...' : getKeyDisplay(bindings.skill1)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">스킬 2</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>스킬 2</Label>
                 <Button
                   onClick={() => startListening('skill2')}
                   variant={listening === 'skill2' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'skill2' ? '키 입력 대기...' : getKeyDisplay(bindings.skill2)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">스킬 3</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>스킬 3</Label>
                 <Button
                   onClick={() => startListening('skill3')}
                   variant={listening === 'skill3' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'skill3' ? '키 입력 대기...' : getKeyDisplay(bindings.skill3)}
                 </Button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">스킬 4</Label>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>스킬 4</Label>
                 <Button
                   onClick={() => startListening('skill4')}
                   variant={listening === 'skill4' ? 'default' : 'outline'}
-                  className="w-full"
-                  size="sm"
+                  className='w-full'
+                  size='sm'
                 >
                   {listening === 'skill4' ? '키 입력 대기...' : getKeyDisplay(bindings.skill4)}
                 </Button>
@@ -208,38 +207,38 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
           </div>
 
           {/* Mouse Bindings */}
-          <div className="space-y-3">
-            <h4 className="flex items-center gap-2 text-sm">
-              <Mouse className="w-4 h-4" />
+          <div className='space-y-3'>
+            <h4 className='flex items-center gap-2 text-sm'>
+              <Mouse className='w-4 h-4' />
               마우스
             </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">공격</Label>
-                <div className="flex gap-2">
-                  {[0, 1, 2].map((btn) => (
+            <div className='grid grid-cols-2 gap-3'>
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>공격</Label>
+                <div className='flex gap-2'>
+                  {[0, 1, 2].map(btn => (
                     <Button
                       key={btn}
                       onClick={() => onBindingsChange({ ...bindings, mouseAttack: btn })}
                       variant={bindings.mouseAttack === btn ? 'default' : 'outline'}
-                      size="sm"
-                      className="flex-1"
+                      size='sm'
+                      className='flex-1'
                     >
                       {getMouseButtonName(btn)}
                     </Button>
                   ))}
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-600">스킬</Label>
-                <div className="flex gap-2">
-                  {[0, 1, 2].map((btn) => (
+              <div className='space-y-2'>
+                <Label className='text-xs text-slate-600'>스킬</Label>
+                <div className='flex gap-2'>
+                  {[0, 1, 2].map(btn => (
                     <Button
                       key={btn}
                       onClick={() => onBindingsChange({ ...bindings, mouseSkill: btn })}
                       variant={bindings.mouseSkill === btn ? 'default' : 'outline'}
-                      size="sm"
-                      className="flex-1"
+                      size='sm'
+                      className='flex-1'
                     >
                       {getMouseButtonName(btn)}
                     </Button>
@@ -250,7 +249,7 @@ export function KeyBindingSettings({ bindings, onBindingsChange }: KeyBindingSet
           </div>
 
           {/* Instructions */}
-          <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-900">
+          <div className='bg-blue-50 p-3 rounded-lg text-xs text-blue-900'>
             <p>💡 키보드 버튼을 클릭한 후 원하는 키를 눌러 설정할 수 있습니다.</p>
           </div>
         </div>

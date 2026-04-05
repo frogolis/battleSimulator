@@ -3,10 +3,13 @@
  * 캔버스 렌더링 관련 유틸리티 함수들
  */
 
-import { CharacterState, MonsterState, Projectile, SkillParticle, Position } from './types';
 import { CameraConfig, worldToScreen } from './camera';
 import { PROJECTILE_FADE_START } from './constants';
 import { safeNumber } from './gameLoop';
+import { CharacterState, MonsterState, Position, Projectile, SkillParticle } from './types';
+
+const PLAYER_RENDER_SIZE = 20;
+const MONSTER_RENDER_SIZE = 24;
 
 /**
  * 플레이어 렌더링
@@ -16,7 +19,7 @@ export function drawPlayer(
   player: CharacterState,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean,
+  testMode: boolean
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -33,7 +36,7 @@ export function drawPlayer(
     return;
   }
 
-  const size = safeNumber(player.stats.size, 20) * scale;
+  const size = PLAYER_RENDER_SIZE * scale;
   const adjustedScale = safeNumber(player.playerScale, 1);
 
   ctx.save();
@@ -60,7 +63,7 @@ export function drawMonster(
   monster: MonsterState,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean,
+  testMode: boolean
 ): void {
   if (monster.isDead) return;
 
@@ -79,7 +82,7 @@ export function drawMonster(
     return;
   }
 
-  const size = safeNumber(monster.stats.size, 24) * scale;
+  const size = MONSTER_RENDER_SIZE * scale;
 
   ctx.save();
 
@@ -102,7 +105,7 @@ export function drawMonster(
     screenPos.x - hpBarWidth / 2,
     screenPos.y - size - 8 * scale,
     hpBarWidth,
-    hpBarHeight,
+    hpBarHeight
   );
 
   ctx.fillStyle = hpPercent > 0.5 ? '#10b981' : hpPercent > 0.2 ? '#f59e0b' : '#ef4444';
@@ -110,7 +113,7 @@ export function drawMonster(
     screenPos.x - hpBarWidth / 2,
     screenPos.y - size - 8 * scale,
     hpBarWidth * hpPercent,
-    hpBarHeight,
+    hpBarHeight
   );
 
   ctx.restore();
@@ -124,7 +127,7 @@ export function drawProjectile(
   projectile: Projectile,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean,
+  testMode: boolean
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -161,8 +164,8 @@ export function drawProjectile(
   const particleSize = size * 0.3;
 
   // 방향 계산 (속도 벡터)
-  const vx = projectile.velocity.vx;
-  const vy = projectile.velocity.vy;
+  const vx = projectile.velocity.x;
+  const vy = projectile.velocity.y;
   const angle = Math.atan2(vy, vx);
 
   // 중심 코어 그리기
@@ -172,11 +175,11 @@ export function drawProjectile(
     0,
     screenPos.x,
     screenPos.y,
-    coreSize,
+    coreSize
   );
   coreGradient.addColorStop(0, baseColor);
-  coreGradient.addColorStop(0.5, baseColor + 'cc');
-  coreGradient.addColorStop(1, baseColor + '00');
+  coreGradient.addColorStop(0.5, `${baseColor}cc`);
+  coreGradient.addColorStop(1, `${baseColor}00`);
   ctx.fillStyle = coreGradient;
   ctx.beginPath();
   ctx.arc(screenPos.x, screenPos.y, coreSize, 0, Math.PI * 2);
@@ -184,7 +187,6 @@ export function drawProjectile(
 
   // 파티클들 그리기 (진행 방향으로 흩어짐)
   for (let i = 0; i < particleCount; i++) {
-    const t = i / particleCount;
     const spread = Math.PI / 3; // 60도 확산
     const particleAngle = angle + (Math.random() - 0.5) * spread;
     const distance = size * (0.5 + Math.random() * 1.5);
@@ -200,9 +202,9 @@ export function drawProjectile(
       baseColor +
         Math.floor(particleAlpha * 255)
           .toString(16)
-          .padStart(2, '0'),
+          .padStart(2, '0')
     );
-    particleGradient.addColorStop(1, baseColor + '00');
+    particleGradient.addColorStop(1, `${baseColor}00`);
 
     ctx.fillStyle = particleGradient;
     ctx.beginPath();
@@ -217,10 +219,10 @@ export function drawProjectile(
     coreSize,
     screenPos.x,
     screenPos.y,
-    size * 2.5,
+    size * 2.5
   );
-  outerGlow.addColorStop(0, glowColor + '40');
-  outerGlow.addColorStop(0.5, glowColor + '20');
+  outerGlow.addColorStop(0, `${glowColor}40`);
+  outerGlow.addColorStop(0.5, `${glowColor}20`);
   outerGlow.addColorStop(1, 'transparent');
   ctx.fillStyle = outerGlow;
   ctx.beginPath();
@@ -238,7 +240,7 @@ export function drawParticle(
   particle: SkillParticle,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean,
+  testMode: boolean
 ): void {
   let screenPos: Position;
   let scale = 1;
@@ -275,7 +277,7 @@ export function drawParticle(
       0,
       screenPos.x,
       screenPos.y,
-      size * 2,
+      size * 2
     );
     gradient.addColorStop(0, `${particle.color}80`);
     gradient.addColorStop(1, 'transparent');
@@ -300,7 +302,7 @@ export function drawAttackRangeWithPhase(
   phase: 'idle' | 'windup' | 'execution' | 'recovery',
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  testMode: boolean,
+  testMode: boolean
 ): void {
   let screenCenter: Position;
   let scale = 1;
@@ -357,7 +359,7 @@ export function clearCanvas(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  backgroundColor: string = '#0f172a',
+  backgroundColor: string = '#0f172a'
 ): void {
   ctx.fillStyle = backgroundColor;
   ctx.fillRect(0, 0, width, height);
@@ -370,7 +372,7 @@ export function drawGrid(
   ctx: CanvasRenderingContext2D,
   cameraPos: Position,
   cameraConfig: CameraConfig,
-  gridSize: number = 100,
+  gridSize: number = 100
 ): void {
   const { canvasWidth, canvasHeight, zoom } = cameraConfig;
   const scaledGridSize = gridSize * zoom;

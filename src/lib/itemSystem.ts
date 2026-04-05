@@ -224,11 +224,11 @@ export interface ActiveBuff {
  */
 export function updateBuffs(buffs: ActiveBuff[], deltaTime: number): ActiveBuff[] {
   return buffs
-    .map((buff) => ({
+    .map(buff => ({
       ...buff,
       remainingTime: buff.remainingTime - deltaTime * 1000,
     }))
-    .filter((buff) => buff.remainingTime > 0);
+    .filter(buff => buff.remainingTime > 0);
 }
 
 /**
@@ -236,14 +236,14 @@ export function updateBuffs(buffs: ActiveBuff[], deltaTime: number): ActiveBuff[
  */
 export function applyBuffsToStats(
   baseStats: { attack: number; defense: number; speed: number; criticalRate: number },
-  buffs: ActiveBuff[],
+  buffs: ActiveBuff[]
 ): { attack: number; defense: number; speed: number; criticalRate: number } {
   let totalAttackBonus = 0;
   let totalDefenseBonus = 0;
   let totalSpeedBonus = 0;
   let totalCritBonus = 0;
 
-  buffs.forEach((buff) => {
+  buffs.forEach(buff => {
     if (buff.effect.attack) totalAttackBonus += buff.effect.attack;
     if (buff.effect.defense) totalDefenseBonus += buff.effect.defense;
     if (buff.effect.speed) totalSpeedBonus += buff.effect.speed;

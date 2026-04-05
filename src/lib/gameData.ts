@@ -83,7 +83,7 @@ export function checkCollision(
   pos1: { x: number; y: number },
   size1: number,
   pos2: { x: number; y: number },
-  size2: number,
+  size2: number
 ): boolean {
   const distance = Math.sqrt(Math.pow(pos1.x - pos2.x, 2) + Math.pow(pos1.y - pos2.y, 2));
   return distance < (size1 + size2) / 2;
@@ -92,10 +92,10 @@ export function checkCollision(
 export function isInAttackRange(
   attacker: { x: number; y: number },
   target: { x: number; y: number },
-  range: number,
+  range: number
 ): boolean {
   const distance = Math.sqrt(
-    Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.y - target.y, 2),
+    Math.pow(attacker.x - target.x, 2) + Math.pow(attacker.y - target.y, 2)
   );
   return distance <= range;
 }

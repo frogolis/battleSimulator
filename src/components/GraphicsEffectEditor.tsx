@@ -1,15 +1,33 @@
-import React, { useState } from 'react';
+import { Eye, Layers, Settings, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { EffectShape, ParticleUpdateStrategy, ProjectileType } from '../lib/simulator/particles';
+import { DETAILED_EFFECT_PRESETS } from '../lib/skillSystem';
+import { createInitialEffects } from './graphics-effects/AdditionalEffectsPanel';
+import { EffectDetailsPanel } from './graphics-effects/EffectDetailsPanel';
+import { EffectHierarchyView } from './graphics-effects/EffectHierarchyView';
+import { EffectPresetLibrary } from './graphics-effects/EffectPresetLibrary';
+import { EffectPreviewCanvas } from './graphics-effects/EffectPreviewCanvas';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Sparkles, Eye, Layers, Settings } from 'lucide-react';
-import { toast } from 'sonner';
-import { EffectShape, ProjectileType, ParticleUpdateStrategy } from '../lib/simulator/particles';
-import { DETAILED_EFFECT_PRESETS } from '../lib/skillSystem';
-import { EffectPreviewCanvas } from './graphics-effects/EffectPreviewCanvas';
-import { EffectPresetLibrary } from './graphics-effects/EffectPresetLibrary';
-import { EffectHierarchyView } from './graphics-effects/EffectHierarchyView';
-import { EffectDetailsPanel } from './graphics-effects/EffectDetailsPanel';
-import { createInitialEffects } from './graphics-effects/AdditionalEffectsPanel';
+
+interface DetailedEffectPresetView {
+  name: string;
+  color: string;
+  secondaryColor: string;
+  particleCount: number;
+  particleSize: number;
+  particleLifetime: number;
+  glowIntensity: number;
+  shape: EffectShape;
+  projectileType: ProjectileType;
+  projectileSpeed: number;
+  effectPlaybackSpeed: number;
+  particlePlaybackSpeed: number;
+  trailEnabled?: boolean;
+  trailLength?: number;
+  trailWidth?: number;
+}
 
 export interface GraphicsEffectConfig {
   particleCount: number;
@@ -125,7 +143,7 @@ export function GraphicsEffectEditor({
 
   // 프리셋 적용
   const handlePresetSelect = (presetKey: string) => {
-    const preset = DETAILED_EFFECT_PRESETS[presetKey];
+    const preset = DETAILED_EFFECT_PRESETS[presetKey] as DetailedEffectPresetView | undefined;
     if (!preset) return;
 
     const newConfig = {
@@ -154,7 +172,7 @@ export function GraphicsEffectEditor({
 
   // 추가 효과 토글
   const toggleAdditionalEffect = (effectId: string) => {
-    const effect = additionalEffects.find((e) => e.id === effectId);
+    const effect = additionalEffects.find(e => e.id === effectId);
     if (!effect) return;
 
     const newEnabled = !effect.enabled;
@@ -186,8 +204,8 @@ export function GraphicsEffectEditor({
 
     updateConfig(updates);
 
-    setAdditionalEffects((prev) =>
-      prev.map((e) => (e.id === effectId ? { ...e, enabled: newEnabled } : e)),
+    setAdditionalEffects(prev =>
+      prev.map(e => (e.id === effectId ? { ...e, enabled: newEnabled } : e))
     );
   };
 
@@ -199,40 +217,40 @@ export function GraphicsEffectEditor({
 
   // 섹션 토글
   const toggleSection = (section: string) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section as keyof typeof prev] }));
+    setOpenSections(prev => ({ ...prev, [section]: !prev[section as keyof typeof prev] }));
   };
 
   return (
-    <Card className="w-full">
+    <Card className='w-full'>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
+        <CardTitle className='flex items-center gap-2'>
+          <Sparkles className='h-5 w-5' />
           그래픽 효과 에디터
         </CardTitle>
         <CardDescription>시각 효과, 투사체, 애니메이션을 계층적으로 구성합니다</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className='space-y-4'>
         {/* 프리뷰 캔버스 */}
         {showPreview && <EffectPreviewCanvas config={config} />}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="presets">
-              <Eye className="h-4 w-4 mr-2" />
+          <TabsList className='grid w-full grid-cols-3'>
+            <TabsTrigger value='presets'>
+              <Eye className='h-4 w-4 mr-2' />
               프리셋 라이브러리
             </TabsTrigger>
-            <TabsTrigger value="hierarchy">
-              <Layers className="h-4 w-4 mr-2" />
+            <TabsTrigger value='hierarchy'>
+              <Layers className='h-4 w-4 mr-2' />
               계층 구조
             </TabsTrigger>
-            <TabsTrigger value="details">
-              <Settings className="h-4 w-4 mr-2" />
+            <TabsTrigger value='details'>
+              <Settings className='h-4 w-4 mr-2' />
               세부 설정
             </TabsTrigger>
           </TabsList>
 
           {/* 프리셋 라이브러리 탭 */}
-          <TabsContent value="presets" className="mt-4">
+          <TabsContent value='presets' className='mt-4'>
             <EffectPresetLibrary
               selectedPreset={selectedPreset}
               onPresetSelect={handlePresetSelect}
@@ -240,7 +258,7 @@ export function GraphicsEffectEditor({
           </TabsContent>
 
           {/* 계층 구조 탭 */}
-          <TabsContent value="hierarchy" className="mt-4">
+          <TabsContent value='hierarchy' className='mt-4'>
             <EffectHierarchyView
               config={config}
               additionalEffects={additionalEffects}
@@ -254,11 +272,11 @@ export function GraphicsEffectEditor({
           </TabsContent>
 
           {/* 세부 설정 탭 */}
-          <TabsContent value="details" className="mt-4">
+          <TabsContent value='details' className='mt-4'>
             <EffectDetailsPanel
               config={config}
               additionalEffects={additionalEffects}
-              onConfigUpdate={updateConfig}
+              onConfigUpdate={updates => updateConfig(updates as Partial<GraphicsEffectConfig>)}
             />
           </TabsContent>
         </Tabs>

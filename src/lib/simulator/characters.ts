@@ -3,18 +3,18 @@
  * 플레이어와 몬스터의 초기화 및 상태 관리 로직
  */
 
-import { CharacterState, MonsterState, Position } from './types';
-import { CharacterConfig } from '../../components/CharacterSettings';
-import { defaultPlayerStats, defaultMonsterStats, MonsterStats } from '../gameData';
-import { Skill } from '../skillSystem';
 import {
-  loadMonsterSkills,
   loadMonsterAI,
   loadMonsterAIPattern,
   loadMonsterBasicAttack,
+  loadMonsterSkills,
 } from '../combatSystem';
+import { defaultMonsterStats, defaultPlayerStats, MonsterStats } from '../gameData';
+import { calculateLevelStats, LevelConfig } from '../levelSystem';
+import { DataRow } from '../mockData';
 import { defaultAIPatternConfig } from '../monsterAI';
-import { LevelConfig, calculateLevelStats } from '../levelSystem';
+import { defaultSkills, Skill } from '../skillSystem';
+import { CharacterState, MonsterState } from './types';
 
 /**
  * 플레이어 캐릭터 초기화
@@ -23,7 +23,7 @@ export function initializePlayer(
   canvasWidth: number,
   canvasHeight: number,
   testMode: boolean = false,
-  basicAttack?: any,
+  basicAttack?: unknown
 ): CharacterState {
   return {
     position: testMode ? { x: 0, y: 0 } : { x: canvasWidth / 2, y: canvasHeight / 2 },
@@ -42,7 +42,7 @@ export function initializePlayer(
     playerScale: 1,
     shakeOffset: { x: 0, y: 0 },
     skills: { slot1: null, slot2: null, slot3: null, slot4: null },
-    basicAttack: basicAttack || null,
+    basicAttack: (basicAttack as CharacterState['basicAttack']) || null,
     skillPhase: 'idle' as const,
     skillPhaseStartTime: 0,
     currentSkillTiming: undefined,
@@ -56,7 +56,7 @@ interface MonsterInitParams {
   id: number;
   canvasWidth: number;
   canvasHeight: number;
-  monsterData?: any; // 데이터셋의 행
+  monsterData?: DataRow; // 데이터셋의 행
   skillConfigs?: Record<string, Skill>;
   monsterLevelConfig?: LevelConfig; // 몬스터 레벨 설정
 }
@@ -97,6 +97,7 @@ export function createMonster(params: MonsterInitParams): MonsterState {
   const monsterBasicAttackSlot = monsterBasicAttackData
     ? {
         skill: skillConfigs?.[monsterBasicAttackData.id] || {
+          ...defaultSkills.meleeAttack,
           id: monsterBasicAttackData.id,
           name: '기본 공격',
           category: 'basicAttack' as const,
@@ -106,20 +107,10 @@ export function createMonster(params: MonsterInitParams): MonsterState {
           cooldown: monsterBasicAttackData.cooldown,
           spCost: monsterBasicAttackData.spCost,
           castTime: monsterBasicAttackData.castTime,
-          visual: {
-            effectShape: 'cone' as const,
-            color: '#ef4444',
-            secondaryColor: '#f87171',
-            particleCount: 0,
-            particleSize: 4,
-            particleLifetime: 300,
-          },
-          animation: {
-            castAnimation: 'none' as const,
-            castScale: 1,
-            cameraShake: 0,
-          },
+          currentCooldown: 0,
+          isOnCooldown: false,
         },
+        keyBinding: 'click' as const,
         range: monsterBasicAttackData.range,
         width: monsterBasicAttackData.width,
         damage: monsterBasicAttackData.damage,
@@ -189,14 +180,37 @@ interface MonsterBatchInitParams {
   count: number;
   canvasWidth: number;
   canvasHeight: number;
-  monsterDataset?: any[];
+  monsterDataset?: DataRow[];
   selectedMonsterRows?: Set<number>;
   skillConfigs?: Record<string, Skill>;
-  selectMonsterByWeight?: () => any | null;
-  currentDataRow?: any;
+  selectMonsterByWeight?: () => DataRow | null;
+  currentDataRow?: DataRow;
   startId?: number;
   monsterLevelConfig?: LevelConfig; // 몬스터 레벨 설정
 }
+
+type RuntimeBasicAttack = {
+  range: number;
+  width: number;
+  damage: number;
+  cooldown: number;
+  spCost: number;
+  castTime: number;
+};
+
+const isRuntimeBasicAttack = (value: unknown): value is RuntimeBasicAttack => {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as Partial<RuntimeBasicAttack>;
+  return (
+    typeof candidate.range === 'number' &&
+    typeof candidate.width === 'number' &&
+    typeof candidate.damage === 'number' &&
+    typeof candidate.cooldown === 'number' &&
+    typeof candidate.spCost === 'number' &&
+    typeof candidate.castTime === 'number'
+  );
+};
 
 /**
  * 여러 몬스터 일괄 초기화
@@ -228,7 +242,7 @@ export function createMonsters(params: MonsterBatchInitParams): MonsterState[] {
         monsterData,
         skillConfigs,
         monsterLevelConfig,
-      }),
+      })
     );
   }
 
@@ -238,18 +252,32 @@ export function createMonsters(params: MonsterBatchInitParams): MonsterState[] {
 /**
  * 플레이어 기본 공격 업데이트
  */
-export function updatePlayerBasicAttack(player: CharacterState, basicAttack: any): void {
-  if (!basicAttack) return;
+export function updatePlayerBasicAttack(player: CharacterState, basicAttack: unknown): void {
+  if (!isRuntimeBasicAttack(basicAttack)) return;
 
   if (!player.basicAttack) {
-    player.basicAttack = { ...basicAttack };
+    player.basicAttack = {
+      skill: {
+        ...defaultSkills.meleeAttack,
+        range: basicAttack.range,
+        area: basicAttack.width,
+        damageMultiplier: basicAttack.damage,
+        cooldown: basicAttack.cooldown,
+        spCost: basicAttack.spCost,
+        castTime: basicAttack.castTime,
+      },
+      keyBinding: 'click',
+      ...basicAttack,
+    };
   } else {
-    player.basicAttack.range = basicAttack.range;
-    player.basicAttack.width = basicAttack.width;
-    player.basicAttack.damage = basicAttack.damage;
-    player.basicAttack.cooldown = basicAttack.cooldown;
-    player.basicAttack.spCost = basicAttack.spCost;
-    player.basicAttack.castTime = basicAttack.castTime;
+    const runtimeAttack = player.basicAttack as typeof player.basicAttack &
+      Partial<RuntimeBasicAttack>;
+    runtimeAttack.range = basicAttack.range;
+    runtimeAttack.width = basicAttack.width;
+    runtimeAttack.damage = basicAttack.damage;
+    runtimeAttack.cooldown = basicAttack.cooldown;
+    runtimeAttack.spCost = basicAttack.spCost;
+    runtimeAttack.castTime = basicAttack.castTime;
 
     if (player.basicAttack.skill) {
       player.basicAttack.skill.range = basicAttack.range;
@@ -265,19 +293,33 @@ export function updatePlayerBasicAttack(player: CharacterState, basicAttack: any
 /**
  * 몬스터 기본 공격 업데이트 (배치)
  */
-export function updateMonsterBasicAttacks(monsters: MonsterState[], basicAttack: any): void {
-  if (!basicAttack) return;
+export function updateMonsterBasicAttacks(monsters: MonsterState[], basicAttack: unknown): void {
+  if (!isRuntimeBasicAttack(basicAttack)) return;
 
-  monsters.forEach((monster) => {
+  monsters.forEach(monster => {
     if (!monster.basicAttack) {
-      monster.basicAttack = { ...basicAttack };
+      monster.basicAttack = {
+        skill: {
+          ...defaultSkills.meleeAttack,
+          range: basicAttack.range,
+          area: basicAttack.width,
+          damageMultiplier: basicAttack.damage,
+          cooldown: basicAttack.cooldown,
+          spCost: basicAttack.spCost,
+          castTime: basicAttack.castTime,
+        },
+        keyBinding: 'click',
+        ...basicAttack,
+      };
     } else {
-      monster.basicAttack.range = basicAttack.range;
-      monster.basicAttack.width = basicAttack.width;
-      monster.basicAttack.damage = basicAttack.damage;
-      monster.basicAttack.cooldown = basicAttack.cooldown;
-      monster.basicAttack.spCost = basicAttack.spCost;
-      monster.basicAttack.castTime = basicAttack.castTime;
+      const runtimeAttack = monster.basicAttack as typeof monster.basicAttack &
+        Partial<RuntimeBasicAttack>;
+      runtimeAttack.range = basicAttack.range;
+      runtimeAttack.width = basicAttack.width;
+      runtimeAttack.damage = basicAttack.damage;
+      runtimeAttack.cooldown = basicAttack.cooldown;
+      runtimeAttack.spCost = basicAttack.spCost;
+      runtimeAttack.castTime = basicAttack.castTime;
 
       if (monster.basicAttack.skill) {
         monster.basicAttack.skill.range = basicAttack.range;

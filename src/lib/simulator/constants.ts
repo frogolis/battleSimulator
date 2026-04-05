@@ -57,6 +57,11 @@ export const MONSTER_WANDER_SPEED = 0.3;
 export const DEFAULT_RESPAWN_DELAY = 2000;
 
 /**
+ * 기본 최대 몬스터 수
+ */
+export const DEFAULT_MAX_MONSTER_COUNT = 5;
+
+/**
  * 기본 캔버스 너비 (픽셀)
  */
 export const DEFAULT_CANVAS_WIDTH = 1200;

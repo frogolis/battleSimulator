@@ -1,4 +1,4 @@
-import { AIPatternConfig, defaultAIPatternConfig } from './monsterAI';
+import { AIPatternConfig } from './monsterAI';
 
 /**
  * 캐릭터 타입 프리셋 정보
@@ -156,13 +156,13 @@ export const DEFAULT_CHARACTER_TYPES: CharacterTypeInfo[] = [
 ];
 
 export function getCharacterTypeName(type: string, types: CharacterTypeInfo[]): string {
-  const typeInfo = types.find((t) => t.id === type);
+  const typeInfo = types.find(t => t.id === type);
   return typeInfo?.name || type;
 }
 
 export function getCharacterTypeInfo(
   type: string,
-  types: CharacterTypeInfo[],
+  types: CharacterTypeInfo[]
 ): CharacterTypeInfo | undefined {
-  return types.find((t) => t.id === type);
+  return types.find(t => t.id === type);
 }

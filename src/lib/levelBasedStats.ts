@@ -4,8 +4,10 @@
  * - HP, SP, 나머지 능력치는 종속 변수 (레벨에 의해 자동 계산)
  */
 
-import { LevelConfig } from './levelSystem';
 import { CharacterTypeInfo } from './characterTypes';
+import { LevelConfig } from './levelSystem';
+
+const logLevelStats = (..._args: unknown[]): void => {};
 
 /**
  * 포뮬러 문자열을 평가하여 숫자 값을 반환
@@ -37,7 +39,7 @@ function evaluateFormula(formula: string | undefined, level: number, size: numbe
     const result = Function(`"use strict"; return (${expression})`)();
     return typeof result === 'number' && !isNaN(result) ? result : 0;
   } catch (error) {
-    console.error(`포뮬러 평가 오류: ${formula}`, error);
+    logLevelStats(`포뮬러 평가 오류: ${formula}`, error);
     return 0;
   }
 }
@@ -66,7 +68,7 @@ export function calculateStatsWithFormula(
   size: number,
   levelConfig: LevelConfig,
   typeInfo?: CharacterTypeInfo,
-  isPlayer: boolean = true,
+  isPlayer: boolean = true
 ): LevelBasedStats {
   // 타입 정보가 있고 포뮬러가 설정되어 있으면 포뮬러 사용
   if (typeInfo?.statFormulas) {
@@ -95,11 +97,11 @@ export function calculateStatsWithFormula(
         : (isPlayer ? 1.5 : 1.0) + (level - 1) * (isPlayer ? 0.02 : 0.01),
       accuracy: Math.min(
         100,
-        Math.round((isPlayer ? 85 : 75) + (level - 1) * (isPlayer ? 0.3 : 0.25)),
+        Math.round((isPlayer ? 85 : 75) + (level - 1) * (isPlayer ? 0.3 : 0.25))
       ),
       criticalRate: Math.min(
         100,
-        Math.round((isPlayer ? 25 : 15) + (level - 1) * (isPlayer ? 0.5 : 0.3)),
+        Math.round((isPlayer ? 25 : 15) + (level - 1) * (isPlayer ? 0.5 : 0.3))
       ),
     };
   }
@@ -116,7 +118,7 @@ export function calculateStatsWithFormula(
 function calculatePlayerStatsDefault(
   level: number,
   size: number,
-  levelConfig: LevelConfig,
+  levelConfig: LevelConfig
 ): LevelBasedStats {
   // 기본 스탯
   const baseSpeed = 150;
@@ -150,7 +152,7 @@ function calculatePlayerStatsDefault(
 export function calculatePlayerStats(
   level: number,
   size: number,
-  levelConfig: LevelConfig,
+  levelConfig: LevelConfig
 ): LevelBasedStats {
   return calculatePlayerStatsDefault(level, size, levelConfig);
 }
@@ -161,7 +163,7 @@ export function calculatePlayerStats(
 function calculateMonsterStatsDefault(
   level: number,
   size: number,
-  levelConfig: LevelConfig,
+  levelConfig: LevelConfig
 ): LevelBasedStats {
   // 기본 스탯
   const baseSpeed = 60;
@@ -195,7 +197,7 @@ function calculateMonsterStatsDefault(
 export function calculateMonsterStats(
   level: number,
   size: number,
-  levelConfig: LevelConfig,
+  levelConfig: LevelConfig
 ): LevelBasedStats {
   return calculateMonsterStatsDefault(level, size, levelConfig);
 }
@@ -203,24 +205,28 @@ export function calculateMonsterStats(
 /**
  * DataRow를 레벨 기반으로 업데이트
  */
-export function updateDataRowWithLevel(
-  row: any,
+export function updateDataRowWithLevel<T extends object>(
+  row: T,
   isPlayer: boolean,
   levelConfig: LevelConfig,
   level?: number,
   size?: number,
-  typeInfo?: CharacterTypeInfo,
-): any {
+  typeInfo?: CharacterTypeInfo
+): T {
+  const rowData = row as Record<string, unknown>;
   const prefix = isPlayer ? 'player' : 'monster';
-  const currentLevel = level !== undefined ? level : row[`${prefix}_level`] || 1;
-  const currentSize = size !== undefined ? size : row[`${prefix}_size`] || (isPlayer ? 20 : 24);
+  const rowLevel = rowData[`${prefix}_level`];
+  const rowSize = rowData[`${prefix}_size`];
+  const currentLevel = level !== undefined ? level : typeof rowLevel === 'number' ? rowLevel : 1;
+  const currentSize =
+    size !== undefined ? size : typeof rowSize === 'number' ? rowSize : isPlayer ? 20 : 24;
 
   const stats = calculateStatsWithFormula(
     currentLevel,
     currentSize,
     levelConfig,
     typeInfo,
-    isPlayer,
+    isPlayer
   );
 
   return {
@@ -235,5 +241,5 @@ export function updateDataRowWithLevel(
     [`${prefix}_attack_speed`]: stats.attackSpeed,
     [`${prefix}_accuracy`]: stats.accuracy,
     [`${prefix}_critical_rate`]: stats.criticalRate,
-  };
+  } as T;
 }
