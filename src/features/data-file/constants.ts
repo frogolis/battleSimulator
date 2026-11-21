@@ -1,4 +1,4 @@
-export const DATA_EXPORT_FILENAME_PREFIX = 'game-data';
+﻿export const DATA_EXPORT_FILENAME_PREFIX = 'game-data';
 
 export const DATA_WORKBOOK_SHEETS = {
   CHARACTER_TYPES: 'Character Types',

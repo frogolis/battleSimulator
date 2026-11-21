@@ -1,4 +1,4 @@
-import { Circle as CircleIcon, Sparkles, Sword, Target, Zap } from 'lucide-react';
+﻿import { Circle as CircleIcon, Sparkles, Sword, Target, Zap } from 'lucide-react';
 import { EFFECT_PRESETS } from '../../lib/skillSystem';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';

@@ -1,4 +1,4 @@
-export const APP_VIEW = {
+﻿export const APP_VIEW = {
   SIMULATOR: 'simulator',
   SETTINGS_KEYS: 'settings-keys',
   SETTINGS_PLAYER: 'settings-player',

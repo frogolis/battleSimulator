@@ -1,4 +1,4 @@
-export const DATA_IO_MESSAGES = {
+﻿export const DATA_IO_MESSAGES = {
   TITLE: '데이터 내보내기/가져오기',
   DESCRIPTION:
     '게임 설정, 스킬, 아이템, 캐릭터 타입, 데이터셋 등 모든 데이터를 Excel 파일로 저장하거나 불러올 수 있습니다.',

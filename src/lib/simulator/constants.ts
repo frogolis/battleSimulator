@@ -1,0 +1,2 @@
+export const DEFAULT_MAX_MONSTER_COUNT = 10;
+export const DEFAULT_RESPAWN_DELAY = 5000;
