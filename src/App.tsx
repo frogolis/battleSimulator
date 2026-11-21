@@ -1,4 +1,4 @@
-﻿import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { defaultBindings, KeyBindings, KeyBindingSettings } from './components/KeyBindingSettings';

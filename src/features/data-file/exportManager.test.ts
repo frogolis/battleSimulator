@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CHARACTER_TYPES } from '../../lib/characterTypes';
 import { getDefaultItemSlots } from '../../lib/itemSystem';
 import { defaultMonsterLevelConfig, defaultPlayerLevelConfig } from '../../lib/levelSystem';

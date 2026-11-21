@@ -1,4 +1,4 @@
-﻿import { Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction } from 'react';
 import { CharacterConfig, CharacterType } from '../../lib/gameTypes';
 import { LevelConfig } from '../../lib/levelSystem';
 import { DataRow } from '../../lib/mockData';

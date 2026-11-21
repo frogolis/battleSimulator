@@ -1,4 +1,4 @@
-﻿import { AIPatternConfig } from './monsterAI';
+import { AIPatternConfig } from './monsterAI';
 
 /**
  * 캐릭터 타입 프리셋 정보

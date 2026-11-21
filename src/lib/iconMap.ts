@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 동적 아이콘 조회를 위한 정적 아이콘 맵.
  * import * as LucideIcons 대신 이 맵을 사용하여 tree-shaking을 활성화합니다.
  */

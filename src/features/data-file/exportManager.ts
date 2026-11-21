@@ -1,4 +1,4 @@
-﻿import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 import { CharacterTypeInfo } from '../../lib/characterTypes';
 import { CharacterConfig } from '../../lib/gameTypes';
 import { ItemSlot } from '../../lib/itemSystem';

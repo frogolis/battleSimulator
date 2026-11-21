@@ -1,4 +1,4 @@
-﻿import { resolveCharacterConfigMid } from './configUtils';
+import { resolveCharacterConfigMid } from './configUtils';
 import {
   AI_STATE_COLORS,
   AI_STATE_LABELS,

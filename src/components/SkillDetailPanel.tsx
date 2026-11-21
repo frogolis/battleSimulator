@@ -1,4 +1,4 @@
-﻿import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Copy, Trash2 } from 'lucide-react';
 import { ICON_MAP } from '../lib/iconMap';
 import { EFFECT_PRESETS, EffectShape, ProjectileType, Skill } from '../lib/skillSystem';

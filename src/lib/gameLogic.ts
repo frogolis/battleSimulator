@@ -1,4 +1,4 @@
-﻿import { resolveCharacterConfigMid } from './configUtils';
+import { resolveCharacterConfigMid } from './configUtils';
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,

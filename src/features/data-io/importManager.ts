@@ -1,4 +1,4 @@
-﻿import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
 import { CharacterTypeInfo } from '../../lib/characterTypes';
 import { CharacterConfig } from '../../lib/gameTypes';

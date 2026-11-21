@@ -1,4 +1,4 @@
-﻿import { CharacterConfig, CharacterType, StatRange } from './gameTypes';
+import { CharacterConfig, CharacterType, StatRange } from './gameTypes';
 
 /**
  * 범위(StatRange)에서 랜덤 값을 반환합니다

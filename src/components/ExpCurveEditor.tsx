@@ -1,4 +1,4 @@
-﻿import { BarChart3, Move, Plus, Trash2, TrendingUp } from 'lucide-react';
+import { BarChart3, Move, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
   BezierSegment,

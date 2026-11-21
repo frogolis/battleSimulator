@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Effect preset registry separated from skill definitions.
  * Keeps effect-specific metadata and preset library independent from general skill logic.
  */

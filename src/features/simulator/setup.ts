@@ -1,4 +1,4 @@
-﻿import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
+import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
 import { DataRow, mockDataset } from '../../lib/mockData';
 import { defaultAIPatternConfig } from '../../lib/monsterAI';
 

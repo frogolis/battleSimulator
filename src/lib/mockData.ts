@@ -1,4 +1,4 @@
-﻿export interface DataRow {
+export interface DataRow {
   t: number;
   x: number;
   y: number;

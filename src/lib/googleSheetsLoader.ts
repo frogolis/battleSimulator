@@ -1,4 +1,4 @@
-﻿import { CharacterStats, LevelData, MonsterStats } from './gameData';
+import { CharacterStats, LevelData, MonsterStats } from './gameData';
 import { DataRow } from './mockData';
 
 // Default spreadsheet ID (for backward compatibility)

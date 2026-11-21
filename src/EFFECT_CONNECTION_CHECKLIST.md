@@ -1,4 +1,4 @@
-﻿# Effect Connection Regression Checklist
+# Effect Connection Regression Checklist
 
 ## 목적
 

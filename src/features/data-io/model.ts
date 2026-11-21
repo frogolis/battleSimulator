@@ -1,4 +1,4 @@
-﻿import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
+import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
 import { CharacterTypeInfo } from '../../lib/characterTypes';
 import { CharacterConfig } from '../../lib/gameTypes';
 import { ItemSlot } from '../../lib/itemSystem';

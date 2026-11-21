@@ -1,4 +1,4 @@
-﻿export interface CharacterStats {
+export interface CharacterStats {
   level: number;
   hp: number;
   maxHp: number;

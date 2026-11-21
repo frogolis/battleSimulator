@@ -1,4 +1,4 @@
-﻿import { Maximize2, Minimize2, Package, Swords } from 'lucide-react';
+import { Maximize2, Minimize2, Package, Swords } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
