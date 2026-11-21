@@ -179,7 +179,7 @@ export function SkillAndItemSettings({
   );
 
   // 현재 세트의 스킬로 초기화
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (currentSet && JSON.stringify(currentSet.skills) !== JSON.stringify(skills)) {
       onSkillsChange(currentSet.skills);

@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-
 import { BarChart3, Move, Plus, Trash2, TrendingUp } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -270,7 +268,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
   }, []);
 
   // Y축 최대값을 config에 초기화 (한 번만)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (!config.yAxisMax && bezierSegments.length > 0) {
       onChange({
@@ -281,7 +279,7 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
   }, []);
 
   // 캔버스 업데이트
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     drawCanvas();
   }, [bezierSegments, selectedSegment, displayMaxLevel, currentMaxExp, canvasWidth]);
@@ -493,7 +491,6 @@ export function ExpCurveEditor({ config, onChange, maxLevel = 100 }: ExpCurveEdi
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, onChange, selectedSegment, displayMaxLevel]);
 
   const addBezierSegment = () => {

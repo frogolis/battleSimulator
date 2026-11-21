@@ -28,11 +28,22 @@ export function SkillDetailPanel({
   const projectileWithDuration = skill.projectile as Skill['projectile'] & { duration?: number };
   const projectileDuration = projectileWithDuration.duration || 2000;
 
+  const resolveProjectileTypeFromPreset = (presetId: string): ProjectileType => {
+    if (presetId.includes('arrow')) return 'arrow';
+    if (presetId.includes('fireball')) return 'fireball';
+    if (presetId.includes('lightning')) return 'lightning';
+    if (presetId.includes('ring')) return 'wave';
+    if (presetId.includes('trail')) return 'none';
+    if (presetId.includes('glow')) return 'none';
+    return 'energy';
+  };
+
   // 아이콘 렌더링
   const getIcon = (iconName: string) => {
     const IconComponent = ICON_MAP[iconName] as LucideIcon | undefined;
     return IconComponent ? <IconComponent className='w-4 h-4' /> : null;
   };
+  const selectableSkillIcons = Object.keys(ICON_MAP).filter(iconName => !!ICON_MAP[iconName]);
 
   return (
     <Card className='flex flex-col h-full overflow-hidden'>
@@ -62,7 +73,6 @@ export function SkillDetailPanel({
               size='sm'
               variant='outline'
               onClick={() => {
-                // eslint-disable-next-line no-alert
                 if (window.confirm(`"${skill.name}" 스킬을 삭제하시겠습니까?`)) {
                   onDelete(skill.id);
                 }
@@ -267,18 +277,61 @@ export function SkillDetailPanel({
               <div className='flex-1 overflow-auto min-h-0 mt-2'>
                 <TabsContent value='visual' className='m-0 space-y-2'>
                   <div className='space-y-1.5'>
+                    <Label className='text-xs'>스킬 아이콘</Label>
+                    <Select
+                      value={skill.iconName || 'Sparkles'}
+                      onValueChange={iconName => onUpdate(skill.id, { iconName })}
+                    >
+                      <SelectTrigger className='h-8 text-xs'>
+                        <SelectValue placeholder='아이콘 선택...' />
+                      </SelectTrigger>
+                      <SelectContent className='max-h-[300px]'>
+                        {selectableSkillIcons.map(iconName => (
+                          <SelectItem key={iconName} value={iconName}>
+                            <span className='inline-flex items-center gap-2'>
+                              <span className='inline-flex items-center text-slate-600'>
+                                {getIcon(iconName)}
+                              </span>
+                              <span>{iconName}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className='space-y-1.5'>
                     <Label className='text-xs'>이펙트 프리셋</Label>
                     <Select
-                      value=''
+                      value={skill.visual.effectPresetId || undefined}
                       onValueChange={(presetKey: string) => {
                         const preset = EFFECT_PRESETS[presetKey];
                         if (preset) {
+                          const projectileType = resolveProjectileTypeFromPreset(preset.id);
                           onUpdate(skill.id, {
                             visual: {
                               ...skill.visual,
+                              effectPresetId: preset.id,
+                              effectType: preset.effectType,
+                              particleTexture: preset.particleTexture,
+                              effectShape: preset.effectShape ?? skill.visual.effectShape,
+                              particleCount: preset.particleCount ?? skill.visual.particleCount,
+                              particleSize: preset.particleSize ?? skill.visual.particleSize,
+                              particleLifetime:
+                                preset.particleLifetime ?? skill.visual.particleLifetime,
                               color: preset.color,
                               secondaryColor: preset.secondaryColor,
                               glowIntensity: preset.glowIntensity,
+                            },
+                            projectile: {
+                              ...skill.projectile,
+                              type: projectileType,
+                              speed: preset.projectileSpeed ?? skill.projectile.speed,
+                              size: preset.projectileSize ?? skill.projectile.size,
+                              homing: preset.isHoming ?? skill.projectile.homing,
+                              trail:
+                                preset.effectType === 'trail' || preset.effectType === 'projectile',
+                              trailLength: preset.trailLength ?? skill.projectile.trailLength,
                             },
                           });
                         }
@@ -296,6 +349,7 @@ export function SkillDetailPanel({
                       </SelectContent>
                     </Select>
                   </div>
+
                   <div className='space-y-1.5'>
                     <Label className='text-xs'>이펙트 모양</Label>
                     <Select

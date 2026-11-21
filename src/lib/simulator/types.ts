@@ -150,6 +150,13 @@ export interface SkillParticle {
   // 새로운 이펙트 시스템
   effectType?: EffectType; // 이펙트 타입
   texture?: ParticleTexture; // 파티클 텍스쳐
+  shapeScaleX?: number;
+  shapeScaleY?: number;
+  shapeRotation?: number;
+  shapeOutlineWidth?: number;
+  shapeCornerRadius?: number;
+  starPoints?: number;
+  starInnerRatio?: number;
 
   // 투사체 기능 (파티클이 투사체 역할을 할 때)
   damage?: number; // 데미지 (투사체일 때)

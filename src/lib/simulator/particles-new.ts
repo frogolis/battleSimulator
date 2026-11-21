@@ -14,6 +14,16 @@ let particleIdCounter = 0;
 
 const logParticlesNew = (..._args: unknown[]): void => {};
 
+const getShapeProperties = (preset: EffectPreset) => ({
+  shapeScaleX: preset.shapeScaleX,
+  shapeScaleY: preset.shapeScaleY,
+  shapeRotation: preset.shapeRotation,
+  shapeOutlineWidth: preset.shapeOutlineWidth,
+  shapeCornerRadius: preset.shapeCornerRadius,
+  starPoints: preset.starPoints,
+  starInnerRatio: preset.starInnerRatio,
+});
+
 /**
  * 파티클 생성 옵션
  */
@@ -99,6 +109,7 @@ export function createProjectileEffect(options: CreateEffectOptions): SkillParti
       effectType: 'projectile',
       texture: preset.particleTexture,
       glowIntensity: preset.glowIntensity,
+      ...getShapeProperties(preset),
 
       // 투사체 데이터
       damage,
@@ -304,6 +315,7 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
       effectType: 'trail',
       texture: preset.particleTexture,
       glowIntensity: preset.glowIntensity,
+      ...getShapeProperties(preset),
       skillType: `trail_${groupId}`, // 같은 그룹의 파티클들을 식별
     });
   }
@@ -374,6 +386,7 @@ export function createLightningEffect(options: CreateEffectOptions): SkillPartic
     effectType: 'lightning',
     texture: 'spark',
     glowIntensity: preset.glowIntensity,
+    ...getShapeProperties(preset),
     lightningSegments,
     lightningTarget: targetPosition,
   });
@@ -419,6 +432,7 @@ export function createRingEffect(options: CreateEffectOptions): SkillParticle[] 
         effectType: 'ring',
         texture: preset.particleTexture,
         glowIntensity: preset.glowIntensity,
+        ...getShapeProperties(preset),
         ringRadius: startRadius,
         ringStartRadius: startRadius,
         ringExpansionSpeed: expansionSpeed,
@@ -458,6 +472,7 @@ export function createGlowEffect(options: CreateEffectOptions): SkillParticle[] 
     effectType: 'glow',
     texture: 'circle',
     glowIntensity: preset.glowIntensity,
+    ...getShapeProperties(preset),
   });
 
   // 상승하는 파티클들
@@ -486,6 +501,7 @@ export function createGlowEffect(options: CreateEffectOptions): SkillParticle[] 
       effectType: 'glow',
       texture: preset.particleTexture,
       glowIntensity: preset.glowIntensity * 0.7,
+      ...getShapeProperties(preset),
       riseSpeed,
     });
   }
@@ -743,40 +759,58 @@ function renderParticleBody(
     .toString(16)
     .padStart(2, '0');
   ctx.fillStyle = particle.color + hexAlpha;
+  ctx.save();
+  ctx.translate(particle.x, particle.y);
+  ctx.rotate(((particle.shapeRotation ?? 0) * Math.PI) / 180);
+  ctx.scale(particle.shapeScaleX ?? 1, particle.shapeScaleY ?? 1);
+
+  const outlineWidth = particle.shapeOutlineWidth ?? 0;
+  const renderOutline = () => {
+    if (outlineWidth <= 0) return;
+    ctx.lineWidth = outlineWidth;
+    ctx.strokeStyle = (particle.secondaryColor ?? particle.color) + hexAlpha;
+    ctx.stroke();
+  };
 
   switch (particle.texture) {
     case 'circle':
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
       ctx.fill();
+      renderOutline();
       break;
 
     case 'star':
-      renderStar(ctx, particle.x, particle.y, particle.size, 5);
+      renderStar(ctx, 0, 0, particle.size, particle.starPoints ?? 5, particle.starInnerRatio ?? 0.5);
+      renderOutline();
       break;
 
-    case 'square':
-      ctx.fillRect(
-        particle.x - particle.size,
-        particle.y - particle.size,
-        particle.size * 2,
-        particle.size * 2
-      );
+    case 'square': {
+      const cornerRadius = Math.min(particle.shapeCornerRadius ?? 0, particle.size);
+      ctx.beginPath();
+      ctx.roundRect(-particle.size, -particle.size, particle.size * 2, particle.size * 2, cornerRadius);
+      ctx.fill();
+      renderOutline();
       break;
+    }
 
     case 'diamond':
-      renderDiamond(ctx, particle.x, particle.y, particle.size);
+      renderDiamond(ctx, 0, 0, particle.size);
+      renderOutline();
       break;
 
     case 'spark':
-      renderSpark(ctx, particle.x, particle.y, particle.size);
+      ctx.lineWidth = Math.max(1, outlineWidth || 1);
+      ctx.strokeStyle = particle.color + hexAlpha;
+      renderSpark(ctx, 0, 0, particle.size);
       break;
 
     default:
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.arc(0, 0, particle.size, 0, Math.PI * 2);
       ctx.fill();
   }
+  ctx.restore();
 }
 
 /**
@@ -871,12 +905,13 @@ function renderStar(
   x: number,
   y: number,
   size: number,
-  points: number
+  points: number,
+  innerRatio: number
 ): void {
   ctx.beginPath();
   for (let i = 0; i < points * 2; i++) {
     const angle = (i * Math.PI) / points;
-    const radius = i % 2 === 0 ? size : size * 0.5;
+    const radius = i % 2 === 0 ? size : size * innerRatio;
     const px = x + Math.cos(angle - Math.PI / 2) * radius;
     const py = y + Math.sin(angle - Math.PI / 2) * radius;
     if (i === 0) {

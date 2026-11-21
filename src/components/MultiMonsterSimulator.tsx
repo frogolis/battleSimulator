@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-
 import { Maximize2, Minimize2, Package, Swords } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -59,6 +57,7 @@ import {
 import {
   BasicAttackSlot,
   EFFECT_PRESETS,
+  EffectPreset,
   SPConfig,
   Skill,
   SkillSlot,
@@ -242,9 +241,45 @@ const DEFAULT_EFFECT_PRESET_BY_SKILL: Record<Skill['type'], keyof typeof EFFECT_
   defense: 'glow_buff',
 };
 
-const resolveEffectPresetForSkill = (skill: Skill) => {
+const resolveEffectPresetForSkill = (skill: Skill): EffectPreset => {
   const presetId = skill.visual.effectPresetId ?? DEFAULT_EFFECT_PRESET_BY_SKILL[skill.type];
-  return EFFECT_PRESETS[presetId] ?? EFFECT_PRESETS[DEFAULT_EFFECT_PRESET_BY_SKILL[skill.type]];
+  const basePreset =
+    EFFECT_PRESETS[presetId] ?? EFFECT_PRESETS[DEFAULT_EFFECT_PRESET_BY_SKILL[skill.type]];
+
+  // 프리셋을 기본값으로, skill.visual의 커스텀 수치를 덮어써서 사용
+  return {
+    ...basePreset,
+    color: skill.visual.color || basePreset.color,
+    secondaryColor: skill.visual.secondaryColor || basePreset.secondaryColor,
+    glowIntensity: skill.visual.glowIntensity ?? basePreset.glowIntensity,
+    particleTexture: skill.visual.particleTexture || basePreset.particleTexture,
+    projectilePattern: skill.visual.projectilePattern ?? basePreset.projectilePattern,
+    projectileCount: skill.visual.projectileCount ?? basePreset.projectileCount,
+    projectileSpeed: skill.visual.projectileSpeed ?? basePreset.projectileSpeed,
+    projectileSize: skill.visual.projectileSize ?? basePreset.projectileSize,
+    projectileLifetime: skill.visual.projectileLifetime ?? basePreset.projectileLifetime,
+    isHoming: skill.visual.isHoming ?? basePreset.isHoming,
+    spreadAngle: skill.visual.spreadAngle ?? basePreset.spreadAngle,
+    trailType: skill.visual.trailType ?? basePreset.trailType,
+    trailParticleCount: skill.visual.trailParticleCount ?? basePreset.trailParticleCount,
+    trailLength: skill.visual.trailLength ?? basePreset.trailLength,
+    trailWidth: skill.visual.trailWidth ?? basePreset.trailWidth,
+    trailFadeSpeed: skill.visual.trailFadeSpeed ?? basePreset.trailFadeSpeed,
+    trailArcAngle: skill.visual.trailArcAngle ?? basePreset.trailArcAngle,
+    lightningSegments: skill.visual.lightningSegments ?? basePreset.lightningSegments,
+    lightningJitter: skill.visual.lightningJitter ?? basePreset.lightningJitter,
+    lightningForkChance: skill.visual.lightningForkChance ?? basePreset.lightningForkChance,
+    ringRadius: skill.visual.ringRadius ?? basePreset.ringRadius,
+    ringExpansionSpeed: skill.visual.ringExpansionSpeed ?? basePreset.ringExpansionSpeed,
+    ringCount: skill.visual.ringCount ?? basePreset.ringCount,
+    ringInterval: skill.visual.ringInterval ?? basePreset.ringInterval,
+    glowRadius: skill.visual.glowRadius ?? basePreset.glowRadius,
+    glowParticleCount: skill.visual.glowParticleCount ?? basePreset.glowParticleCount,
+    glowRiseSpeed: skill.visual.glowRiseSpeed ?? basePreset.glowRiseSpeed,
+    glowFadeSpeed: skill.visual.glowFadeSpeed ?? basePreset.glowFadeSpeed,
+    repeatCount: skill.visual.repeatCount ?? basePreset.repeatCount,
+    repeatInterval: skill.visual.repeatInterval ?? basePreset.repeatInterval,
+  };
 };
 
 const getLucideIcon = (
@@ -301,7 +336,7 @@ export function MultiMonsterSimulator({
   const [, setGameStartTime] = useState<number>(Date.now());
   const [survivalTime, setSurvivalTime] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fps, setFps] = useState<number>(60);
+  const [_fps, setFps] = useState<number>(60);
   const fpsRef = useRef<number>(60);
   const [, setPlayerHp] = useState<{
     current: number;
@@ -417,8 +452,8 @@ export function MultiMonsterSimulator({
   const [activeSkills, setActiveSkills] = useState<SkillSlot[]>(skillSlots);
   const [activeItems, setActiveItems] = useState<ItemSlot[]>(itemSlots);
   const [activeBuffs, setActiveBuffs] = useState<ActiveBuff[]>([]);
-  const [healEffectTime, setHealEffectTime] = useState<number>(0);
-  const [healEffectColor, setHealEffectColor] = useState<string>('#10b981');
+  const [_healEffectTime, setHealEffectTime] = useState<number>(0);
+  const [_healEffectColor, setHealEffectColor] = useState<string>('#10b981');
   const healEffectRef = useRef<{ color: string; time: number }>({ color: '#10b981', time: 0 });
 
   // Game state refs

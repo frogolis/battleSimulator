@@ -4,22 +4,22 @@ import { toast } from 'sonner';
 import { defaultBindings, KeyBindings, KeyBindingSettings } from './components/KeyBindingSettings';
 import { MonsterTypeStats } from './components/MonsterTypeDefinition';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarGroup,
+    SidebarGroupContent,
+    SidebarGroupLabel,
+    SidebarHeader,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarProvider,
 } from './components/ui/sidebar';
 import { Toaster } from './components/ui/sonner';
 import {
-  applyMonsterRowFromData,
-  applyPlayerRowFromData,
+    applyMonsterRowFromData,
+    applyPlayerRowFromData,
 } from './features/simulator/rowApplyManager';
 import { createInitialDatasets, createInitialMonsterTypeStats } from './features/simulator/setup';
 import { APP_MENU_ITEMS } from './features/ui/navigation/menuConfig';
@@ -28,23 +28,24 @@ import { CharacterConfig } from './lib/gameTypes';
 import { getDefaultItemSlots, ItemSlot } from './lib/itemSystem';
 import { updateDataRowWithLevel } from './lib/levelBasedStats';
 import {
-  defaultMonsterLevelConfig,
-  defaultPlayerLevelConfig,
-  LevelConfig,
+    defaultMonsterLevelConfig,
+    defaultPlayerLevelConfig,
+    LevelConfig,
 } from './lib/levelSystem';
 import { DataRow, mockDataset } from './lib/mockData';
 import { DEFAULT_MAX_MONSTER_COUNT, DEFAULT_RESPAWN_DELAY } from './lib/simulator/constants';
 import {
-  BasicAttackSlot,
-  defaultSkills,
-  getDefaultBasicAttackSlot,
-  getDefaultSkillSlots,
-  Skill,
-  SkillSlot,
+    BasicAttackSlot,
+    defaultSkills,
+    EFFECT_PRESETS,
+    EffectPreset,
+    getDefaultBasicAttackSlot,
+    getDefaultSkillSlots,
+    Skill,
+    SkillSlot,
 } from './lib/skillSystem';
 import { APP_VIEW, AppView, SETTINGS_VIEW_PREFIX } from './shared/constants/appViews';
 
-const logApp = (..._args: unknown[]): void => {};
 // 지연 로딩: 뷰별 컴포넌트는 필요 시 로드
 const MultiMonsterSimulator = lazy(() =>
   import('./components/MultiMonsterSimulator').then(m => ({ default: m.MultiMonsterSimulator }))
@@ -113,6 +114,21 @@ export default function App() {
   );
   const [skillSlots, setSkillSlots] = useState<SkillSlot[]>(getDefaultSkillSlots());
   const [skillConfigs, setSkillConfigs] = useState<Record<string, Skill>>(defaultSkills);
+  const [effectDraftPreset, setEffectDraftPreset] = useState<EffectPreset>(
+    EFFECT_PRESETS.projectile_fireball
+  );
+  const [customEffectPresets, setCustomEffectPresets] = useState<EffectPreset[]>(() => {
+    try {
+      const savedPresets = localStorage.getItem('battle-simulator-custom-effect-presets');
+      return savedPresets ? JSON.parse(savedPresets) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('battle-simulator-custom-effect-presets', JSON.stringify(customEffectPresets));
+  }, [customEffectPresets]);
 
   // Item system state
   const [itemSlots, setItemSlots] = useState<ItemSlot[]>(getDefaultItemSlots());
@@ -181,7 +197,6 @@ export default function App() {
       } as DataRow;
       setCurrentDataRow(mergedRow);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTick]); // playerDataset, monsterDataset 제거하여 데이터셋 변경 시 재실행 방지
 
   // 플레이어 레벨 설정(초기값/증가공식) 변경 시 모든 플레이어 데이터 재계산
@@ -199,7 +214,6 @@ export default function App() {
 
     setPlayerDataset(recalculatedDataset);
     toast.info(`🔄 플레이어 레벨 설정 변경 → ${playerDataset.length}개 행 재계산 완료`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     playerLevelConfig.baseHp,
     playerLevelConfig.baseSp,
@@ -233,7 +247,6 @@ export default function App() {
 
     setMonsterDataset(recalculatedDataset);
     toast.info(`🔄 몬스터 레벨 설정 변경 → ${monsterDataset.length}개 행 재계산 완료`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     monsterLevelConfig.baseHp,
     monsterLevelConfig.baseSp,
@@ -293,7 +306,6 @@ export default function App() {
     if (monsterRow && monsterRow.monster_size !== undefined) {
       handleApplyMonsterRow(monsterRow);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTick]); // playerDataset, monsterDataset 의도적으로 제외하여 데이터셋 변경 시 재실행 방지
 
   return (
@@ -494,13 +506,18 @@ export default function App() {
 
                 {/* Graphics Effect Editor View */}
                 {currentView === APP_VIEW.SETTINGS_GRAPHICS && (
-                  <div className='max-w-5xl mx-auto'>
+                  <div className='max-w-5xl mx-auto space-y-4'>
                     <GraphicsEffectEditorNew
                       showPreview={true}
+                      selectedPresetKey={effectDraftPreset.id}
+                      customPresets={customEffectPresets}
+                      onCustomPresetsChange={setCustomEffectPresets}
                       onPresetSelect={preset => {
-                        logApp('프리셋 선택됨:', preset);
-                        toast.success(`✨ "${preset.name}" 프리셋이 선택되었습니다!`);
-                        // 여기에서 선택된 프리셋을 스킬 설정에 적용할 수 있습니다
+                        setEffectDraftPreset(preset);
+                        toast.success(`🎨 "${preset.name}" 이펙트 초안을 선택했습니다.`);
+                      }}
+                      onPresetCustomize={customizedPreset => {
+                        setEffectDraftPreset(customizedPreset);
                       }}
                     />
                   </div>

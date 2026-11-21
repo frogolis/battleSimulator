@@ -4,19 +4,19 @@
  */
 
 import type { EffectShape, ProjectileType } from '../skillSystem';
-import { EFFECT_PRESETS, Skill } from '../skillSystem';
+import { getSkillEffects, Skill } from '../skillSystem';
 import {
-  createEffect,
-  createGlowEffect,
-  createLightningEffect,
-  createProjectileEffect,
-  createRingEffect,
-  createTrailEffect,
-  renderNewParticle,
-  renderNewParticles,
-  updateNewParticle,
-  updateNewParticles,
-  type CreateEffectOptions,
+    createEffect,
+    createGlowEffect,
+    createLightningEffect,
+    createProjectileEffect,
+    createRingEffect,
+    createTrailEffect,
+    renderNewParticle,
+    renderNewParticles,
+    updateNewParticle,
+    updateNewParticles,
+    type CreateEffectOptions,
 } from './particles-new';
 import { Position, SkillParticle } from './types';
 
@@ -24,17 +24,17 @@ const logParticles = (..._args: unknown[]): void => {};
 
 // 새로운 5가지 이펙트 시스템 re-export
 export {
-  createEffect,
-  createGlowEffect,
-  createLightningEffect,
-  createProjectileEffect,
-  createRingEffect,
-  createTrailEffect,
-  renderNewParticle,
-  renderNewParticles,
-  updateNewParticle,
-  updateNewParticles,
-  type CreateEffectOptions,
+    createEffect,
+    createGlowEffect,
+    createLightningEffect,
+    createProjectileEffect,
+    createRingEffect,
+    createTrailEffect,
+    renderNewParticle,
+    renderNewParticles,
+    updateNewParticle,
+    updateNewParticles,
+    type CreateEffectOptions
 };
 
 /**
@@ -331,20 +331,18 @@ export function createSkillParticles(
 ): SkillParticle[] {
   const { skill, strategy, position, targetPosition, damage, owner, monsterId } = options;
 
-  // 새로운 이펙트 시스템 사용 (effectPresetId가 있으면)
-  if (skill.visual.effectPresetId) {
-    const preset = EFFECT_PRESETS[skill.visual.effectPresetId];
-    if (preset) {
-      // 🔍 디버깅: createEffect 호출 전 값 확인
-      logParticles('🔵 [createSkillParticles] createEffect 호출 직전', {
-        skillId: skill.id,
-        skillName: skill.name,
-        presetId: skill.visual.effectPresetId,
-        skillRange: skill.range,
-        skillArea: skill.area,
-      });
+  const effects = getSkillEffects(skill);
+  if (effects.length > 0) {
+    logParticles('🔵 [createSkillParticles] 소유 이펙트 실행', {
+      skillId: skill.id,
+      skillName: skill.name,
+      effectIds: effects.map(effect => effect.id),
+      skillRange: skill.range,
+      skillArea: skill.area,
+    });
 
-      return createEffect({
+    return effects.flatMap(preset =>
+      createEffect({
         preset,
         position,
         targetPosition,
@@ -352,10 +350,10 @@ export function createSkillParticles(
         monsterId,
         damage,
         skillName: skill.name,
-        skillArea: skill.area, // 스킬 범위/각도 전달 (궤적 이펙트용)
-        skillRange: skill.range, // 스킬 사거리 전달 (궤적 이펙트 반지름용)
-      });
-    }
+        skillArea: skill.area,
+        skillRange: skill.range,
+      })
+    );
   }
 
   // 기존 시스템 (하위 호환성)
@@ -482,25 +480,20 @@ export function renderParticle(
     !isFinite(particle.x) ||
     !isFinite(particle.y) ||
     !isFinite(particle.size) ||
+    particle.size <= 0 ||
     !isFinite(particle.life) ||
     !isFinite(particle.maxLife) ||
-    particle.size <= 0
+    particle.maxLife <= 0
   ) {
     return;
   }
 
   const alpha = particle.life / particle.maxLife;
+  const now = Date.now();
 
-  // 궤적 렌더링 (파티클 본체 전에)
-  if (particle.trailEnabled && particle.trailHistory && particle.trailHistory.length > 1) {
-    const trailWidth = particle.trailWidth || 2;
-    const now = Date.now();
-
+  if (particle.trailEnabled && particle.trailHistory && particle.trailHistory.length > 0) {
     ctx.save();
-
-    // 선 스타일로 궤적 그리기
-    ctx.strokeStyle = particle.color;
-    ctx.lineWidth = trailWidth;
+    ctx.lineWidth = particle.trailWidth || Math.max(1, particle.size * 0.4);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 

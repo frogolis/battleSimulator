@@ -6,6 +6,30 @@
  */
 
 import type { CharacterSkills } from './combatSystem';
+import {
+    DEFAULT_EFFECT_PRESETS,
+    DETAILED_EFFECT_PRESETS as IMPORTED_DETAILED_EFFECT_PRESETS,
+    type EffectPreset,
+    type EffectPresetWithLegacy,
+    type EffectShape,
+    type EffectType,
+    type ParticleTexture,
+    type ProjectilePattern,
+    type ProjectileType,
+} from './effects/presets';
+
+export const EFFECT_PRESETS = DEFAULT_EFFECT_PRESETS;
+export const DETAILED_EFFECT_PRESETS = IMPORTED_DETAILED_EFFECT_PRESETS;
+
+export type {
+    EffectPreset,
+    EffectPresetWithLegacy,
+    EffectShape,
+    EffectType,
+    ParticleTexture,
+    ProjectilePattern,
+    ProjectileType
+};
 
 export type SkillType =
   | 'melee'
@@ -20,434 +44,10 @@ export type SkillType =
 // 스킬 카테고리 (슬롯 타입 구분)
 export type SkillCategory = 'basicAttack' | 'skill';
 
-// ===== 새로운 5가지 이펙트 타입 시스템 =====
-export type EffectType =
-  | 'projectile' // 투사체 발사 (방향/방사형)
-  | 'trail' // 궤적 (공격 방향 기준)
-  | 'lightning' // 번개 (대상 연결)
-  | 'ring' // 링/동심원
-  | 'glow'; // 글로우 (상승 파티클)
-
-// 투사체 발사 패턴
-export type ProjectilePattern =
-  | 'directional' // 방향성 발사 (타겟 방향)
-  | 'radial' // 방사형 발사 (사방으로)
-  | 'cone'; // 부채꼴 발사
-
-// 파티클 텍스쳐 타입
-export type ParticleTexture =
-  | 'circle' // 원형
-  | 'star' // 별 모양
-  | 'square' // 사각형
-  | 'diamond' // 다이아몬드
-  | 'spark'; // 스파크
-
-// ===== 새로운 이펙트 프리셋 시스템 =====
-export interface EffectPreset {
-  id: string;
-  name: string;
-  description: string;
-  effectType: EffectType;
-
-  // 공통 설정
-  color: string;
-  secondaryColor: string;
-  particleTexture: ParticleTexture;
-  glowIntensity: number; // 0-1
-
-  // 투사체 이펙트 전용
-  projectilePattern?: ProjectilePattern;
-  projectileCount?: number; // 발사할 투사체 개수
-  projectileSpeed?: number; // 투사체 속도 (px/s)
-  projectileSize?: number; // 투사체 크기
-  projectileLifetime?: number; // 투사체 수명 (ms)
-  isHoming?: boolean; // 유도 처리 여부
-  spreadAngle?: number; // 확산 각도 (라디안)
-
-  // 궤적 이펙트 전용
-  trailType?: 'slash' | 'thrust' | 'spin'; // 궤적 타입
-  trailParticleCount?: number; // 궤적 파티클 수
-  trailLength?: number; // 궤적 길이 (픽셀)
-  trailWidth?: number; // 궤적 두께
-  trailFadeSpeed?: number; // 페이드 속도
-  trailArcAngle?: number; // 호의 각도 (라디안, slash용)
-
-  // 번개 이펙트 전용
-  lightningSegments?: number; // 번개 세그먼트 수
-  lightningJitter?: number; // 번개 지터 정도
-  lightningForkChance?: number; // 번개 갈라짐 확률
-
-  // 링 이펙트 전용
-  ringRadius?: number; // 링 반지름 (픽셀)
-  ringExpansionSpeed?: number; // 확장 속도
-  ringCount?: number; // 동심원 개수
-  ringInterval?: number; // 동심원 간격 (ms)
-
-  // 글로우 이펙트 전용
-  glowRadius?: number; // 글로우 반지름
-  glowParticleCount?: number; // 상승 파티클 개수
-  glowRiseSpeed?: number; // 상승 속도
-  glowFadeSpeed?: number; // 페이드 속도
-
-  // 재생 설정
-  repeatCount?: number; // 반복 횟수 (1 = 1회만)
-  repeatInterval?: number; // 반복 간격 (ms)
-}
-
-type LegacyVisualFields = {
-  effectPresetId?: string;
-  particleCount: number;
-  particleSize: number;
-  particleLifetime: number;
-  effectShape: EffectShape;
-};
-
-export type EffectPresetWithLegacy = EffectPreset & LegacyVisualFields;
-
-const getEffectShapeFromPreset = (preset: EffectPreset): EffectShape => {
-  switch (preset.effectType) {
-    case 'projectile':
-      return preset.projectilePattern === 'cone' ? 'cone' : 'circle';
-    case 'trail':
-      return preset.trailType === 'spin' ? 'spiral' : 'line';
-    case 'lightning':
-      return 'line';
-    case 'ring':
-      return 'ring';
-    case 'glow':
-      return 'star';
-    default:
-      return 'circle';
-  }
-};
-
-const withLegacyVisualFields = (preset: EffectPreset): EffectPresetWithLegacy => ({
-  ...preset,
-  effectPresetId: preset.id,
-  particleCount:
-    preset.projectileCount ??
-    preset.trailParticleCount ??
-    preset.glowParticleCount ??
-    preset.ringCount ??
-    12,
-  particleSize:
-    preset.projectileSize ??
-    preset.trailWidth ??
-    Math.max(6, Math.round((preset.glowRadius ?? preset.ringRadius ?? 48) / 8)),
-  particleLifetime: preset.projectileLifetime ?? preset.ringInterval ?? 800,
-  effectShape: getEffectShapeFromPreset(preset),
-});
-
-// ===== 새로운 이펙트 프리셋 라이브러리 =====
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const RAW_EFFECT_PRESETS: Record<string, EffectPreset> = {
-  // ===== 투사체 발사 이펙트 =====
-  projectile_arrow_single: {
-    id: 'projectile_arrow_single',
-    name: '화살 (단일)',
-    description: '타겟 방향으로 화살 1발 발사',
-    effectType: 'projectile',
-    color: '#ffd93d',
-    secondaryColor: '#fef3c7',
-    particleTexture: 'circle',
-    glowIntensity: 0.4,
-    projectilePattern: 'directional',
-    projectileCount: 1,
-    projectileSpeed: 600,
-    projectileSize: 8,
-    projectileLifetime: 1000,
-    isHoming: false,
-    spreadAngle: 0,
-    repeatCount: 1,
-  },
-
-  projectile_arrow_multi: {
-    id: 'projectile_arrow_multi',
-    name: '다중 화살',
-    description: '타겟 방향으로 3발의 화살 발사',
-    effectType: 'projectile',
-    color: '#fbbf24',
-    secondaryColor: '#fde68a',
-    particleTexture: 'circle',
-    glowIntensity: 0.5,
-    projectilePattern: 'directional',
-    projectileCount: 3,
-    projectileSpeed: 600,
-    projectileSize: 7,
-    projectileLifetime: 1000,
-    isHoming: false,
-    spreadAngle: 0.3,
-    repeatCount: 1,
-  },
-
-  projectile_fireball: {
-    id: 'projectile_fireball',
-    name: '화염구',
-    description: '강력한 화염구 발사',
-    effectType: 'projectile',
-    color: '#ff6b6b',
-    secondaryColor: '#ffe066',
-    particleTexture: 'circle',
-    glowIntensity: 0.9,
-    projectilePattern: 'directional',
-    projectileCount: 1,
-    projectileSpeed: 400,
-    projectileSize: 12,
-    projectileLifetime: 1500,
-    isHoming: false,
-    spreadAngle: 0,
-    repeatCount: 1,
-  },
-
-  projectile_fireball_homing: {
-    id: 'projectile_fireball_homing',
-    name: '유도 화염구',
-    description: '대상을 추적하는 화염구',
-    effectType: 'projectile',
-    color: '#ff8787',
-    secondaryColor: '#ffec99',
-    particleTexture: 'star',
-    glowIntensity: 0.9,
-    projectilePattern: 'directional',
-    projectileCount: 1,
-    projectileSpeed: 450,
-    projectileSize: 12,
-    projectileLifetime: 2000,
-    isHoming: true,
-    spreadAngle: 0,
-    repeatCount: 1,
-  },
-
-  projectile_radial_burst: {
-    id: 'projectile_radial_burst',
-    name: '방사형 폭발',
-    description: '사방으로 8발의 투사체 발사',
-    effectType: 'projectile',
-    color: '#d8b4fe',
-    secondaryColor: '#f3e8ff',
-    particleTexture: 'diamond',
-    glowIntensity: 0.7,
-    projectilePattern: 'radial',
-    projectileCount: 8,
-    projectileSpeed: 500,
-    projectileSize: 8,
-    projectileLifetime: 1200,
-    isHoming: false,
-    spreadAngle: 0,
-    repeatCount: 1,
-  },
-
-  projectile_cone_spread: {
-    id: 'projectile_cone_spread',
-    name: '부채꼴 발사',
-    description: '부채꼴 모양으로 5발 발사',
-    effectType: 'projectile',
-    color: '#6ee7b7',
-    secondaryColor: '#d1fae5',
-    particleTexture: 'circle',
-    glowIntensity: 0.6,
-    projectilePattern: 'cone',
-    projectileCount: 5,
-    projectileSpeed: 550,
-    projectileSize: 7,
-    projectileLifetime: 1000,
-    isHoming: false,
-    spreadAngle: Math.PI / 4, // 45도
-    repeatCount: 1,
-  },
-
-  // ===== 궤적 이펙트 =====
-  trail_slash: {
-    id: 'trail_slash',
-    name: '베기 궤적',
-    description: '공격 방향으로 베기 궤적을 남김',
-    effectType: 'trail',
-    trailType: 'slash',
-    color: '#ff9999',
-    secondaryColor: '#ffd6a5',
-    particleTexture: 'circle',
-    glowIntensity: 0.7,
-    trailParticleCount: 30,
-    trailLength: 1, // 스킬의 range를 사용하도록 fallback 값을 최소화
-    trailWidth: 8,
-    trailFadeSpeed: 0.8,
-    trailArcAngle: 0.1, // 스킬의 area를 사용하도록 fallback 값을 최소화
-    repeatCount: 1,
-  },
-
-  trail_thrust: {
-    id: 'trail_thrust',
-    name: '찌르기 궤적',
-    description: '직선 방향으로 찌르기 궤적',
-    effectType: 'trail',
-    trailType: 'thrust',
-    color: '#a5f3fc',
-    secondaryColor: '#e0f2fe',
-    particleTexture: 'circle',
-    glowIntensity: 0.6,
-    trailParticleCount: 20,
-    trailLength: 1, // 스킬의 range를 사용하도록 fallback 값을 최소화
-    trailWidth: 5,
-    trailFadeSpeed: 1.0,
-    repeatCount: 1,
-  },
-
-  trail_spin: {
-    id: 'trail_spin',
-    name: '회전 궤적',
-    description: '360도 회전하며 궤적을 남김',
-    effectType: 'trail',
-    trailType: 'spin',
-    color: '#e9d5ff',
-    secondaryColor: '#fae8ff',
-    particleTexture: 'star',
-    glowIntensity: 0.8,
-    trailParticleCount: 40,
-    trailLength: 1, // 스킬의 range를 사용하도록 fallback 값을 최소화
-    trailWidth: 6,
-    trailFadeSpeed: 0.6,
-    repeatCount: 1,
-  },
-
-  // ===== 번개 이펙트 =====
-  lightning_chain: {
-    id: 'lightning_chain',
-    name: '연쇄 번개',
-    description: '대상과 연결되는 번개',
-    effectType: 'lightning',
-    color: '#ffeb3b',
-    secondaryColor: '#fffde7',
-    particleTexture: 'spark',
-    glowIntensity: 1.0,
-    lightningSegments: 12,
-    lightningJitter: 15,
-    lightningForkChance: 0.3,
-    repeatCount: 1,
-  },
-
-  lightning_strike: {
-    id: 'lightning_strike',
-    name: '낙뢰',
-    description: '대상에게 낙뢰가 떨어짐',
-    effectType: 'lightning',
-    color: '#bae6fd',
-    secondaryColor: '#f0f9ff',
-    particleTexture: 'spark',
-    glowIntensity: 0.9,
-    lightningSegments: 15,
-    lightningJitter: 20,
-    lightningForkChance: 0.5,
-    repeatCount: 1,
-  },
-
-  // ===== 링 이펙트 =====
-  ring_single: {
-    id: 'ring_single',
-    name: '단일 링',
-    description: '캐릭터 중심으로 확장되는 링',
-    effectType: 'ring',
-    color: '#6ee7b7',
-    secondaryColor: '#d1fae5',
-    particleTexture: 'circle',
-    glowIntensity: 0.7,
-    ringRadius: 50,
-    ringExpansionSpeed: 200,
-    ringCount: 1,
-    ringInterval: 0,
-    repeatCount: 1,
-  },
-
-  ring_concentric: {
-    id: 'ring_concentric',
-    name: '동심원',
-    description: '여러 개의 동심원이 확장됨',
-    effectType: 'ring',
-    color: '#fde047',
-    secondaryColor: '#fef9c3',
-    particleTexture: 'diamond',
-    glowIntensity: 0.8,
-    ringRadius: 40,
-    ringExpansionSpeed: 150,
-    ringCount: 3,
-    ringInterval: 200,
-    repeatCount: 1,
-  },
-
-  ring_explosion: {
-    id: 'ring_explosion',
-    name: '폭발 링',
-    description: '강력한 폭발 링',
-    effectType: 'ring',
-    color: '#ff9999',
-    secondaryColor: '#ffeb99',
-    particleTexture: 'star',
-    glowIntensity: 0.9,
-    ringRadius: 80,
-    ringExpansionSpeed: 400,
-    ringCount: 1,
-    ringInterval: 0,
-    repeatCount: 1,
-  },
-
-  // ===== 글로우 이펙트 =====
-  glow_heal: {
-    id: 'glow_heal',
-    name: '치유 글로우',
-    description: '치유 효과와 상승 파티클',
-    effectType: 'glow',
-    color: '#86efac',
-    secondaryColor: '#d1fae5',
-    particleTexture: 'star',
-    glowIntensity: 0.8,
-    glowRadius: 60,
-    glowParticleCount: 20,
-    glowRiseSpeed: 80,
-    glowFadeSpeed: 0.7,
-    repeatCount: 1,
-  },
-
-  glow_buff: {
-    id: 'glow_buff',
-    name: '버프 글로우',
-    description: '버프 효과와 상승 파티클',
-    effectType: 'glow',
-    color: '#fde047',
-    secondaryColor: '#fef3c7',
-    particleTexture: 'circle',
-    glowIntensity: 0.7,
-    glowRadius: 50,
-    glowParticleCount: 15,
-    glowRiseSpeed: 60,
-    glowFadeSpeed: 0.8,
-    repeatCount: 1,
-  },
-
-  glow_power: {
-    id: 'glow_power',
-    name: '파워 글로우',
-    description: '강력한 파워 업 효과',
-    effectType: 'glow',
-    color: '#d8b4fe',
-    secondaryColor: '#f3e8ff',
-    particleTexture: 'spark',
-    glowIntensity: 0.9,
-    glowRadius: 70,
-    glowParticleCount: 30,
-    glowRiseSpeed: 100,
-    glowFadeSpeed: 0.6,
-    repeatCount: 1,
-  },
-} satisfies Record<string, EffectPreset>;
-
-export const EFFECT_PRESETS: Record<string, EffectPresetWithLegacy> = Object.keys(
-  RAW_EFFECT_PRESETS
-).reduce<Record<string, EffectPresetWithLegacy>>((accumulator, key) => {
-  accumulator[key] = withLegacyVisualFields(RAW_EFFECT_PRESETS[key]);
-  return accumulator;
-}, {});
+// legacy compatibility: some older UI still expects these names from `skillSystem`
 
 // 하위 호환성을 위한 레거시 프리셋 (기존 시스템 지원)
-export const DETAILED_EFFECT_PRESETS: Record<string, unknown> = {
+export const LEGACY_EFFECT_PRESETS: Record<string, unknown> = {
   projectile_arrow: {
     name: '화살 (직선)',
     category: 'projectile',
@@ -701,6 +301,8 @@ export const DETAILED_EFFECT_PRESETS: Record<string, unknown> = {
   },
 };
 
+export { LEGACY_EFFECT_PRESETS as LEGACY_DETAILED_EFFECT_PRESETS };
+
 export type EffectCategory = 'trail' | 'projectile' | 'area' | 'target';
 
 export type AnimationPattern =
@@ -835,6 +437,9 @@ export interface Skill {
 
   // 시각 효과 설정 (스킬 시스템 설정에서만 조정)
   visual: SkillVisual;
+
+  // 스킬이 소유하는 실행 가능한 이펙트 목록
+  effects?: EffectPreset[];
 
   // 투사체 설정 (스킬 시스템 설정에서만 조정)
   projectile: {
@@ -1912,6 +1517,21 @@ export const defaultSkills: Record<string, Skill> = {
   },
 };
 
+/** 스킬 소유 이펙트가 없는 이전 데이터는 기존 프리셋에서 한 번만 이관한다. */
+export function getSkillEffects(skill: Skill): EffectPreset[] {
+  if (skill.effects && skill.effects.length > 0) {
+    return skill.effects;
+  }
+
+  const legacyPresetId = skill.visual.effectPresetId;
+  const legacyPreset = legacyPresetId ? EFFECT_PRESETS[legacyPresetId] : undefined;
+  return legacyPreset ? [{ ...legacyPreset }] : [];
+}
+
+for (const skill of [...Object.values(defaultBasicAttacks), ...Object.values(defaultSkills)]) {
+  skill.effects = getSkillEffects(skill);
+}
+
 /**
  * 스킬 쿨타임 업데이트
  */
@@ -2451,13 +2071,18 @@ export function createSkill(
   const template = SKILL_TEMPLATES[type];
   const id = `skill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  return {
+  const createdSkill = {
     id,
     name,
     description,
     ...template,
     ...customizations,
   } as Skill;
+
+  return {
+    ...createdSkill,
+    effects: getSkillEffects(createdSkill).map(effect => ({ ...effect })),
+  };
 }
 
 /**
@@ -2470,6 +2095,7 @@ export function cloneSkill(skill: Skill, newName?: string): Skill {
     ...skill,
     id,
     name: newName || `${skill.name} (복사)`,
+    effects: getSkillEffects(skill).map(effect => ({ ...effect })),
     currentCooldown: 0,
     isOnCooldown: false,
   };

@@ -2,23 +2,25 @@
  * 새로운 5가지 이펙트 타입을 위한 미리보기 캔버스
  */
 
-import React, { useEffect, useRef } from 'react';
-import { EffectPreset } from '../../lib/skillSystem';
+import { useEffect, useRef } from 'react';
 import {
   createEffect,
-  updateNewParticles,
   renderNewParticles,
+  updateNewParticles,
 } from '../../lib/simulator/particles';
 import { SkillParticle } from '../../lib/simulator/types';
+import { EffectPreset } from '../../lib/skillSystem';
 
 interface EffectPreviewCanvasNewProps {
-  preset: EffectPreset;
+  preset?: EffectPreset;
+  presets?: EffectPreset[];
   width?: number;
   height?: number;
 }
 
 export function EffectPreviewCanvasNew({
   preset,
+  presets,
   width = 800,
   height = 400,
 }: EffectPreviewCanvasNewProps) {
@@ -38,19 +40,24 @@ export function EffectPreviewCanvasNew({
 
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
+    const previewPresets = presets?.length ? presets : preset ? [preset] : [];
 
     const createEffectParticles = () => {
       const targetX = centerX + 200; // 타겟 위치 (오른쪽)
       const targetY = centerY;
 
-      const newParticles = createEffect({
-        preset,
-        position: { x: centerX, y: centerY },
-        targetPosition: { x: targetX, y: targetY },
-        owner: 'player',
-      });
-
-      particles.push(...newParticles);
+      particles.push(
+        ...previewPresets.flatMap(effectPreset =>
+          createEffect({
+            preset: effectPreset,
+            position: { x: centerX, y: centerY },
+            targetPosition: { x: targetX, y: targetY },
+            owner: 'player',
+            skillRange: Math.min(canvas.width * 0.35, 180),
+            skillArea: 120,
+          })
+        )
+      );
     };
 
     const animate = () => {
@@ -69,7 +76,12 @@ export function EffectPreviewCanvasNew({
       ctx.fill();
 
       // 타겟 마커 (투사체/번개 타겟 위치)
-      if (preset.effectType === 'projectile' || preset.effectType === 'lightning') {
+      if (
+        previewPresets.some(
+          effectPreset =>
+            effectPreset.effectType === 'projectile' || effectPreset.effectType === 'lightning'
+        )
+      ) {
         ctx.fillStyle = '#ed8936';
         ctx.beginPath();
         ctx.arc(centerX + 200, centerY, 8, 0, Math.PI * 2);
@@ -84,7 +96,8 @@ export function EffectPreviewCanvasNew({
 
       // 자동 재생성 (반복 간격)
       spawnTimer += deltaTime;
-      const repeatInterval = (preset.repeatInterval || 1000) / 1000;
+      const repeatInterval =
+        Math.min(...previewPresets.map(effectPreset => effectPreset.repeatInterval || 1000)) / 1000;
 
       if (spawnTimer >= repeatInterval) {
         createEffectParticles();
@@ -105,14 +118,14 @@ export function EffectPreviewCanvasNew({
         cancelAnimationFrame(animationId);
       }
     };
-  }, [preset, width, height]);
+  }, [preset, presets, width, height]);
 
   return (
     <canvas
       ref={canvasRef}
       width={width}
       height={height}
-      className='border border-slate-700 rounded-lg bg-slate-950'
+      className='border border-slate-700 rounded-lg bg-slate-950 w-full h-auto'
     />
   );
 }

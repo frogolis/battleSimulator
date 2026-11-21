@@ -152,7 +152,6 @@ export function textToBlocks(expression: string): FormulaBlock | null {
 
     return null;
   } catch {
-    // eslint-disable-next-line no-unused-vars
     return null;
   }
 }
