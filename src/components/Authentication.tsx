@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { createManagedUser, getManagedUsers, type ManagedUser } from '../features/auth/client';
+import {
+  createManagedUser,
+  getManagedUsers,
+  resetManagedUserPassword,
+  type ManagedUser,
+} from '../features/auth/client';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface AuthenticationScreenProps {
   needsSetup: boolean;
@@ -118,15 +124,21 @@ export function AccountManagementDialog({ open, onOpenChange }: AccountManagemen
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
+  const [resetUserId, setResetUserId] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmation, setResetConfirmation] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
+  const [feedbackAction, setFeedbackAction] = useState<'create' | 'reset'>('create');
 
   useEffect(() => {
     if (!open) return;
     let active = true;
     setLoading(true);
     setError(undefined);
+    setNotice(undefined);
+    setFeedbackAction('create');
     getManagedUsers()
       .then(result => {
         if (active) setUsers(result.users);
@@ -145,6 +157,7 @@ export function AccountManagementDialog({ open, onOpenChange }: AccountManagemen
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    setFeedbackAction('create');
     setError(undefined);
     setNotice(undefined);
     if (password !== confirmation) {
@@ -169,9 +182,35 @@ export function AccountManagementDialog({ open, onOpenChange }: AccountManagemen
     }
   };
 
+  const handleReset = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFeedbackAction('reset');
+    setError(undefined);
+    setNotice(undefined);
+    if (!resetUserId) {
+      setError('비밀번호를 재설정할 사용자를 선택해 주세요.');
+      return;
+    }
+    if (resetPassword !== resetConfirmation) {
+      setError('비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await resetManagedUserPassword(resetUserId, resetPassword);
+      setResetPassword('');
+      setResetConfirmation('');
+      setNotice('비밀번호를 재설정했습니다. 해당 사용자는 다시 로그인해야 합니다.');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '비밀번호를 재설정하지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className='max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>사용자 계정 관리</DialogTitle>
           <DialogDescription>
@@ -236,14 +275,67 @@ export function AccountManagementDialog({ open, onOpenChange }: AccountManagemen
               onChange={event => setConfirmation(event.target.value)}
             />
           </div>
-          {error && (
+          {feedbackAction === 'create' && error && (
             <Alert variant='destructive'>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {notice && <p className='text-sm text-green-700'>{notice}</p>}
+          {feedbackAction === 'create' && notice && (
+            <p className='text-sm text-green-700'>{notice}</p>
+          )}
           <Button type='submit' disabled={loading}>
             {loading ? '처리 중...' : '사용자 계정 발급'}
+          </Button>
+        </form>
+        <form className='space-y-3 border-t pt-3' onSubmit={handleReset}>
+          <h3 className='text-sm font-medium'>사용자 비밀번호 재설정</h3>
+          <Label htmlFor='reset-user'>사용자 선택</Label>
+          <Select value={resetUserId} onValueChange={setResetUserId}>
+            <SelectTrigger id='reset-user'>
+              <SelectValue placeholder='사용자를 선택하세요' />
+            </SelectTrigger>
+            <SelectContent>
+              {users
+                .filter(user => user.role === 'user')
+                .map(user => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.username}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          <Label htmlFor='reset-password'>새 비밀번호</Label>
+          <Input
+            id='reset-password'
+            type='password'
+            autoComplete='new-password'
+            minLength={12}
+            maxLength={128}
+            required
+            value={resetPassword}
+            onChange={event => setResetPassword(event.target.value)}
+          />
+          <Label htmlFor='reset-password-confirm'>새 비밀번호 확인</Label>
+          <Input
+            id='reset-password-confirm'
+            type='password'
+            autoComplete='new-password'
+            minLength={12}
+            maxLength={128}
+            required
+            value={resetConfirmation}
+            onChange={event => setResetConfirmation(event.target.value)}
+          />
+          {feedbackAction === 'reset' && error && (
+            <Alert variant='destructive'>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {feedbackAction === 'reset' && notice && (
+            <p className='text-sm text-green-700'>{notice}</p>
+          )}
+          <Button type='submit' disabled={loading}>
+            비밀번호 재설정
           </Button>
         </form>
       </DialogContent>

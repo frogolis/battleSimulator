@@ -49,7 +49,8 @@ import { DataRow, mockDataset } from './lib/mockData';
 import type { MonsterTypeStats } from './lib/monsterTypes';
 import { DEFAULT_MAX_MONSTER_COUNT, DEFAULT_RESPAWN_DELAY } from './lib/simulator/constants';
 import type { StageDefinition } from './lib/simulator/waves';
-import { isWorkspaceSnapshot, type WorkspaceSnapshot } from './features/workspace/model';
+import { assertWorkspaceSnapshot, type WorkspaceSnapshot } from './features/workspace/model';
+import { createSerializedWriter } from './features/workspace/serializedWriter';
 import {
   BasicAttackSlot,
   defaultSkills,
@@ -222,6 +223,13 @@ export default function App() {
   >('saved');
   const [workspaceSaveRetry, setWorkspaceSaveRetry] = useState(0);
   const [workspaceError, setWorkspaceError] = useState<string>();
+  const [writeWorkspace] = useState(() =>
+    createSerializedWriter(async (workspace: WorkspaceSnapshot) => {
+      await saveWorkspace(workspace);
+    })
+  );
+  const workspaceSaveRevision = useRef(0);
+  const workspaceSaveTimeout = useRef<number | undefined>();
   const [accountManagerOpen, setAccountManagerOpen] = useState(false);
   const [removeLegacyPresetsAfterSave, setRemoveLegacyPresetsAfterSave] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>(APP_VIEW.SIMULATOR);
@@ -318,10 +326,9 @@ export default function App() {
       let workspace: WorkspaceSnapshot;
       if (input === null) {
         workspace = cloneWorkspace(defaultWorkspace);
-      } else if (isWorkspaceSnapshot(input)) {
-        workspace = cloneWorkspace(input);
       } else {
-        throw new Error('저장된 사용자 작업공간의 데이터 형식이 올바르지 않습니다.');
+        assertWorkspaceSnapshot(input);
+        workspace = cloneWorkspace(input);
       }
 
       const rowCount = Math.max(workspace.playerDataset.length, workspace.monsterDataset.length);
@@ -513,9 +520,12 @@ export default function App() {
   );
 
   const handleLogout = useCallback(async () => {
+    workspaceSaveRevision.current++;
+    window.clearTimeout(workspaceSaveTimeout.current);
+    workspaceSaveTimeout.current = undefined;
     setWorkspaceLoaded(false);
     try {
-      await saveWorkspace(getCurrentWorkspace());
+      await writeWorkspace(getCurrentWorkspace());
       await logout();
       setAuthUser(null);
       setAuthNeedsSetup(false);
@@ -526,16 +536,19 @@ export default function App() {
       setWorkspaceSaveState('error');
       setWorkspaceError(error instanceof Error ? error.message : '로그아웃을 완료하지 못했습니다.');
     }
-  }, [getCurrentWorkspace]);
+  }, [getCurrentWorkspace, writeWorkspace]);
 
   useEffect(() => {
     if (!authUser || !workspaceLoaded) return;
     const workspace = getCurrentWorkspace();
+    const revision = ++workspaceSaveRevision.current;
     setWorkspaceSaveState('pending');
     const timeout = window.setTimeout(async () => {
+      workspaceSaveTimeout.current = undefined;
       setWorkspaceSaveState('saving');
       try {
-        await saveWorkspace(workspace);
+        await writeWorkspace(workspace);
+        if (revision !== workspaceSaveRevision.current) return;
         setWorkspaceSaveState('saved');
         setWorkspaceError(undefined);
         if (removeLegacyPresetsAfterSave) {
@@ -549,19 +562,25 @@ export default function App() {
           }
         }
       } catch (error) {
+        if (revision !== workspaceSaveRevision.current) return;
         setWorkspaceSaveState('error');
         setWorkspaceError(
           error instanceof Error ? error.message : '작업공간을 저장하지 못했습니다.'
         );
       }
     }, 500);
-    return () => window.clearTimeout(timeout);
+    workspaceSaveTimeout.current = timeout;
+    return () => {
+      window.clearTimeout(timeout);
+      if (workspaceSaveTimeout.current === timeout) workspaceSaveTimeout.current = undefined;
+    };
   }, [
     authUser,
     workspaceLoaded,
     getCurrentWorkspace,
     removeLegacyPresetsAfterSave,
     workspaceSaveRetry,
+    writeWorkspace,
   ]);
 
   // Update current data row when tick changes (NOT when dataset changes)

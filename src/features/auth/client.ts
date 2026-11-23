@@ -102,3 +102,13 @@ export function createManagedUser(
     body: JSON.stringify({ username, password }),
   });
 }
+
+export function resetManagedUserPassword(
+  userId: string,
+  password: string
+): Promise<{ ok: boolean }> {
+  return requestJson('/api/admin/users/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ userId, password }),
+  });
+}

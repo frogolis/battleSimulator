@@ -3,6 +3,9 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hashPassword, resetPassword, validPassword } from './password.mjs';
+
+export { hashPassword } from './password.mjs';
 
 const SESSION_COOKIE = 'battle_simulator_session';
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -35,11 +38,6 @@ export function initializeDatabase(database) {
       updated_at TEXT NOT NULL
     );
   `);
-}
-
-export function hashPassword(password, salt = randomBytes(16)) {
-  const hash = scryptSync(password, salt, 64);
-  return { salt: salt.toString('hex'), hash: hash.toString('hex') };
 }
 
 export function verifyPassword(password, saltHex, hashHex) {
@@ -151,7 +149,7 @@ function validateCredentials(value) {
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) {
     return { error: '사용자 이름은 영문 소문자, 숫자, 점, 밑줄, 하이픈으로 3~32자여야 합니다.' };
   }
-  if (value.password.length < 12 || value.password.length > 128) {
+  if (!validPassword(value.password)) {
     return { error: '비밀번호는 12~128자로 입력해 주세요.' };
   }
   return { username, password: value.password };
@@ -481,6 +479,21 @@ export function createApiServer(database) {
           throw error;
         }
         sendJson(response, 201, { user });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/admin/users/reset-password') {
+        if (currentUser.role !== 'admin') {
+          sendJson(response, 403, { error: '관리자 권한이 필요합니다.' });
+          return;
+        }
+        const body = await readJson(request);
+        if (typeof body.userId !== 'string' || !body.userId) {
+          sendJson(response, 400, { error: '사용자를 선택해 주세요.' });
+          return;
+        }
+        resetPassword(database, body.userId, 'user', body.password);
+        sendJson(response, 200, { ok: true });
         return;
       }
 

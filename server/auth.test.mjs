@@ -128,11 +128,50 @@ test('first-admin setup, account provisioning, sessions, and workspace data are 
     403
   );
 
+  const reset = (cookie, userId, password) =>
+    request('/api/admin/users/reset-password', {
+      method: 'POST',
+      cookie,
+      body: { userId, password },
+    });
+  assert.equal(
+    (await reset(userLogin.cookie, createdUser.payload.user.id, 'new secure password')).status,
+    403
+  );
+  assert.equal(
+    (await reset(setup.cookie, setup.payload.user.id, 'new secure password')).status,
+    404
+  );
+  assert.equal((await reset(setup.cookie, createdUser.payload.user.id, 'short')).status, 400);
+  assert.equal(
+    (await reset(setup.cookie, createdUser.payload.user.id, 'new secure password')).status,
+    200
+  );
+  assert.equal((await request('/api/workspace', { cookie: userLogin.cookie })).status, 401);
+  assert.equal(
+    (
+      await request('/api/auth/login', {
+        method: 'POST',
+        body: { username: 'toolkit-user', password: 'a secure user password' },
+      })
+    ).status,
+    401
+  );
+  const resetLogin = await request('/api/auth/login', {
+    method: 'POST',
+    body: { username: 'toolkit-user', password: 'new secure password' },
+  });
+  assert.equal(resetLogin.status, 200);
+  assert.deepEqual(
+    (await request('/api/workspace', { cookie: resetLogin.cookie })).payload.workspace,
+    workspace
+  );
+
   assert.equal(
     (
       await request('/api/auth/logout', {
         method: 'POST',
-        cookie: userLogin.cookie,
+        cookie: resetLogin.cookie,
       })
     ).status,
     200
@@ -140,7 +179,7 @@ test('first-admin setup, account provisioning, sessions, and workspace data are 
   assert.equal(
     (
       await request('/api/workspace', {
-        cookie: userLogin.cookie,
+        cookie: resetLogin.cookie,
       })
     ).status,
     401
