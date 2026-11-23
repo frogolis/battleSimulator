@@ -11,11 +11,9 @@ import {
     DETAILED_EFFECT_PRESETS as IMPORTED_DETAILED_EFFECT_PRESETS,
     type EffectPreset,
     type EffectPresetWithLegacy,
-    type EffectShape,
     type EffectType,
     type ParticleTexture,
     type ProjectilePattern,
-    type ProjectileType,
 } from './effects/presets';
 
 export const EFFECT_PRESETS = DEFAULT_EFFECT_PRESETS;
@@ -24,11 +22,9 @@ export const DETAILED_EFFECT_PRESETS = IMPORTED_DETAILED_EFFECT_PRESETS;
 export type {
     EffectPreset,
     EffectPresetWithLegacy,
-    EffectShape,
     EffectType,
     ParticleTexture,
-    ProjectilePattern,
-    ProjectileType
+    ProjectilePattern
 };
 
 export type SkillType =
@@ -389,7 +385,10 @@ export interface SkillEffectConfig {
   speeds: { min: number; max: number };
 }
 
-export type SkillVisual = LegacyVisualFields & {
+export type SkillVisual = Pick<
+  EffectPresetWithLegacy,
+  'effectPresetId' | 'particleCount' | 'particleSize' | 'particleLifetime' | 'effectShape'
+> & {
   color: string;
   secondaryColor: string;
   glowIntensity: number;
@@ -478,6 +477,23 @@ export interface SkillSlot {
   slotNumber: 1 | 2 | 3 | 4;
   skill: Skill | null;
   keyBinding: string; // '1', '2', '3', '4'
+  overrides?: Partial<Pick<Skill, 'range' | 'area' | 'damageMultiplier' | 'cooldown' | 'spCost' | 'castTime'>>;
+}
+
+export function resolveSlotSkill(
+  skill: Skill,
+  skillConfigs: Record<string, Skill> | undefined,
+  overrides: SkillSlot['overrides']
+): Skill {
+  const definition = skillConfigs && Object.hasOwn(skillConfigs, skill.id)
+    ? skillConfigs[skill.id]
+    : skill;
+  return {
+    ...definition,
+    ...overrides,
+    currentCooldown: skill.currentCooldown,
+    isOnCooldown: skill.isOnCooldown,
+  };
 }
 
 /**
@@ -1587,7 +1603,7 @@ export function useSkill(skill: Skill): Skill {
   return {
     ...skill,
     currentCooldown: skill.cooldown,
-    isOnCooldown: true,
+    isOnCooldown: skill.cooldown > 0,
   };
 }
 

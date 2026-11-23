@@ -1,3 +1,16 @@
+export const PLAYER_LEVEL_STAT_FIELDS = [
+  'player_hp',
+  'player_sp',
+  'player_attack',
+  'player_defense',
+  'player_speed',
+  'player_attack_speed',
+  'player_accuracy',
+  'player_critical_rate',
+] as const;
+
+export type PlayerLevelStatField = (typeof PLAYER_LEVEL_STAT_FIELDS)[number];
+
 export interface DataRow {
   t: number;
   x: number;
@@ -10,6 +23,7 @@ export interface DataRow {
 
   // Player config fields
   // 독립 변수 (사용자가 직접 설정)
+  player_character_id?: string;
   player_level?: number;
   player_size?: number;
 
@@ -74,6 +88,7 @@ export interface DataRow {
 
   // Monster config fields
   // 독립 변수
+  monster_definition_id?: string;
   monster_level?: number;
   monster_size?: number;
 

@@ -6,6 +6,7 @@
 import { CharacterStats, MonsterStats } from '../gameData';
 import { AIConfig, AIPatternConfig } from '../monsterAI';
 import { BasicAttackSlot, CharacterSkills } from '../skillSystem';
+import type { MonsterStatsRow } from './monsterStats';
 
 /**
  * 2D 좌표
@@ -50,6 +51,7 @@ export interface CharacterState {
  */
 export interface MonsterState {
   id: number;
+  sourceStats?: Readonly<MonsterStatsRow>;
   position: Position;
   stats: MonsterStats;
   isAttacking: boolean;
@@ -187,6 +189,10 @@ export interface SkillParticle {
   // 글로우 이펙트
   glowIntensity?: number; // 글로우 강도
   riseSpeed?: number; // 상승 속도 (글로우 파티클용)
+
+  // 코드 이펙트용 물리 보조값
+  gravity?: number; // y축 가속도 (px/s²)
+  drag?: number; // 초당 속도 감쇠 비율 (0~1)
 }
 
 /**

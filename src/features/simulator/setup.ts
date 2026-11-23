@@ -1,6 +1,6 @@
-import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
 import { DataRow, mockDataset } from '../../lib/mockData';
 import { defaultAIPatternConfig } from '../../lib/monsterAI';
+import type { MonsterTypeStats } from '../../lib/monsterTypes';
 
 export function createInitialMonsterTypeStats(): Record<string, MonsterTypeStats> {
   return {
@@ -27,14 +27,19 @@ export function createInitialDatasets(): { playerDataset: DataRow[]; monsterData
   const playerDataset = mockDataset.filter(row => row.player_size !== undefined);
   const monsterDataset = mockDataset
     .filter(row => row.monster_size !== undefined)
-    .map(row => {
-      if (!row.monster_ai_patterns) {
+    .map((row, index) => {
+      const monsterRow = {
+        ...row,
+        monster_definition_id:
+          row.monster_definition_id?.trim() || `monster_seed_${index + 1}`,
+      };
+      if (!monsterRow.monster_ai_patterns) {
         return {
-          ...row,
+          ...monsterRow,
           monster_ai_patterns: JSON.stringify(defaultAIPatternConfig),
         };
       }
-      return row;
+      return monsterRow;
     });
 
   return { playerDataset, monsterDataset };

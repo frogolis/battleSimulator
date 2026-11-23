@@ -3,19 +3,20 @@ import type { ComponentType } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
+  addPlayerTableExperience,
+  applyPlayerLevelRow,
+  findPlayerLevelRow,
+  type PlayerLevelRow,
+} from '../features/simulator/playerLevelTable';
+import {
   CharacterSkills,
   calculateCritical,
-  loadMonsterAI,
-  loadMonsterAIPattern,
-  loadMonsterBasicAttack,
-  loadMonsterSkills,
 } from '../lib/combatSystem';
 import { resolveCharacterConfigMid } from '../lib/configUtils';
 import {
   CharacterStats,
   MonsterStats,
   calculateDamage,
-  defaultMonsterStats,
   defaultPlayerStats,
 } from '../lib/gameData';
 import {
@@ -42,11 +43,24 @@ import {
   getLevelProgress,
 } from '../lib/levelSystem';
 import { DataRow } from '../lib/mockData';
-import { AIConfig, AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
+import { AIConfig, AIPatternConfig } from '../lib/monsterAI';
 import {
   checkMonsterParticleCollision,
   checkPlayerParticleCollision,
 } from '../lib/simulator/gameLoop';
+import {
+  createMonsters,
+  createMonstersForMappings,
+  resolveMonsterCount,
+} from '../lib/simulator/characters';
+import { killMonster, removeDeadMonsters, updateRespawnTimers } from '../lib/simulator/respawn';
+import { validateMonsterSpawnRows, type MonsterStatsRow } from '../lib/simulator/monsterStats';
+import {
+  advanceStageProgress,
+  validateStageDefinitions,
+  type StageDefinition,
+  type StageProgress,
+} from '../lib/simulator/waves';
 import {
   createEffect,
   createSkillEffectParticles,
@@ -66,8 +80,8 @@ import {
   consumeSP,
   useSkill as consumeSkill,
   defaultSPConfig,
-  defaultSkills,
   regenerateSP,
+  resolveSlotSkill,
   updateSkillCooldown,
 } from '../lib/skillSystem';
 import { KeyBindings } from './KeyBindingSettings';
@@ -124,6 +138,7 @@ interface CharacterState {
 
 interface MonsterState {
   id: number;
+  sourceStats?: MonsterStatsRow;
   position: Position;
   stats: MonsterStats;
   isAttacking: boolean;
@@ -214,8 +229,10 @@ interface MultiMonsterSimulatorProps {
   testMode?: boolean; // 테스트 모드 (HUD/컨트롤 UI 숨김, 기본값: false)
   initialZoom?: number; // 초기 확대/축소 비율 (testMode에서만 사용, 기본값: 3.0)
   onZoomChange?: (zoom: number) => void; // 확대/축소 변경 콜백
-  selectedMonsterRows?: Set<number>; // 선택된 몬스터 행 (가중치 기반 스폰용)
+  selectedMonsterRows?: Set<string>; // 선택된 몬스터 ID (가중치 기반 스폰용)
   monsterDataset?: DataRow[]; // 몬스터 데이터셋 (가중치 기반 스폰용)
+  playerDataset?: DataRow[];
+  stageDefinition?: StageDefinition;
 }
 const ATTACK_COOLDOWN = 1000;
 const PROJECTILE_SPEED = 300;
@@ -224,7 +241,6 @@ const PROJECTILE_MAX_DISTANCE = 400;
 const PROJECTILE_FADE_START = 300;
 const MELEE_SWING_DURATION = 250;
 // MELEE_SWING_ARC is now calculated from attackWidth dynamically
-const MONSTER_DETECTION_RANGE = 200;
 const _MONSTER_RETREAT_HP_PERCENT = 0.3;
 const _MONSTER_WANDER_SPEED = 0.3;
 
@@ -279,6 +295,8 @@ const resolveEffectPresetForSkill = (skill: Skill): EffectPreset => {
     glowFadeSpeed: skill.visual.glowFadeSpeed ?? basePreset.glowFadeSpeed,
     repeatCount: skill.visual.repeatCount ?? basePreset.repeatCount,
     repeatInterval: skill.visual.repeatInterval ?? basePreset.repeatInterval,
+    customCode: skill.visual.customCode ?? basePreset.customCode,
+    useCustomCode: skill.visual.useCustomCode ?? basePreset.useCustomCode,
   };
 };
 
@@ -298,7 +316,7 @@ export function MultiMonsterSimulator({
   keyBindings: _keyBindings,
   playerConfig,
   monsterConfig,
-  currentTick: _currentTick,
+  currentTick,
   currentDataRow,
   enableRespawn = true,
   initialMonsterCount = 3,
@@ -320,7 +338,9 @@ export function MultiMonsterSimulator({
   initialZoom = 3.0,
   onZoomChange,
   selectedMonsterRows = new Set(),
-  monsterDataset = [],
+  monsterDataset,
+  playerDataset,
+  stageDefinition,
 }: MultiMonsterSimulatorProps) {
   // maxMonsterCount가 지정되지 않으면 initialMonsterCount와 동일하게 설정
   const effectiveMaxMonsterCount = maxMonsterCount ?? initialMonsterCount;
@@ -345,7 +365,9 @@ export function MultiMonsterSimulator({
     current: defaultPlayerStats.hp,
     max: defaultPlayerStats.maxHp,
   });
-  const [monsterCount, setMonsterCount] = useState<number>(initialMonsterCount);
+  const [monsterCount, setMonsterCount] = useState<number>(
+    resolveMonsterCount(initialMonsterCount, effectiveMaxMonsterCount)
+  );
   const [killCount, setKillCount] = useState<number>(0);
 
   // Zoom state (for testMode)
@@ -359,18 +381,21 @@ export function MultiMonsterSimulator({
 
   // Simulator mode state (1:1 vs 1:다)
   const [simulatorMode, setSimulatorMode] = useState<'1v1' | '1vMany'>('1vMany');
+  const [stageProgress, setStageProgress] = useState<
+    (StageProgress & { stageId: string }) | null
+  >(null);
 
   // 가중치 기반으로 몬스터를 선택하는 함수
   const selectMonsterByWeight = useCallback(() => {
     // 선택된 행이 없으면 null 반환
-    if (selectedMonsterRows.size === 0 || monsterDataset.length === 0) {
+    if (selectedMonsterRows.size === 0 || !monsterDataset || monsterDataset.length === 0) {
       return null;
     }
 
     // 선택된 몬스터들만 필터링
     const selectedMonsters = Array.from(selectedMonsterRows)
-      .map(idx => monsterDataset[idx])
-      .filter(row => row !== undefined);
+      .map(id => monsterDataset.find(row => row.monster_definition_id === id))
+      .filter((row): row is DataRow => row !== undefined);
 
     if (selectedMonsters.length === 0) {
       return null;
@@ -481,9 +506,14 @@ export function MultiMonsterSimulator({
   });
 
   const monstersRef = useRef<MonsterState[]>([]);
+  const lastMonsterSpawnErrorRef = useRef<string | undefined>(undefined);
   const projectilesRef = useRef<Projectile[]>([]);
   const _projectileIdRef = useRef<number>(0);
   const monsterIdRef = useRef<number>(0);
+  const activeStageRunRef = useRef<StageDefinition | null>(null);
+  const stageMonsterDatasetRef = useRef<DataRow[]>([]);
+  const stageProgressRef = useRef<StageProgress | null>(null);
+  const stageProgressUpdateTimeRef = useRef(0);
   const skillParticlesRef = useRef<SkillParticle[]>([]);
   const particleIdRef = useRef<number>(0);
   const damageTextsRef = useRef<DamageText[]>([]);
@@ -497,7 +527,34 @@ export function MultiMonsterSimulator({
   const activeSkillsRef = useRef<SkillSlot[]>(skillSlots);
   const activeItemsRef = useRef<ItemSlot[]>(itemSlots);
   const playerBasicAttackRef = useRef<BasicAttackSlot | undefined>(playerBasicAttack);
-  const monsterBasicAttackRef = useRef<BasicAttackSlot | undefined>(monsterBasicAttack);
+  const playerLevelRef = useRef(currentPlayerLevel);
+  const playerLevelRowRef = useRef<PlayerLevelRow | null>(null);
+  const playerCharacterIdRef = useRef<string | undefined>(undefined);
+  const prevLevelRef = useRef(currentPlayerLevel.currentLevel);
+
+  useEffect(() => {
+    if (stageDefinition && simulatorMode !== '1vMany') setSimulatorMode('1vMany');
+  }, [stageDefinition, simulatorMode]);
+
+  useEffect(() => {
+    if (activeStageRunRef.current) return;
+    if (simulatorMode !== '1vMany') return;
+    const boundedCount = resolveMonsterCount(monsterCount, effectiveMaxMonsterCount);
+    if (boundedCount !== monsterCount) setMonsterCount(boundedCount);
+    if (monstersRef.current.length > boundedCount) {
+      monstersRef.current = monstersRef.current.slice(0, boundedCount);
+    }
+  }, [effectiveMaxMonsterCount, monsterCount, simulatorMode]);
+
+  useEffect(() => {
+    if (!enableRespawn && !activeStageRunRef.current) {
+      monstersRef.current = removeDeadMonsters(monstersRef.current);
+    }
+  }, [enableRespawn]);
+
+  useEffect(() => {
+    playerLevelRef.current = currentPlayerLevel;
+  }, [currentPlayerLevel]);
 
   useEffect(() => {
     playerConfigRef.current = playerConfig;
@@ -510,6 +567,19 @@ export function MultiMonsterSimulator({
   // Update player level when playerLevelConfig changes
   useEffect(() => {
     if (playerLevelConfig) {
+      if (isGameStarted && playerDataset && playerCharacterIdRef.current) {
+        const match = findPlayerLevelRow(
+          playerDataset,
+          playerCharacterIdRef.current,
+          playerLevelConfig.currentLevel
+        );
+        if (!match.ok) {
+          toast.warning(match.reason);
+          return;
+        }
+        playerLevelRowRef.current = match.row;
+      }
+      playerLevelRef.current = playerLevelConfig;
       setCurrentPlayerLevel(playerLevelConfig);
     }
   }, [playerLevelConfig]);
@@ -523,13 +593,17 @@ export function MultiMonsterSimulator({
 
   // Update player stats when level changes
   useEffect(() => {
-    const levelStats = calculateLevelStats(currentPlayerLevel);
+    const levelStats = applyPlayerLevelRow(calculateLevelStats(currentPlayerLevel), playerLevelRowRef.current);
+    const levelChanged = prevLevelRef.current !== currentPlayerLevel.currentLevel;
+    prevLevelRef.current = currentPlayerLevel.currentLevel;
 
     if (isGameStarted && !isGameOver) {
       // 게임 진행 중: HP/SP 비율 유지하면서 스탯 업데이트
       playerRef.current.stats = {
         ...playerRef.current.stats,
-        hp: Math.min(levelStats.hp, playerRef.current.stats.hp), // Don't heal, just cap at new max
+        hp: levelChanged && playerRef.current.stats.maxHp > 0
+          ? Math.max(1, Math.floor(levelStats.hp * playerRef.current.stats.hp / playerRef.current.stats.maxHp))
+          : Math.min(levelStats.hp, playerRef.current.stats.hp),
         maxHp: levelStats.hp,
         attack: levelStats.attack,
         defense: levelStats.defense,
@@ -539,7 +613,7 @@ export function MultiMonsterSimulator({
       // Update SP config
       setSPConfig(prev => ({
         ...prev,
-        current: Math.min(levelStats.sp, prev.current + (levelStats.sp - prev.max)), // Add difference to current SP
+        current: Math.max(0, Math.min(levelStats.sp, prev.current + (levelStats.sp - prev.max))),
         max: levelStats.sp,
       }));
 
@@ -581,7 +655,7 @@ export function MultiMonsterSimulator({
 
       // Update all monsters' stats while preserving current HP ratio
       monstersRef.current.forEach(monster => {
-        if (!monster.isDead) {
+        if (!monster.isDead && !monster.sourceStats) {
           monster.stats = {
             ...monster.stats,
             hp: Math.min(monsterLevelStats.hp, monster.stats.hp), // Don't heal, just cap at new max
@@ -611,8 +685,6 @@ export function MultiMonsterSimulator({
   }, [playerBasicAttack]);
 
   useEffect(() => {
-    monsterBasicAttackRef.current = monsterBasicAttack;
-
     // 기존 몬스터들의 basicAttack 완전히 교체 (스킬 정보 포함)
     if (monsterBasicAttack) {
       monstersRef.current.forEach(monster => {
@@ -644,134 +716,152 @@ export function MultiMonsterSimulator({
 
   // Initialize monsters (게임 시작/재시작 시에만 호출)
   const initializeMonsters = useCallback(() => {
-    const monsters: MonsterState[] = [];
-    // 1:1 모드일 때는 무조건 1개, 1:다 모드일 때는 monsterCount 사용
-    const actualMonsterCount = simulatorMode === '1v1' ? 1 : monsterCount;
-    for (let i = 0; i < actualMonsterCount; i++) {
-      // 선택된 몬스터가 있으면 가중치 기반으로 선택, 없으면 currentDataRow의 스냅샷 사용
-      const selectedMonster = selectMonsterByWeight();
-      const monsterData = selectedMonster || currentDataRow;
+    const stageSnapshot = stageDefinition
+      ? {
+          ...stageDefinition,
+          waves: stageDefinition.waves.map(wave => ({
+            ...wave,
+            monsterSpawns: wave.monsterSpawns.map(mapping => ({ ...mapping })),
+            respawn: { ...wave.respawn },
+          })),
+        }
+      : null;
+    const stageMonsterDataset = stageSnapshot && monsterDataset
+      ? monsterDataset
+        .filter(row => stageSnapshot.waves.some(wave =>
+          wave.monsterSpawns.some(mapping =>
+            mapping.monsterDefinitionId === row.monster_definition_id
+          )
+        ))
+        .map(row => ({ ...row }))
+      : [];
+    activeStageRunRef.current = stageSnapshot;
+    stageMonsterDatasetRef.current = stageMonsterDataset;
+    const initialStageProgress = stageSnapshot
+      ? { waveIndex: 0, elapsedMs: 0, complete: false }
+      : null;
+    stageProgressRef.current = initialStageProgress;
+    stageProgressUpdateTimeRef.current = 0;
+    setStageProgress(
+      stageSnapshot && initialStageProgress
+        ? { ...initialStageProgress, stageId: stageSnapshot.id }
+        : null
+    );
 
-      // 몬스터 데이터에서 이름과 색상 가져오기
-      const monsterName = monsterData?.monster_name || `몬스터 ${i + 1}`;
-      const monsterColor = monsterData?.monster_color || '#ff6b6b';
-
-      // AI 패턴 로드
-      const aiPatternConfig = monsterData
-        ? loadMonsterAIPattern(monsterData)
-        : defaultAIPatternConfig;
-      const aiConfig = monsterData
-        ? loadMonsterAI(monsterData)
-        : {
-            type: 'aggressive' as const,
-            aggroRange: 300,
-            skillPriority: 'damage' as const,
-          };
-
-      // 스킬 로드
-      const monsterSkills = monsterData
-        ? loadMonsterSkills(monsterData)
-        : {
-            slot1: null,
-            slot2: null,
-            slot3: null,
-            slot4: null,
-          };
-
-      // 기본 공격 로드
-      const monsterBasicAttackData = monsterData ? loadMonsterBasicAttack(monsterData) : null;
-
-      const monsterBasicAttackSlot = monsterBasicAttackData
-        ? {
-            skill: skillConfigs?.[monsterBasicAttackData.id] || {
-              ...defaultSkills.meleeAttack,
-              id: monsterBasicAttackData.id,
-              name: '기본 공격',
-              category: 'basicAttack',
-              range: monsterBasicAttackData.range,
-              area: monsterBasicAttackData.width,
-              damageMultiplier: monsterBasicAttackData.damage,
-              cooldown: monsterBasicAttackData.cooldown,
-              spCost: monsterBasicAttackData.spCost,
-              castTime: monsterBasicAttackData.castTime,
-              currentCooldown: 0,
-              isOnCooldown: false,
-            },
-            keyBinding: 'click' as const,
-            range: monsterBasicAttackData.range,
-            width: monsterBasicAttackData.width,
-            damage: monsterBasicAttackData.damage,
-            cooldown: monsterBasicAttackData.cooldown,
-            spCost: monsterBasicAttackData.spCost,
-            castTime: monsterBasicAttackData.castTime,
-          }
-        : null;
-
-      // 몬스터 레벨에 따른 스탯 계산
-      const monsterLevelStats = calculateLevelStats(currentMonsterLevel);
-      const monsterStats: MonsterStats = {
-        hp: monsterLevelStats.hp,
-        maxHp: monsterLevelStats.hp,
-        attack: monsterLevelStats.attack,
-        defense: monsterLevelStats.defense,
-        speed: monsterLevelStats.speed,
-        attackRange: defaultMonsterStats.attackRange,
-        attackWidth: defaultMonsterStats.attackWidth,
-        critRate: defaultMonsterStats.critRate || 0.05,
-        critDamage: defaultMonsterStats.critDamage || 1.3,
-        accuracy: defaultMonsterStats.accuracy || 0.85,
-        evasion: defaultMonsterStats.evasion || 0.03,
-      };
-
-      monsters.push({
-        id: monsterIdRef.current++,
-        position: {
-          x: Math.random() * (CANVAS_WIDTH - 100) + 50,
-          y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
-        },
-        stats: monsterStats,
-        isAttacking: false,
-        attackCooldown: 0,
-        isDead: false,
-        aiState: 'CHASE', // 초기 상태는 추적
-        wanderTarget: null,
-        wanderCooldown: 0,
-        detectionRange: 9999, // 무제한 감지 범위
-        respawnTimer: 0,
-        velocity: { x: 0, y: 0 },
-        knockbackTime: 0,
-        name: monsterName,
-        color: monsterColor,
-        skills: monsterSkills,
-        basicAttack: monsterBasicAttackSlot,
-        aiConfig,
-        aiPatternConfig,
-        sp: monsterData?.monster_sp || 100,
-        maxSP: monsterData?.monster_sp || 100,
-        currentSkill: null,
-        skillPhase: 'idle' as const,
-        skillPhaseStartTime: 0,
-        currentSkillTiming: undefined,
+    if (stageSnapshot) {
+      const monsters = createMonstersForMappings({
+        monsterSpawns: stageSnapshot.waves[0].monsterSpawns,
+        monsterDataset: stageMonsterDataset,
+        maxCount: effectiveMaxMonsterCount,
+        startId: monsterIdRef.current,
+        canvasWidth: CANVAS_WIDTH,
+        canvasHeight: CANVAS_HEIGHT,
+        skillConfigs,
+        monsterLevelConfig: currentMonsterLevel,
       });
+      monsterIdRef.current += monsters.length;
+      monstersRef.current = monsters;
+      return;
     }
+
+    // 1:1 모드일 때는 무조건 1개, 1:다 모드일 때는 monsterCount 사용
+    const maxCount = simulatorMode === '1v1' ? 1 : effectiveMaxMonsterCount;
+    const count = simulatorMode === '1v1'
+      ? 1
+      : resolveMonsterCount(monsterCount, maxCount);
+    const monsters = createMonsters({
+      count,
+      maxCount,
+      startId: monsterIdRef.current,
+      canvasWidth: CANVAS_WIDTH,
+      canvasHeight: CANVAS_HEIGHT,
+      selectMonsterByWeight,
+      currentDataRow: monsterDataset ? monsterDataset[currentTick] : currentDataRow ?? undefined,
+      skillConfigs,
+      monsterLevelConfig: currentMonsterLevel,
+      requireMonsterStats: monsterDataset !== undefined,
+    });
+    monsterIdRef.current += monsters.length;
     monstersRef.current = monsters;
   }, [
     monsterCount,
+    effectiveMaxMonsterCount,
     selectMonsterByWeight,
     skillConfigs,
     simulatorMode,
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
     currentDataRow,
+    currentTick,
+    monsterDataset,
     currentMonsterLevel,
+    stageDefinition,
   ]);
 
   // 게임 시작/재시작 시에만 몬스터 초기화 (값 변경 시에는 초기화하지 않음)
   // initializeMonsters는 startGame과 restartGame에서만 호출됨
 
+  const preparePlayerLevel = useCallback(() => {
+    let levelRow: PlayerLevelRow | null = null;
+    let characterId: string | undefined;
+    if (playerDataset) {
+      const selectedRow = playerDataset[currentTick];
+      if (!selectedRow) {
+        toast.error('선택된 플레이어 데이터 행이 없습니다.');
+        return null;
+      }
+      characterId = selectedRow.player_character_id?.trim() || undefined;
+      if (characterId) {
+        const match = findPlayerLevelRow(playerDataset, characterId, currentPlayerLevel.currentLevel);
+        if (!match.ok) {
+          toast.error(match.reason);
+          return null;
+        }
+        levelRow = match.row;
+      } else {
+        toast.warning('캐릭터 ID가 없어 레벨업이 보류됩니다.');
+      }
+    }
+    playerCharacterIdRef.current = characterId;
+    playerLevelRowRef.current = levelRow;
+    playerLevelRef.current = currentPlayerLevel;
+    return applyPlayerLevelRow(calculateLevelStats(currentPlayerLevel), levelRow);
+  }, [playerDataset, currentTick, currentPlayerLevel]);
+
+  const validateMonsterSpawn = useCallback(() => {
+    if (stageDefinition) {
+      const stageError = validateStageDefinitions(
+        [stageDefinition],
+        monsterDataset ?? [],
+        effectiveMaxMonsterCount
+      );
+      if (stageError) return stageError;
+      const mappedMonsterIds = new Set(
+        stageDefinition.waves.flatMap(wave =>
+          wave.monsterSpawns.map(mapping => mapping.monsterDefinitionId)
+        )
+      );
+      return validateMonsterSpawnRows(monsterDataset ?? [], mappedMonsterIds, currentTick);
+    }
+    if (!monsterDataset) return undefined;
+    return validateMonsterSpawnRows(monsterDataset, selectedMonsterRows, currentTick);
+  }, [
+    stageDefinition,
+    monsterDataset,
+    selectedMonsterRows,
+    currentTick,
+    effectiveMaxMonsterCount,
+  ]);
+
   const startGame = useCallback(() => {
+    const monsterError = validateMonsterSpawn();
+    if (monsterError) {
+      toast.error(monsterError);
+      return;
+    }
     // 레벨에 따른 플레이어 스탯 계산 및 적용
-    const levelStats = calculateLevelStats(currentPlayerLevel);
+    const levelStats = preparePlayerLevel();
+    if (!levelStats) return;
     const playerStats: CharacterStats = {
       ...defaultPlayerStats,
       level: currentPlayerLevel.currentLevel,
@@ -825,7 +915,7 @@ export function MultiMonsterSimulator({
     if (!testMode) {
       toast.success('게임 시작!');
     }
-  }, [testMode, initializeMonsters, currentPlayerLevel, CANVAS_WIDTH, CANVAS_HEIGHT]);
+  }, [testMode, initializeMonsters, currentPlayerLevel, preparePlayerLevel, validateMonsterSpawn, CANVAS_WIDTH, CANVAS_HEIGHT]);
 
   // Auto-start game in test mode
   useEffect(() => {
@@ -835,8 +925,14 @@ export function MultiMonsterSimulator({
   }, [testMode, isGameStarted, startGame]);
 
   const restartGame = useCallback(() => {
+    const monsterError = validateMonsterSpawn();
+    if (monsterError) {
+      toast.error(monsterError);
+      return;
+    }
     // 레벨에 따른 스탯 계산
-    const levelStats = calculateLevelStats(currentPlayerLevel);
+    const levelStats = preparePlayerLevel();
+    if (!levelStats) return;
     const playerStats: CharacterStats = {
       ...defaultPlayerStats,
       level: currentPlayerLevel.currentLevel,
@@ -918,9 +1014,48 @@ export function MultiMonsterSimulator({
     itemSlots,
     testMode,
     currentPlayerLevel,
+    preparePlayerLevel,
+    validateMonsterSpawn,
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
   ]);
+
+  const gainPlayerExperience = useCallback((monsterLevel: number) => {
+    if (!playerLevelConfig) return;
+    const reward = calculateExpReward(monsterLevel);
+    if (!playerDataset) {
+      const result = addExperience(playerLevelRef.current, reward);
+      playerLevelRef.current = result.newConfig;
+      setCurrentPlayerLevel(result.newConfig);
+      if (result.leveledUp) toast.success(`레벨 업! LV.${result.newConfig.currentLevel}`);
+      return;
+    }
+
+    const result = addPlayerTableExperience(
+      playerLevelRef.current,
+      reward,
+      playerDataset,
+      playerCharacterIdRef.current
+    );
+    if (result.levelRow) playerLevelRowRef.current = result.levelRow;
+    playerLevelRef.current = result.newConfig;
+    setCurrentPlayerLevel(result.newConfig);
+    if (result.levelsGained > 0) toast.success(`레벨 업! LV.${result.newConfig.currentLevel}`);
+    if (result.blockedReason) toast.warning(`레벨업 보류: ${result.blockedReason} 경험치는 보존됩니다.`);
+  }, [playerDataset, playerLevelConfig]);
+
+  const handleMonsterDeath = useCallback((monster: MonsterState) => {
+    const activeStage = activeStageRunRef.current;
+    const activeWave = activeStage?.waves[stageProgressRef.current?.waveIndex ?? 0];
+    const shouldRespawn = activeWave?.respawn.enabled ?? enableRespawn;
+    const respawnDelay = activeWave?.respawn.delayMs ?? propRespawnDelay;
+    if (!killMonster(monster, shouldRespawn ? respawnDelay : 0)) return;
+    if (!shouldRespawn) {
+      monstersRef.current = removeDeadMonsters(monstersRef.current);
+    }
+    setKillCount(prev => prev + 1);
+    gainPlayerExperience(currentMonsterLevel.currentLevel);
+  }, [enableRespawn, propRespawnDelay, gainPlayerExperience, currentMonsterLevel.currentLevel]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -931,46 +1066,6 @@ export function MultiMonsterSimulator({
       setIsFullscreen(false);
     }
   };
-
-  // 레벨 변경을 감지하기 위한 ref
-  const prevLevelRef = useRef(currentPlayerLevel.currentLevel);
-
-  // 레벨업 시 플레이어 스탯 업데이트
-  useEffect(() => {
-    // 레벨이 실제로 변경되었는지 확인
-    if (isGameStarted && !isGameOver && prevLevelRef.current !== currentPlayerLevel.currentLevel) {
-      prevLevelRef.current = currentPlayerLevel.currentLevel;
-
-      const levelStats = calculateLevelStats(currentPlayerLevel);
-
-      // 현재 HP 비율 유지
-      const currentHpRatio = playerRef.current.stats.hp / playerRef.current.stats.maxHp;
-      const newCurrentHp = Math.floor(levelStats.hp * currentHpRatio);
-
-      // 스탯 업데이트
-      playerRef.current.stats = {
-        ...playerRef.current.stats,
-        maxHp: levelStats.hp,
-        hp: Math.max(1, newCurrentHp), // 최소 1 HP 유지
-        attack: levelStats.attack,
-        defense: levelStats.defense,
-        speed: levelStats.speed,
-      };
-
-      // UI 업데이트
-      setPlayerHp({
-        current: playerRef.current.stats.hp,
-        max: levelStats.hp,
-      });
-
-      // SP 업데이트
-      setSPConfig(prev => ({
-        ...prev,
-        max: levelStats.sp,
-        current: Math.min(prev.current, levelStats.sp),
-      }));
-    }
-  }, [currentPlayerLevel, isGameStarted, isGameOver]);
 
   // Keyboard and mouse event handlers
   useEffect(() => {
@@ -983,9 +1078,7 @@ export function MultiMonsterSimulator({
         const skillSlot = activeSkills.find(s => s.skill && s.keyBinding === skillKey);
 
         if (skillSlot?.skill) {
-          // Get the actual skill configuration from skillConfigs
-          const skillType = skillSlot.skill.id; // e.g., 'powerSlash', 'whirlwind', etc.
-          const actualSkill = skillConfigs?.[skillType] || skillSlot.skill;
+          const actualSkill = resolveSlotSkill(skillSlot.skill, skillConfigs, skillSlot.overrides);
           const canUse = canUseSkill(actualSkill, spConfig.current);
 
           if (canUse.canUse) {
@@ -1121,7 +1214,7 @@ export function MultiMonsterSimulator({
               setActiveSkills(prev =>
                 prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: consumeSkill(s.skill) }
+                    ? { ...s, skill: consumeSkill(actualSkill) }
                     : s
                 )
               );
@@ -1259,7 +1352,7 @@ export function MultiMonsterSimulator({
               setActiveSkills(prev =>
                 prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: consumeSkill(s.skill) }
+                    ? { ...s, skill: consumeSkill(actualSkill) }
                     : s
                 )
               );
@@ -1340,7 +1433,7 @@ export function MultiMonsterSimulator({
               setActiveSkills(prev =>
                 prev.map(s =>
                   s.slotNumber === skillSlot.slotNumber && s.skill
-                    ? { ...s, skill: consumeSkill(s.skill) }
+                    ? { ...s, skill: consumeSkill(actualSkill) }
                     : s
                 )
               );
@@ -1442,19 +1535,7 @@ export function MultiMonsterSimulator({
                     hitCount++;
 
                     if (monster.stats.hp <= 0) {
-                      monster.isDead = true;
-                      monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                      setKillCount(prev => prev + 1);
-
-                      if (playerLevelConfig) {
-                        const monsterStats = calculateLevelStats(currentMonsterLevel);
-                        const expReward = calculateExpReward(monsterStats.level);
-                        const newLevel = addExperience(currentPlayerLevel, expReward);
-                        if (newLevel.levelsGained > 0) {
-                          toast.success(`레벨 업! LV.${newLevel.newConfig.currentLevel}`);
-                        }
-                        setCurrentPlayerLevel(newLevel.newConfig);
-                      }
+                      handleMonsterDeath(monster);
                     }
                   }
                 }
@@ -1676,6 +1757,7 @@ export function MultiMonsterSimulator({
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
     skillConfigs,
+    handleMonsterDeath,
   ]);
 
   // Game loop
@@ -1717,7 +1799,19 @@ export function MultiMonsterSimulator({
 
       // Update player position
       const plConfigRaw = playerConfigRef.current;
-      const plConfig = resolveCharacterConfigMid(plConfigRaw);
+      const basePlayerConfig = resolveCharacterConfigMid(plConfigRaw);
+      const levelRow = playerLevelRowRef.current;
+      const plConfig = levelRow
+        ? {
+            ...basePlayerConfig,
+            attack: levelRow.player_attack,
+            defense: levelRow.player_defense,
+            speed: levelRow.player_speed,
+            attackSpeed: levelRow.player_attack_speed,
+            accuracy: levelRow.player_accuracy,
+            criticalRate: levelRow.player_critical_rate,
+          }
+        : basePlayerConfig;
       const plSpeed = plConfig.speed * deltaTime;
 
       if (keysRef.current.has('w')) playerRef.current.position.y -= plSpeed;
@@ -1790,60 +1884,104 @@ export function MultiMonsterSimulator({
       playerRef.current.stats.speed = buffedStats.speed;
       playerRef.current.stats.criticalRate = buffedStats.criticalRate;
       playerRef.current.stats.magic = 0; // No magic in this system
+      if (levelRow) {
+        playerRef.current.stats.atk = buffedStats.attack;
+        playerRef.current.stats.def = buffedStats.defense;
+      }
 
       // Skill particles are now updated in the render section (SkillTestCanvas style)
 
       // Update monsters
       const monConfigRaw = monsterConfigRef.current;
       const monConfig = resolveCharacterConfigMid(monConfigRaw);
-      const monSpeed = monConfig.speed * deltaTime;
+      const activeStage = activeStageRunRef.current;
+      let progress = stageProgressRef.current;
+      if (activeStage && progress && !progress.complete) {
+        const update = advanceStageProgress(activeStage, progress, deltaTime * 1000);
+        progress = update.progress;
+        stageProgressRef.current = progress;
+
+        if (update.waveChanged) {
+          const nextWave = activeStage.waves[progress.waveIndex];
+          const nextMonsters = createMonstersForMappings({
+            monsterSpawns: nextWave.monsterSpawns,
+            monsterDataset: stageMonsterDatasetRef.current,
+            maxCount: effectiveMaxMonsterCount,
+            startId: monsterIdRef.current,
+            canvasWidth: CANVAS_WIDTH,
+            canvasHeight: CANVAS_HEIGHT,
+            skillConfigs,
+            monsterLevelConfig: currentMonsterLevel,
+          });
+          monsterIdRef.current += nextMonsters.length;
+          monstersRef.current = nextMonsters;
+          projectilesRef.current = [];
+          skillParticlesRef.current = [];
+        } else if (update.completed) {
+          monstersRef.current = [];
+          projectilesRef.current = [];
+          skillParticlesRef.current = [];
+        }
+
+        if (
+          update.waveChanged ||
+          update.completed ||
+          currentTime - stageProgressUpdateTimeRef.current >= 250
+        ) {
+          stageProgressUpdateTimeRef.current = currentTime;
+          setStageProgress({ ...progress, stageId: activeStage.id });
+        }
+      }
+
+      const currentStageWave = activeStage?.waves[progress?.waveIndex ?? 0];
+      const shouldRespawn = activeStage
+        ? Boolean(currentStageWave?.respawn.enabled && !progress?.complete)
+        : enableRespawn;
+      const respawnDelay = activeStage
+        ? currentStageWave?.respawn.delayMs ?? propRespawnDelay
+        : propRespawnDelay;
+      const monsterError = !activeStage &&
+        shouldRespawn &&
+        monstersRef.current.some(monster => monster.isDead)
+        ? validateMonsterSpawn()
+        : undefined;
+      if (monsterError && lastMonsterSpawnErrorRef.current !== monsterError) {
+        toast.error(`몬스터 리스폰 보류: ${monsterError}`);
+      }
+      lastMonsterSpawnErrorRef.current = monsterError;
+      const respawnContext = {
+        selectMonsterByWeight,
+        monsterDataset: activeStage
+          ? stageMonsterDatasetRef.current
+          : monsterDataset,
+        preserveMonsterDefinition: Boolean(activeStage),
+        currentDataRow: activeStage
+          ? stageMonsterDatasetRef.current[0]
+          : monsterDataset ? monsterDataset[currentTick] : currentDataRow ?? undefined,
+        skillConfigs,
+        monsterLevelConfig: currentMonsterLevel,
+        nextMonsterId: monsterIdRef.current,
+        requireMonsterStats: activeStage ? true : monsterDataset !== undefined,
+      };
+      updateRespawnTimers(
+        monstersRef.current,
+        deltaTime * 1000,
+        {
+          enabled: shouldRespawn && !monsterError,
+          delay: respawnDelay,
+          maxCount: activeStage
+            ? effectiveMaxMonsterCount
+            : simulatorMode === '1v1' ? 1 : effectiveMaxMonsterCount,
+          canvasWidth: CANVAS_WIDTH,
+          canvasHeight: CANVAS_HEIGHT,
+        },
+        respawnContext
+      );
+      monsterIdRef.current = respawnContext.nextMonsterId;
 
       monstersRef.current.forEach(monster => {
-        if (monster.isDead) {
-          // 리스폰 활성화된 경우만 리스폰 타이머 처리
-          if (enableRespawn) {
-            monster.respawnTimer -= deltaTime * 1000;
-            if (monster.respawnTimer <= 0) {
-              // 현재 살아있는 몬스터 수 체크
-              const aliveMonsterCount = monstersRef.current.filter(m => !m.isDead).length;
-
-              // 최대 몬스터 수 제한 체크 (1:1 모드일 때는 1개로 제한)
-              const maxAllowedMonsters = simulatorMode === '1v1' ? 1 : effectiveMaxMonsterCount;
-              if (aliveMonsterCount < maxAllowedMonsters) {
-                // 선택된 몬스터가 있으면 가중치 기반으로 선택
-                const selectedMonster = selectMonsterByWeight();
-                const monsterData = selectedMonster || currentDataRow;
-
-                // Respawn monster with new data
-                monster.position = {
-                  x: Math.random() * (CANVAS_WIDTH - 100) + 50,
-                  y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
-                };
-                monster.stats = { ...defaultMonsterStats };
-                monster.isDead = false;
-                monster.aiState = 'CHASE'; // 리스폰 시 즉시 추적
-                monster.attackCooldown = 0;
-                monster.respawnTimer = 0;
-                monster.velocity = { x: 0, y: 0 };
-                monster.knockbackTime = 0;
-
-                // 새로운 몬스터 데이터로 속성 업데이트
-                monster.name = monsterData?.monster_name || monster.name;
-                monster.color = monsterData?.monster_color || monster.color;
-                monster.sp = monsterData?.monster_sp || 100;
-                monster.maxSP = monsterData?.monster_sp || 100;
-
-                // AI 패턴과 스킬 재로드
-                if (monsterData) {
-                  monster.aiPatternConfig = loadMonsterAIPattern(monsterData);
-                  monster.aiConfig = loadMonsterAI(monsterData);
-                  monster.skills = loadMonsterSkills(monsterData);
-                }
-              }
-            }
-          }
-          return;
-        }
+        if (monster.isDead) return;
+        const monSpeed = (monster.sourceStats?.monster_speed ?? monConfig.speed) * deltaTime;
 
         if (monster.attackCooldown > 0) {
           monster.attackCooldown -= deltaTime * 1000;
@@ -2102,9 +2240,9 @@ export function MultiMonsterSimulator({
                         if (Math.abs(angleDiff) <= skillArc / 2) {
                           // 근접 공격 실행
                           const monsterStats = {
-                            attack: monConfig.attack,
-                            defense: monConfig.defense,
-                            speed: monConfig.speed,
+                            attack: monster.sourceStats?.monster_attack ?? monConfig.attack,
+                            defense: monster.sourceStats?.monster_defense ?? monConfig.defense,
+                            speed: monster.sourceStats?.monster_speed ?? monConfig.speed,
                             magic: 0,
                           };
                           const damage = calculateSkillDamage(actualSkill, monsterStats);
@@ -2130,9 +2268,9 @@ export function MultiMonsterSimulator({
                       } else if (actualSkill.type === 'ranged' && distanceToPlayer > 0) {
                         // 원거리 공격 - 파티클이 투사체 역할을 함
                         const monsterStats = {
-                          attack: monConfig.attack,
-                          defense: monConfig.defense,
-                          speed: monConfig.speed,
+                          attack: monster.sourceStats?.monster_attack ?? monConfig.attack,
+                          defense: monster.sourceStats?.monster_defense ?? monConfig.defense,
+                          speed: monster.sourceStats?.monster_speed ?? monConfig.speed,
                           magic: 0,
                         };
                         const damage = calculateSkillDamage(actualSkill, monsterStats);
@@ -2212,9 +2350,9 @@ export function MultiMonsterSimulator({
 
                         if (Math.abs(angleDiff) <= skillArc / 2) {
                           const monsterStats = {
-                            attack: monConfig.attack,
-                            defense: monConfig.defense,
-                            speed: monConfig.speed,
+                            attack: monster.sourceStats?.monster_attack ?? monConfig.attack,
+                            defense: monster.sourceStats?.monster_defense ?? monConfig.defense,
+                            speed: monster.sourceStats?.monster_speed ?? monConfig.speed,
                             magic: 0,
                           };
                           const damage = calculateSkillDamage(basicAttackSkill, monsterStats);
@@ -2268,9 +2406,9 @@ export function MultiMonsterSimulator({
                       } else if (basicAttackSkill.type === 'ranged' && distanceToPlayer > 0) {
                         // 원거리 기본 공격 - 파티클이 투사체 역할을 함
                         const monsterStats = {
-                          attack: monConfig.attack,
-                          defense: monConfig.defense,
-                          speed: monConfig.speed,
+                          attack: monster.sourceStats?.monster_attack ?? monConfig.attack,
+                          defense: monster.sourceStats?.monster_defense ?? monConfig.defense,
+                          speed: monster.sourceStats?.monster_speed ?? monConfig.speed,
                           magic: 0,
                         };
                         const damage = calculateSkillDamage(basicAttackSkill, monsterStats);
@@ -2475,9 +2613,7 @@ export function MultiMonsterSimulator({
               }
 
               if (monster.stats.hp <= 0) {
-                monster.isDead = true;
-                monster.respawnTimer = enableRespawn ? propRespawnDelay : 0; // 리스폰 비활성화 시 타이머 0
-                setKillCount(prev => prev + 1);
+                handleMonsterDeath(monster);
                 toast.success(`몬스터 처치! +1`);
               }
 
@@ -2580,20 +2716,7 @@ export function MultiMonsterSimulator({
               });
 
               if (monster.stats.hp <= 0) {
-                monster.isDead = true;
-                monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                setKillCount(prev => prev + 1);
-
-                // 경험치 획득
-                if (playerLevelConfig) {
-                  const monsterStats = calculateLevelStats(currentMonsterLevel);
-                  const expReward = calculateExpReward(monsterStats.level);
-                  const levelResult = addExperience(currentPlayerLevel, expReward);
-                  if (levelResult.leveledUp) {
-                    toast.success(`레벨 업! LV.${levelResult.newConfig.currentLevel}`);
-                  }
-                  setCurrentPlayerLevel(levelResult.newConfig);
-                }
+                handleMonsterDeath(monster);
 
                 toast.success(`몬스터 처치! +1`);
               }
@@ -2682,9 +2805,7 @@ export function MultiMonsterSimulator({
               playerRef.current.meleeSwingHit.add(monster.id);
 
               if (monster.stats.hp <= 0) {
-                monster.isDead = true;
-                monster.respawnTimer = enableRespawn ? propRespawnDelay : 0; // 리스폰 비활성화 시 타이머 0
-                setKillCount(prev => prev + 1);
+                handleMonsterDeath(monster);
                 toast.success(`몬스터 처치! +1`);
               } else if (critResult.isCritical) {
                 toast.success(`💥 크리티컬! ${finalDamage} 데미지!`);
@@ -2719,8 +2840,8 @@ export function MultiMonsterSimulator({
 
             // Get skill parameters from activeSkillsRef (use ref for latest value in game loop)
             const powerSlashSlot = activeSkillsRef.current.find(s => s.skill?.id === 'powerSlash');
-            const skillRange = powerSlashSlot?.skill?.range || 100; // powerSlash range
-            const skillArc = ((powerSlashSlot?.skill?.area || 120) * Math.PI) / 180; // powerSlash area
+            const skillRange = powerSlashSlot?.skill?.range ?? 100; // powerSlash range
+            const skillArc = ((powerSlashSlot?.skill?.area ?? 120) * Math.PI) / 180; // powerSlash area
             const startAngle = targetAngle - skillArc / 2;
             const swingOffset = skillArc * swingProgress;
             const currentAngle = startAngle + swingOffset;
@@ -2793,19 +2914,7 @@ export function MultiMonsterSimulator({
                 playerRef.current.skillSwingHit.add(monster.id);
 
                 if (monster.stats.hp <= 0) {
-                  monster.isDead = true;
-                  monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                  setKillCount(prev => prev + 1);
-
-                  if (playerLevelConfig) {
-                    const monsterStats = calculateLevelStats(currentMonsterLevel);
-                    const expReward = calculateExpReward(monsterStats.level);
-                    const levelResult = addExperience(currentPlayerLevel, expReward);
-                    if (levelResult.leveledUp) {
-                      toast.success(`레벨 업! LV.${levelResult.newConfig.currentLevel}`);
-                    }
-                    setCurrentPlayerLevel(levelResult.newConfig);
-                  }
+                  handleMonsterDeath(monster);
                   toast.success(`강타로 몬스터 처치! ${skillDamage} 데미지!`);
                 } else {
                   toast.success(`강타 명중! ${skillDamage} 데미지!`);
@@ -2816,7 +2925,7 @@ export function MultiMonsterSimulator({
             // 회오리 베기 - 360도 회전 공격
             // Get skill parameters from activeSkillsRef (use ref for latest value in game loop)
             const whirlwindSlot = activeSkillsRef.current.find(s => s.skill?.id === 'whirlwind');
-            const skillRange = whirlwindSlot?.skill?.range || 150; // whirlwind range
+            const skillRange = whirlwindSlot?.skill?.range ?? 150; // whirlwind range
             const fullCircle = Math.PI * 2;
             const currentAngle = fullCircle * swingProgress;
 
@@ -2845,19 +2954,7 @@ export function MultiMonsterSimulator({
                 playerRef.current.skillSwingHit.add(monster.id);
 
                 if (monster.stats.hp <= 0) {
-                  monster.isDead = true;
-                  monster.respawnTimer = enableRespawn ? propRespawnDelay : 0;
-                  setKillCount(prev => prev + 1);
-
-                  if (playerLevelConfig) {
-                    const monsterStats = calculateLevelStats(currentMonsterLevel);
-                    const expReward = calculateExpReward(monsterStats.level);
-                    const levelResult = addExperience(currentPlayerLevel, expReward);
-                    if (levelResult.leveledUp) {
-                      toast.success(`레벨 업! LV.${levelResult.newConfig.currentLevel}`);
-                    }
-                    setCurrentPlayerLevel(levelResult.newConfig);
-                  }
+                  handleMonsterDeath(monster);
                   toast.success(`회오리 베기로 몬스터 처치! ${skillDamage} 데미지!`);
                 } else {
                   toast.success(`회오리 베기 명중! ${skillDamage} 데미지!`);
@@ -2866,41 +2963,6 @@ export function MultiMonsterSimulator({
             });
           }
         }
-      }
-
-      // Handle monster respawn
-      if (enableRespawn) {
-        monstersRef.current.forEach(monster => {
-          if (monster.isDead && monster.respawnTimer > 0) {
-            monster.respawnTimer -= deltaTime * 1000;
-
-            if (monster.respawnTimer <= 0) {
-              // 리스폰 처리
-              const levelStats = calculateLevelStats(currentMonsterLevel);
-              monster.stats = {
-                hp: levelStats.hp,
-                maxHp: levelStats.hp,
-                attack: levelStats.attack,
-                defense: levelStats.defense,
-                speed: levelStats.speed,
-                attackRange: monster.stats.attackRange,
-                attackWidth: monster.stats.attackWidth,
-                critRate: monster.stats.critRate || 0.05,
-                critDamage: monster.stats.critDamage || 1.3,
-                accuracy: monster.stats.accuracy || 0.85,
-                evasion: monster.stats.evasion || 0.03,
-              };
-              monster.isDead = false;
-              monster.respawnTimer = 0;
-              monster.position = {
-                x: Math.random() * (CANVAS_WIDTH - 100) + 50,
-                y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
-              };
-              monster.aiState = 'CHASE';
-              monster.sp = monster.maxSP;
-            }
-          }
-        });
       }
 
       // Render
@@ -3070,7 +3132,7 @@ export function MultiMonsterSimulator({
 
       // Draw player SP bar (if level system enabled)
       if (playerLevelConfig) {
-        const playerSpPercent = spConfig.current / spConfig.max;
+        const playerSpPercent = spConfig.max > 0 ? spConfig.current / spConfig.max : 0;
 
         // SP bar background
         ctx.fillStyle = '#374151';
@@ -3729,16 +3791,16 @@ export function MultiMonsterSimulator({
 
         // Player HP
         ctx.fillText(
-          `HP: ${Math.round(playerRef.current.stats.hp)}/${playerRef.current.stats.maxHp}`,
+          `HP: ${Math.min(Math.round(playerRef.current.stats.hp), playerRef.current.stats.maxHp)}/${playerRef.current.stats.maxHp}`,
           CANVAS_WIDTH - 190,
           32
         );
 
         // SP Bar (if level system enabled)
         if (playerLevelConfig) {
-          const spPercent = spConfig.current / spConfig.max;
+          const spPercent = spConfig.max > 0 ? spConfig.current / spConfig.max : 0;
           ctx.fillText(
-            `SP: ${Math.round(spConfig.current)}/${spConfig.max}`,
+            `SP: ${Math.min(Math.round(spConfig.current), spConfig.max)}/${spConfig.max}`,
             CANVAS_WIDTH - 190,
             52
           );
@@ -3766,7 +3828,7 @@ export function MultiMonsterSimulator({
           ctx.fillStyle = '#374151';
           ctx.fillRect(CANVAS_WIDTH - 190, 108, spBarWidth, spBarHeight);
           ctx.fillStyle = '#fbbf24';
-          ctx.fillRect(CANVAS_WIDTH - 190, 108, spBarWidth * (expProgress / 100), spBarHeight);
+          ctx.fillRect(CANVAS_WIDTH - 190, 108, spBarWidth * (Math.min(100, Math.max(0, expProgress)) / 100), spBarHeight);
 
           ctx.fillText(`처치: ${killCount}`, CANVAS_WIDTH - 190, 132);
         } else {
@@ -3861,11 +3923,15 @@ export function MultiMonsterSimulator({
     CANVAS_WIDTH,
     CANVAS_HEIGHT,
     currentDataRow,
+    currentTick,
+    monsterDataset,
     effectiveMaxMonsterCount,
     monsterLevelConfig,
     selectMonsterByWeight,
+    validateMonsterSpawn,
     simulatorMode,
     skillConfigs,
+    handleMonsterDeath,
   ]);
 
   // Test mode: render canvas only with zoom control
@@ -3928,11 +3994,30 @@ export function MultiMonsterSimulator({
           <div className='flex items-center justify-between'>
             <div className='flex items-center gap-3'>
               <CardTitle>{title}</CardTitle>
+              {stageDefinition && (
+                <Badge variant={stageProgress?.complete ? 'default' : 'outline'}>
+                  {stageDefinition.name}
+                  {stageProgress
+                    ? stageProgress.complete
+                      ? ' · 완료'
+                      : ` · 웨이브 ${stageProgress.waveIndex + 1}/${stageDefinition.waves.length} · ${
+                          Math.ceil(
+                            Math.max(
+                              0,
+                              (stageDefinition.waves[stageProgress.waveIndex]?.durationMs ?? 0) -
+                                stageProgress.elapsedMs
+                            ) / 1000
+                          )
+                        }초`
+                    : ' · 대기'}
+                </Badge>
+              )}
               {/* Simulator Mode Toggle */}
               <div className='flex items-center gap-1 border border-slate-200 rounded-lg p-1 bg-white'>
                 <Button
                   size='sm'
                   variant={simulatorMode === '1v1' ? 'default' : 'ghost'}
+                  disabled={Boolean(stageDefinition)}
                   onClick={() => {
                     setSimulatorMode('1v1');
                     setMonsterCount(1);
@@ -3950,7 +4035,7 @@ export function MultiMonsterSimulator({
                   variant={simulatorMode === '1vMany' ? 'default' : 'ghost'}
                   onClick={() => {
                     setSimulatorMode('1vMany');
-                    setMonsterCount(initialMonsterCount);
+                    setMonsterCount(resolveMonsterCount(initialMonsterCount, effectiveMaxMonsterCount));
                     // 게임 재시작
                     if (isGameStarted) {
                       restartGame();
@@ -3974,7 +4059,7 @@ export function MultiMonsterSimulator({
         </CardHeader>
         <CardContent className='space-y-4 relative'>
           {/* Respawn Settings */}
-          {showRespawnControls && simulatorMode === '1vMany' && (
+          {showRespawnControls && simulatorMode === '1vMany' && !stageDefinition && (
             <div className='grid grid-cols-2 gap-4 p-4 bg-slate-100 rounded-lg'>
               <div className='space-y-2'>
                 <div className='flex items-center gap-2'>
@@ -3993,79 +4078,47 @@ export function MultiMonsterSimulator({
                 <Slider
                   value={[monsterCount]}
                   onValueChange={v => {
-                    setMonsterCount(v[0]);
                     // Adjust monster array
                     const currentCount = monstersRef.current.length;
-                    if (v[0] > currentCount) {
-                      const diff = v[0] - currentCount;
-                      for (let i = 0; i < diff; i++) {
-                        // 현재 설정에서 AI 패턴과 스킬 로드
-                        const aiPatternConfig = currentDataRow
-                          ? loadMonsterAIPattern(currentDataRow)
-                          : defaultAIPatternConfig;
-                        const aiConfig = currentDataRow
-                          ? loadMonsterAI(currentDataRow)
-                          : {
-                              type: 'aggressive' as const,
-                              aggroRange: 300,
-                              skillPriority: 'damage' as const,
-                            };
-                        const monsterSkills = currentDataRow
-                          ? loadMonsterSkills(currentDataRow)
-                          : {
-                              slot1: null,
-                              slot2: null,
-                              slot3: null,
-                              slot4: null,
-                            };
-                        const monsterName =
-                          currentDataRow?.monster_name || `몬스터 ${currentCount + i + 1}`;
-                        const monsterColor = currentDataRow?.monster_color || '#ff6b6b';
-
-                        monstersRef.current.push({
-                          id: monsterIdRef.current++,
-                          position: {
-                            x: Math.random() * (CANVAS_WIDTH - 100) + 50,
-                            y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
-                          },
-                          stats: { ...defaultMonsterStats },
-                          isAttacking: false,
-                          attackCooldown: 0,
-                          isDead: false,
-                          aiState: 'IDLE',
-                          wanderTarget: null,
-                          wanderCooldown: 0,
-                          detectionRange: aiPatternConfig.aggroRange || MONSTER_DETECTION_RANGE,
-                          respawnTimer: 0,
-                          velocity: { x: 0, y: 0 },
-                          knockbackTime: 0,
-                          name: monsterName,
-                          color: monsterColor,
-                          skills: monsterSkills,
-                          basicAttack: monsterBasicAttackRef.current || null,
-                          aiConfig,
-                          aiPatternConfig,
-                          sp: currentDataRow?.monster_sp || 100,
-                          maxSP: currentDataRow?.monster_sp || 100,
-                          currentSkill: null,
-                          skillPhase: 'idle' as const,
-                          skillPhaseStartTime: 0,
-                          currentSkillTiming: undefined,
-                        });
+                    const nextCount = resolveMonsterCount(v[0], effectiveMaxMonsterCount);
+                    if (nextCount > currentCount) {
+                      const monsterError = validateMonsterSpawn();
+                      if (monsterError) {
+                        toast.error(monsterError);
+                        return;
                       }
-                    } else if (v[0] < currentCount) {
-                      monstersRef.current = monstersRef.current.slice(0, v[0]);
+                    }
+                    setMonsterCount(nextCount);
+                    if (nextCount > currentCount) {
+                      const diff = nextCount - currentCount;
+                      const newMonsters = createMonsters({
+                        count: diff,
+                        maxCount: effectiveMaxMonsterCount - currentCount,
+                        startId: monsterIdRef.current,
+                        fallbackNameStartIndex: currentCount,
+                        canvasWidth: CANVAS_WIDTH,
+                        canvasHeight: CANVAS_HEIGHT,
+                        selectMonsterByWeight,
+                        currentDataRow: monsterDataset ? monsterDataset[currentTick] : currentDataRow ?? undefined,
+                        skillConfigs,
+                        monsterLevelConfig: currentMonsterLevel,
+                        requireMonsterStats: monsterDataset !== undefined,
+                      });
+                      monsterIdRef.current += newMonsters.length;
+                      monstersRef.current = [...monstersRef.current, ...newMonsters];
+                    } else if (nextCount < currentCount) {
+                      monstersRef.current = monstersRef.current.slice(0, nextCount);
                     }
                   }}
                   min={1}
-                  max={10}
+                  max={Math.max(1, Math.min(10, effectiveMaxMonsterCount))}
                   step={1}
                   className='w-full'
-                  disabled={!enableRespawn}
+                  disabled={!enableRespawn || effectiveMaxMonsterCount < 1}
                 />
                 <div className='flex justify-between text-xs text-slate-600'>
                   <span>1</span>
-                  <span>10</span>
+                  <span>{Math.max(1, Math.min(10, effectiveMaxMonsterCount))}</span>
                 </div>
               </div>
               <div className='space-y-2'>
@@ -4100,7 +4153,7 @@ export function MultiMonsterSimulator({
             {!isGameStarted && (
               <div className='absolute inset-0 flex items-center justify-center'>
                 <Button onClick={startGame} size='lg' className='text-lg px-8 py-6'>
-                  👥 게임 시작
+                  {stageDefinition ? '스테이지 시작' : '👥 게임 시작'}
                 </Button>
               </div>
             )}
@@ -4110,6 +4163,17 @@ export function MultiMonsterSimulator({
                 <Button onClick={restartGame} size='lg' className='mt-32'>
                   재시작
                 </Button>
+              </div>
+            )}
+
+            {stageProgress?.complete && !isGameOver && (
+              <div className='absolute inset-0 flex items-center justify-center bg-slate-950/70'>
+                <div className='space-y-4 text-center text-white'>
+                  <p className='text-3xl font-semibold'>{stageDefinition?.name} 완료</p>
+                  <Button onClick={restartGame} size='lg'>
+                    다시 시작
+                  </Button>
+                </div>
               </div>
             )}
 

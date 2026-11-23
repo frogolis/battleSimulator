@@ -7,6 +7,7 @@ export const APP_VIEW = {
   SETTINGS_SKILLS: 'settings-skills',
   SETTINGS_ITEMS: 'settings-items',
   SETTINGS_GRAPHICS: 'settings-graphics',
+  SETTINGS_WAVES: 'settings-waves',
   SETTINGS_EFFECTS: 'settings-effects',
   EXPORT: 'export',
   MAKE: 'make',

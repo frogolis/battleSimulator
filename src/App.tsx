@@ -1,26 +1,39 @@
 import { ChevronRight } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { AccountManagementDialog, AuthenticationScreen } from './components/Authentication';
 import { defaultBindings, KeyBindings, KeyBindingSettings } from './components/KeyBindingSettings';
-import { MonsterTypeStats } from './components/MonsterTypeDefinition';
+import { Button } from './components/ui/button';
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
 } from './components/ui/sidebar';
 import { Toaster } from './components/ui/sonner';
 import {
-    applyMonsterRowFromData,
-    applyPlayerRowFromData,
+  getAuthStatus,
+  getWorkspace,
+  login,
+  logout,
+  saveWorkspace,
+  setupAdmin,
+  type AuthUser,
+} from './features/auth/client';
+import {
+  applyMonsterRowFromData,
+  applyPlayerRowFromData,
+  selectImportedRows,
 } from './features/simulator/rowApplyManager';
+import { findCharacterTypeReferences } from './features/simulator/characterTypeReferences';
+import { recalculateLegacyPlayerRows } from './features/simulator/playerLevelTable';
 import { createInitialDatasets, createInitialMonsterTypeStats } from './features/simulator/setup';
 import { APP_MENU_ITEMS } from './features/ui/navigation/menuConfig';
 import { CharacterTypeInfo, DEFAULT_CHARACTER_TYPES } from './lib/characterTypes';
@@ -28,21 +41,24 @@ import { CharacterConfig } from './lib/gameTypes';
 import { getDefaultItemSlots, ItemSlot } from './lib/itemSystem';
 import { updateDataRowWithLevel } from './lib/levelBasedStats';
 import {
-    defaultMonsterLevelConfig,
-    defaultPlayerLevelConfig,
-    LevelConfig,
+  defaultMonsterLevelConfig,
+  defaultPlayerLevelConfig,
+  LevelConfig,
 } from './lib/levelSystem';
 import { DataRow, mockDataset } from './lib/mockData';
+import type { MonsterTypeStats } from './lib/monsterTypes';
 import { DEFAULT_MAX_MONSTER_COUNT, DEFAULT_RESPAWN_DELAY } from './lib/simulator/constants';
+import type { StageDefinition } from './lib/simulator/waves';
+import { isWorkspaceSnapshot, type WorkspaceSnapshot } from './features/workspace/model';
 import {
-    BasicAttackSlot,
-    defaultSkills,
-    EFFECT_PRESETS,
-    EffectPreset,
-    getDefaultBasicAttackSlot,
-    getDefaultSkillSlots,
-    Skill,
-    SkillSlot,
+  BasicAttackSlot,
+  defaultSkills,
+  EFFECT_PRESETS,
+  EffectPreset,
+  getDefaultBasicAttackSlot,
+  getDefaultSkillSlots,
+  Skill,
+  SkillSlot,
 } from './lib/skillSystem';
 import { APP_VIEW, AppView, SETTINGS_VIEW_PREFIX } from './shared/constants/appViews';
 
@@ -61,6 +77,9 @@ const CharacterTypeManager = lazy(() =>
 );
 const MonsterTypeDefinition = lazy(() =>
   import('./components/MonsterTypeDefinition').then(m => ({ default: m.MonsterTypeDefinition }))
+);
+const StageWaveManager = lazy(() =>
+  import('./components/StageWaveManager').then(m => ({ default: m.StageWaveManager }))
 );
 const SimulatorSettings = lazy(() =>
   import('./components/SimulatorSettings').then(m => ({ default: m.SimulatorSettings }))
@@ -89,103 +108,465 @@ const ViewLoader = () => (
   </div>
 );
 
+const createDefaultWorkspace = (): WorkspaceSnapshot => {
+  const datasets = createInitialDatasets();
+  const defaultCharacterType = DEFAULT_CHARACTER_TYPES[0];
+  return {
+    version: 1,
+    currentTick: 0,
+    keyBindings: defaultBindings,
+    characterTypes: DEFAULT_CHARACTER_TYPES,
+    playerLevelConfig: defaultPlayerLevelConfig,
+    monsterLevelConfig: defaultMonsterLevelConfig,
+    playerBasicAttack: getDefaultBasicAttackSlot(
+      'melee',
+      defaultCharacterType?.defaultBasicAttackId
+    ),
+    monsterBasicAttack: getDefaultBasicAttackSlot(
+      'melee',
+      defaultCharacterType?.defaultBasicAttackId
+    ),
+    skillSlots: getDefaultSkillSlots(),
+    skillConfigs: defaultSkills,
+    customEffectPresets: [],
+    itemSlots: getDefaultItemSlots(),
+    homingProjectiles: false,
+    maxMonsterCount: DEFAULT_MAX_MONSTER_COUNT,
+    respawnDelay: DEFAULT_RESPAWN_DELAY,
+    monsterTypeStats: createInitialMonsterTypeStats(),
+    playerDataset: datasets.playerDataset,
+    monsterDataset: datasets.monsterDataset,
+    stageDefinitions: [],
+    activeStageId: null,
+    selectedMonsterIds: [],
+    playerConfig: {
+      size: { min: 18, max: 22 },
+      speed: { min: 140, max: 160 },
+      attack: { min: 45, max: 55 },
+      defense: { min: 18, max: 22 },
+      attackSpeed: { min: 1.4, max: 1.6 },
+      accuracy: { min: 80, max: 90 },
+      criticalRate: { min: 20, max: 30 },
+      attackRange: { min: 75, max: 85 },
+      attackWidth: { min: 85, max: 95 },
+      typeId: defaultCharacterType?.id || 'warrior',
+      attackType: defaultCharacterType?.id || 'warrior',
+      monsterRespawnDelay: DEFAULT_RESPAWN_DELAY,
+      monsterMaxCount: 3,
+    },
+    monsterConfig: {
+      size: { min: 22, max: 26 },
+      speed: { min: 55, max: 65 },
+      attack: { min: 35, max: 45 },
+      defense: { min: 13, max: 17 },
+      attackSpeed: { min: 0.9, max: 1.1 },
+      accuracy: { min: 70, max: 80 },
+      criticalRate: { min: 12, max: 18 },
+      attackRange: { min: 55, max: 65 },
+      attackWidth: { min: 115, max: 125 },
+      typeId: defaultCharacterType?.id || 'warrior',
+      attackType: defaultCharacterType?.id || 'warrior',
+      monsterRespawnDelay: DEFAULT_RESPAWN_DELAY,
+      monsterMaxCount: 3,
+    },
+  };
+};
+
+const cloneWorkspace = (workspace: WorkspaceSnapshot): WorkspaceSnapshot =>
+  globalThis.structuredClone(workspace);
+
+const isLegacyEffectPreset = (value: unknown): value is EffectPreset => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const preset = value as Partial<EffectPreset>;
+  return (
+    typeof preset.id === 'string' &&
+    typeof preset.name === 'string' &&
+    typeof preset.description === 'string' &&
+    typeof preset.color === 'string' &&
+    typeof preset.secondaryColor === 'string' &&
+    typeof preset.glowIntensity === 'number' &&
+    Number.isFinite(preset.glowIntensity) &&
+    ['projectile', 'trail', 'lightning', 'ring', 'glow'].includes(preset.effectType ?? '') &&
+    ['circle', 'star', 'square', 'diamond', 'spark'].includes(preset.particleTexture ?? '')
+  );
+};
+
+const readLegacyEffectPresets = (): EffectPreset[] => {
+  const saved = localStorage.getItem('battle-simulator-custom-effect-presets');
+  if (!saved) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(saved);
+  } catch {
+    throw new Error('이전 사용자 지정 이펙트 데이터를 읽지 못했습니다.');
+  }
+  if (!Array.isArray(parsed) || !parsed.every(isLegacyEffectPreset)) {
+    throw new Error('이전 사용자 지정 이펙트 데이터 형식이 올바르지 않습니다.');
+  }
+  return parsed;
+};
+
 export default function App() {
-  const initialDatasets = createInitialDatasets();
+  const [defaultWorkspace] = useState(createDefaultWorkspace);
+  const initialDatasets = {
+    playerDataset: defaultWorkspace.playerDataset,
+    monsterDataset: defaultWorkspace.monsterDataset,
+  };
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authNeedsSetup, setAuthNeedsSetup] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string>();
+  const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
+  const [workspaceSaveState, setWorkspaceSaveState] = useState<
+    'pending' | 'saving' | 'saved' | 'error'
+  >('saved');
+  const [workspaceSaveRetry, setWorkspaceSaveRetry] = useState(0);
+  const [workspaceError, setWorkspaceError] = useState<string>();
+  const [accountManagerOpen, setAccountManagerOpen] = useState(false);
+  const [removeLegacyPresetsAfterSave, setRemoveLegacyPresetsAfterSave] = useState(false);
   const [currentView, setCurrentView] = useState<AppView>(APP_VIEW.SIMULATOR);
-  const [currentTick, setCurrentTick] = useState(0);
+  const [currentTick, setCurrentTick] = useState(defaultWorkspace.currentTick);
   const [currentDataRow, setCurrentDataRow] = useState<DataRow | null>(mockDataset[0] || null);
-  const [keyBindings, setKeyBindings] = useState<KeyBindings>(defaultBindings);
+  const [keyBindings, setKeyBindings] = useState<KeyBindings>(() =>
+    globalThis.structuredClone(defaultWorkspace.keyBindings)
+  );
 
   // Character types state
-  const [characterTypes, setCharacterTypes] =
-    useState<CharacterTypeInfo[]>(DEFAULT_CHARACTER_TYPES);
+  const [characterTypes, setCharacterTypes] = useState<CharacterTypeInfo[]>(() =>
+    globalThis.structuredClone(defaultWorkspace.characterTypes)
+  );
 
   // Level system state
-  const [playerLevelConfig, setPlayerLevelConfig] = useState<LevelConfig>(defaultPlayerLevelConfig);
-  const [monsterLevelConfig, setMonsterLevelConfig] =
-    useState<LevelConfig>(defaultMonsterLevelConfig);
+  const [playerLevelConfig, setPlayerLevelConfig] = useState<LevelConfig>(() =>
+    globalThis.structuredClone(defaultWorkspace.playerLevelConfig)
+  );
+  const [monsterLevelConfig, setMonsterLevelConfig] = useState<LevelConfig>(() =>
+    globalThis.structuredClone(defaultWorkspace.monsterLevelConfig)
+  );
+  const importedPlayerLevelConfig = useRef(false);
+  const importedMonsterLevelConfig = useRef(false);
+  const skipCurrentRowApplyRef = useRef(false);
+  const [levelImportRevision, setLevelImportRevision] = useState(0);
 
   // Skill system state
-  const [playerBasicAttack, setPlayerBasicAttack] = useState<BasicAttackSlot>(
-    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId)
+  const [playerBasicAttack, setPlayerBasicAttack] = useState<BasicAttackSlot>(() =>
+    globalThis.structuredClone(defaultWorkspace.playerBasicAttack)
   );
-  const [monsterBasicAttack, setMonsterBasicAttack] = useState<BasicAttackSlot>(
-    getDefaultBasicAttackSlot('melee', DEFAULT_CHARACTER_TYPES[0]?.defaultBasicAttackId)
+  const [monsterBasicAttack, setMonsterBasicAttack] = useState<BasicAttackSlot>(() =>
+    globalThis.structuredClone(defaultWorkspace.monsterBasicAttack)
   );
-  const [skillSlots, setSkillSlots] = useState<SkillSlot[]>(getDefaultSkillSlots());
-  const [skillConfigs, setSkillConfigs] = useState<Record<string, Skill>>(defaultSkills);
+  const [skillSlots, setSkillSlots] = useState<SkillSlot[]>(() =>
+    globalThis.structuredClone(defaultWorkspace.skillSlots)
+  );
+  const [skillConfigs, setSkillConfigs] = useState<Record<string, Skill>>(() =>
+    globalThis.structuredClone(defaultWorkspace.skillConfigs)
+  );
   const [effectDraftPreset, setEffectDraftPreset] = useState<EffectPreset>(
     EFFECT_PRESETS.projectile_fireball
   );
-  const [customEffectPresets, setCustomEffectPresets] = useState<EffectPreset[]>(() => {
-    try {
-      const savedPresets = localStorage.getItem('battle-simulator-custom-effect-presets');
-      return savedPresets ? JSON.parse(savedPresets) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('battle-simulator-custom-effect-presets', JSON.stringify(customEffectPresets));
-  }, [customEffectPresets]);
+  const [customEffectPresets, setCustomEffectPresets] = useState<EffectPreset[]>(() =>
+    globalThis.structuredClone(defaultWorkspace.customEffectPresets)
+  );
 
   // Item system state
-  const [itemSlots, setItemSlots] = useState<ItemSlot[]>(getDefaultItemSlots());
+  const [itemSlots, setItemSlots] = useState<ItemSlot[]>(() =>
+    globalThis.structuredClone(defaultWorkspace.itemSlots)
+  );
 
   // Projectile settings
-  const [homingProjectiles, _setHomingProjectiles] = useState<boolean>(false);
+  const [homingProjectiles, _setHomingProjectiles] = useState<boolean>(
+    defaultWorkspace.homingProjectiles
+  );
 
   // Monster spawn settings
-  const [maxMonsterCount, setMaxMonsterCount] = useState<number>(DEFAULT_MAX_MONSTER_COUNT);
-  const [respawnDelay, setRespawnDelay] = useState<number>(DEFAULT_RESPAWN_DELAY);
+  const [maxMonsterCount, setMaxMonsterCount] = useState<number>(defaultWorkspace.maxMonsterCount);
+  const [respawnDelay, setRespawnDelay] = useState<number>(defaultWorkspace.respawnDelay);
 
   // Monster type definitions (프리셋 기반)
-  const [monsterTypeStats, setMonsterTypeStats] = useState<Record<string, MonsterTypeStats>>(
-    createInitialMonsterTypeStats()
+  const [monsterTypeStats, setMonsterTypeStats] = useState<Record<string, MonsterTypeStats>>(() =>
+    globalThis.structuredClone(defaultWorkspace.monsterTypeStats)
   );
 
   // Separate datasets for player and monster
-  const [playerDataset, setPlayerDataset] = useState<DataRow[]>(initialDatasets.playerDataset);
-  const [monsterDataset, setMonsterDataset] = useState<DataRow[]>(initialDatasets.monsterDataset);
+  const [playerDataset, setPlayerDataset] = useState<DataRow[]>(() =>
+    globalThis.structuredClone(initialDatasets.playerDataset)
+  );
+  const [monsterDataset, setMonsterDataset] = useState<DataRow[]>(() =>
+    globalThis.structuredClone(initialDatasets.monsterDataset)
+  );
+  const [stageDefinitions, setStageDefinitions] = useState<StageDefinition[]>(() =>
+    globalThis.structuredClone(defaultWorkspace.stageDefinitions)
+  );
+  const [activeStageId, setActiveStageId] = useState<string | null>(defaultWorkspace.activeStageId);
+  const activeStageDefinition = stageDefinitions.find(stage => stage.id === activeStageId);
 
   // Monster row selection for multi-spawn (1:다 시뮬레이터)
-  const [selectedMonsterRows, setSelectedMonsterRows] = useState<Set<number>>(new Set());
+  const [selectedMonsterRows, setSelectedMonsterRows] = useState<Set<string>>(
+    () => new Set(defaultWorkspace.selectedMonsterIds)
+  );
 
-  const [playerConfig, setPlayerConfig] = useState<CharacterConfig>({
-    size: { min: 18, max: 22 },
-    speed: { min: 140, max: 160 },
-    attack: { min: 45, max: 55 },
-    defense: { min: 18, max: 22 },
-    attackSpeed: { min: 1.4, max: 1.6 },
-    accuracy: { min: 80, max: 90 },
-    criticalRate: { min: 20, max: 30 },
-    attackRange: { min: 75, max: 85 },
-    attackWidth: { min: 85, max: 95 },
-    typeId: DEFAULT_CHARACTER_TYPES[0]?.id || 'warrior', // 타입 프리셋 ID (첫 번째 타입)
-    attackType: DEFAULT_CHARACTER_TYPES[0]?.id || 'warrior', // 첫 번째 타입
-    monsterRespawnDelay: DEFAULT_RESPAWN_DELAY,
-    monsterMaxCount: 3,
-  });
+  const [playerConfig, setPlayerConfig] = useState<CharacterConfig>(() =>
+    globalThis.structuredClone(defaultWorkspace.playerConfig)
+  );
 
-  const [monsterConfig, setMonsterConfig] = useState<CharacterConfig>({
-    size: { min: 22, max: 26 },
-    speed: { min: 55, max: 65 },
-    attack: { min: 35, max: 45 },
-    defense: { min: 13, max: 17 },
-    attackSpeed: { min: 0.9, max: 1.1 },
-    accuracy: { min: 70, max: 80 },
-    criticalRate: { min: 12, max: 18 },
-    attackRange: { min: 55, max: 65 },
-    attackWidth: { min: 115, max: 125 },
-    typeId: DEFAULT_CHARACTER_TYPES[0]?.id || 'warrior', // 타입 프리셋 ID (첫 번째 타입)
-    attackType: DEFAULT_CHARACTER_TYPES[0]?.id || 'warrior', // 첫 번째 타입
-    monsterRespawnDelay: DEFAULT_RESPAWN_DELAY,
-    monsterMaxCount: 3,
-  });
+  const [monsterConfig, setMonsterConfig] = useState<CharacterConfig>(() =>
+    globalThis.structuredClone(defaultWorkspace.monsterConfig)
+  );
+
+  const applyWorkspace = useCallback(
+    (input: unknown | null) => {
+      let workspace: WorkspaceSnapshot;
+      if (input === null) {
+        workspace = cloneWorkspace(defaultWorkspace);
+      } else if (isWorkspaceSnapshot(input)) {
+        workspace = cloneWorkspace(input);
+      } else {
+        throw new Error('저장된 사용자 작업공간의 데이터 형식이 올바르지 않습니다.');
+      }
+
+      const rowCount = Math.max(workspace.playerDataset.length, workspace.monsterDataset.length);
+      const tick = rowCount === 0 ? 0 : Math.min(workspace.currentTick, rowCount - 1);
+      const availableMonsterIds = new Set(
+        workspace.monsterDataset
+          .map(row => row.monster_definition_id)
+          .filter((id): id is string => typeof id === 'string')
+      );
+      const selectedMonsterIds = workspace.selectedMonsterIds.filter(id =>
+        availableMonsterIds.has(id)
+      );
+
+      importedPlayerLevelConfig.current = true;
+      importedMonsterLevelConfig.current = true;
+      skipCurrentRowApplyRef.current = true;
+      setCurrentView(APP_VIEW.SIMULATOR);
+      setCurrentTick(tick);
+      setKeyBindings(workspace.keyBindings);
+      setCharacterTypes(workspace.characterTypes);
+      setPlayerLevelConfig(workspace.playerLevelConfig);
+      setMonsterLevelConfig(workspace.monsterLevelConfig);
+      setPlayerBasicAttack(workspace.playerBasicAttack);
+      setMonsterBasicAttack(workspace.monsterBasicAttack);
+      setSkillSlots(workspace.skillSlots);
+      setSkillConfigs(workspace.skillConfigs);
+      setCustomEffectPresets(workspace.customEffectPresets);
+      setItemSlots(workspace.itemSlots);
+      _setHomingProjectiles(workspace.homingProjectiles);
+      setMaxMonsterCount(workspace.maxMonsterCount);
+      setRespawnDelay(workspace.respawnDelay);
+      setMonsterTypeStats(workspace.monsterTypeStats);
+      setPlayerDataset(workspace.playerDataset);
+      setMonsterDataset(workspace.monsterDataset);
+      setStageDefinitions(workspace.stageDefinitions);
+      setActiveStageId(
+        workspace.activeStageId &&
+          workspace.stageDefinitions.some(stage => stage.id === workspace.activeStageId)
+          ? workspace.activeStageId
+          : null
+      );
+      setSelectedMonsterRows(new Set(selectedMonsterIds));
+      setPlayerConfig(workspace.playerConfig);
+      setMonsterConfig(workspace.monsterConfig);
+      setCurrentDataRow(
+        workspace.playerDataset[tick] || workspace.monsterDataset[tick]
+          ? {
+              ...(workspace.playerDataset[tick] || {}),
+              ...(workspace.monsterDataset[tick] || {}),
+            }
+          : mockDataset[0] || null
+      );
+      setLevelImportRevision(previous => previous + 1);
+      setWorkspaceError(undefined);
+    },
+    [defaultWorkspace]
+  );
+
+  const getCurrentWorkspace = useCallback(
+    (): WorkspaceSnapshot => ({
+      version: 1,
+      currentTick,
+      keyBindings,
+      characterTypes,
+      playerLevelConfig,
+      monsterLevelConfig,
+      playerBasicAttack,
+      monsterBasicAttack,
+      skillSlots,
+      skillConfigs,
+      customEffectPresets,
+      itemSlots,
+      homingProjectiles,
+      maxMonsterCount,
+      respawnDelay,
+      monsterTypeStats,
+      playerDataset,
+      monsterDataset,
+      stageDefinitions,
+      activeStageId,
+      selectedMonsterIds: Array.from(selectedMonsterRows),
+      playerConfig,
+      monsterConfig,
+    }),
+    [
+      currentTick,
+      keyBindings,
+      characterTypes,
+      playerLevelConfig,
+      monsterLevelConfig,
+      playerBasicAttack,
+      monsterBasicAttack,
+      skillSlots,
+      skillConfigs,
+      customEffectPresets,
+      itemSlots,
+      homingProjectiles,
+      maxMonsterCount,
+      respawnDelay,
+      monsterTypeStats,
+      playerDataset,
+      monsterDataset,
+      stageDefinitions,
+      activeStageId,
+      selectedMonsterRows,
+      playerConfig,
+      monsterConfig,
+    ]
+  );
+
+  const finishAuthentication = useCallback(
+    (user: AuthUser, workspace: unknown | null) => {
+      applyWorkspace(workspace);
+      setAuthUser(user);
+      setAuthNeedsSetup(false);
+      setWorkspaceLoaded(true);
+    },
+    [applyWorkspace]
+  );
+
+  useEffect(() => {
+    let active = true;
+    const restoreAuthentication = async () => {
+      setAuthLoading(true);
+      setAuthError(undefined);
+      setAuthUser(null);
+      setWorkspaceLoaded(false);
+      try {
+        const status = await getAuthStatus();
+        if (!active) return;
+        setAuthNeedsSetup(status.needsSetup);
+        if (status.user) {
+          const result = await getWorkspace();
+          if (!active) return;
+          finishAuthentication(status.user, result.workspace);
+        }
+      } catch (error) {
+        if (active) {
+          setAuthError(
+            error instanceof Error ? error.message : '로그인 상태를 확인하지 못했습니다.'
+          );
+        }
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    };
+    void restoreAuthentication();
+    return () => {
+      active = false;
+    };
+  }, [finishAuthentication]);
+
+  const handleAuthentication = useCallback(
+    async (username: string, password: string) => {
+      setAuthLoading(true);
+      setAuthError(undefined);
+      const creatingInitialAdmin = authNeedsSetup;
+      try {
+        const result = creatingInitialAdmin
+          ? await setupAdmin(username, password)
+          : await login(username, password);
+        if (creatingInitialAdmin) setAuthNeedsSetup(false);
+        const saved = await getWorkspace();
+        let workspace = saved.workspace;
+        if (creatingInitialAdmin && workspace === null) {
+          try {
+            const legacyPresets = readLegacyEffectPresets();
+            if (legacyPresets.length > 0) {
+              workspace = {
+                ...cloneWorkspace(defaultWorkspace),
+                customEffectPresets: legacyPresets,
+              };
+              setRemoveLegacyPresetsAfterSave(true);
+            }
+          } catch (error) {
+            setWorkspaceError(
+              error instanceof Error ? error.message : '이전 이펙트 데이터를 이전하지 못했습니다.'
+            );
+          }
+        }
+        finishAuthentication(result.user, workspace);
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : '로그인할 수 없습니다.');
+      } finally {
+        setAuthLoading(false);
+      }
+    },
+    [authNeedsSetup, defaultWorkspace, finishAuthentication]
+  );
+
+  const handleLogout = useCallback(async () => {
+    setWorkspaceLoaded(false);
+    try {
+      await saveWorkspace(getCurrentWorkspace());
+      await logout();
+      setAuthUser(null);
+      setAuthNeedsSetup(false);
+      setRemoveLegacyPresetsAfterSave(false);
+      setWorkspaceSaveState('saved');
+    } catch (error) {
+      setWorkspaceLoaded(true);
+      setWorkspaceSaveState('error');
+      setWorkspaceError(error instanceof Error ? error.message : '로그아웃을 완료하지 못했습니다.');
+    }
+  }, [getCurrentWorkspace]);
+
+  useEffect(() => {
+    if (!authUser || !workspaceLoaded) return;
+    const workspace = getCurrentWorkspace();
+    setWorkspaceSaveState('pending');
+    const timeout = window.setTimeout(async () => {
+      setWorkspaceSaveState('saving');
+      try {
+        await saveWorkspace(workspace);
+        setWorkspaceSaveState('saved');
+        setWorkspaceError(undefined);
+        if (removeLegacyPresetsAfterSave) {
+          try {
+            localStorage.removeItem('battle-simulator-custom-effect-presets');
+            setRemoveLegacyPresetsAfterSave(false);
+          } catch {
+            setWorkspaceError(
+              '저장된 이펙트는 이전했지만 이전 브라우저 데이터를 정리하지 못했습니다.'
+            );
+          }
+        }
+      } catch (error) {
+        setWorkspaceSaveState('error');
+        setWorkspaceError(
+          error instanceof Error ? error.message : '작업공간을 저장하지 못했습니다.'
+        );
+      }
+    }, 500);
+    return () => window.clearTimeout(timeout);
+  }, [
+    authUser,
+    workspaceLoaded,
+    getCurrentWorkspace,
+    removeLegacyPresetsAfterSave,
+    workspaceSaveRetry,
+  ]);
 
   // Update current data row when tick changes (NOT when dataset changes)
   useEffect(() => {
+    if (!workspaceLoaded) return;
     const playerRow = playerDataset[currentTick];
     const monsterRow = monsterDataset[currentTick];
 
@@ -197,23 +578,19 @@ export default function App() {
       } as DataRow;
       setCurrentDataRow(mergedRow);
     }
-  }, [currentTick]); // playerDataset, monsterDataset 제거하여 데이터셋 변경 시 재실행 방지
+  }, [currentTick, workspaceLoaded]); // playerDataset, monsterDataset 의도적으로 제외
 
-  // 플레이어 레벨 설정(초기값/증가공식) 변경 시 모든 플레이어 데이터 재계산
+  // 플레이어 레벨 설정 변경 시 레거시 데이터만 재계산
   useEffect(() => {
+    if (!workspaceLoaded) return;
+    // Imported rows are already part of the workbook and must not be recalculated on import.
+    if (importedPlayerLevelConfig.current) return;
     if (playerDataset.length === 0) return;
 
-    const recalculatedDataset = playerDataset.map(row => {
-      if (row.player_level === undefined) return row;
-      const level = row.player_level || 1;
-      const size = row.player_size || 20;
-      const typeId = row.player_attack_type;
-      const typeInfo = characterTypes.find(t => t.id === typeId);
-      return updateDataRowWithLevel(row, true, playerLevelConfig, level, size, typeInfo);
-    });
-
-    setPlayerDataset(recalculatedDataset);
-    toast.info(`🔄 플레이어 레벨 설정 변경 → ${playerDataset.length}개 행 재계산 완료`);
+    const result = recalculateLegacyPlayerRows(playerDataset, playerLevelConfig, characterTypes);
+    if (result.count === 0) return;
+    setPlayerDataset(result.rows);
+    toast.info(`🔄 플레이어 레벨 설정 변경 → ${result.count}개 행 재계산 완료`);
   }, [
     playerLevelConfig.baseHp,
     playerLevelConfig.baseSp,
@@ -230,10 +607,13 @@ export default function App() {
     playerLevelConfig.defenseGrowth.b,
     playerLevelConfig.speedGrowth.a,
     playerLevelConfig.speedGrowth.b,
+    workspaceLoaded,
   ]);
 
   // 몬스터 레벨 설정(초기값/증가공식) 변경 시 모든 몬스터 데이터 재계산
   useEffect(() => {
+    if (!workspaceLoaded) return;
+    if (importedMonsterLevelConfig.current) return;
     if (monsterDataset.length === 0) return;
 
     const recalculatedDataset = monsterDataset.map(row => {
@@ -263,14 +643,19 @@ export default function App() {
     monsterLevelConfig.defenseGrowth.b,
     monsterLevelConfig.speedGrowth.a,
     monsterLevelConfig.speedGrowth.b,
+    workspaceLoaded,
   ]);
+
+  useEffect(() => {
+    importedPlayerLevelConfig.current = false;
+    importedMonsterLevelConfig.current = false;
+  }, [levelImportRevision]);
 
   const handleApplyPlayerRow = useCallback(
     (row: DataRow) => {
       applyPlayerRowFromData({
         row,
         skillConfigs,
-        baseSkills: defaultSkills,
         setPlayerLevelConfig,
         setPlayerConfig,
         setPlayerBasicAttack,
@@ -295,6 +680,11 @@ export default function App() {
 
   // Apply current data row to configs and skills (only when tick changes, NOT when dataset changes)
   useEffect(() => {
+    if (!workspaceLoaded) return;
+    if (skipCurrentRowApplyRef.current) {
+      skipCurrentRowApplyRef.current = false;
+      return;
+    }
     // currentTick이 변경될 때만 실행
     // 데이터셋 내 값 변경 시에는 PlayerDatasetViewer/MonsterDatasetViewer의 onApplyRow로 처리
     const playerRow = playerDataset[currentTick];
@@ -306,7 +696,43 @@ export default function App() {
     if (monsterRow && monsterRow.monster_size !== undefined) {
       handleApplyMonsterRow(monsterRow);
     }
-  }, [currentTick]); // playerDataset, monsterDataset 의도적으로 제외하여 데이터셋 변경 시 재실행 방지
+  }, [currentTick, workspaceLoaded]); // playerDataset, monsterDataset 의도적으로 제외
+
+  if (authLoading) {
+    return (
+      <>
+        <Toaster position='top-right' />
+        <div className='flex min-h-screen items-center justify-center'>
+          <ViewLoader />
+        </div>
+      </>
+    );
+  }
+
+  if (!authUser) {
+    return (
+      <>
+        <Toaster position='top-right' />
+        <AuthenticationScreen
+          needsSetup={authNeedsSetup}
+          busy={authLoading}
+          error={authError}
+          onSubmit={handleAuthentication}
+        />
+      </>
+    );
+  }
+
+  if (!workspaceLoaded) {
+    return (
+      <>
+        <Toaster position='top-right' />
+        <div className='flex min-h-screen items-center justify-center'>
+          <ViewLoader />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -381,7 +807,52 @@ export default function App() {
             </SidebarContent>
 
             <SidebarFooter className='border-t border-sidebar-border p-4'>
-              <p className='text-xs text-slate-500'>데이터셋 + 시각화 + 동기화</p>
+              <div className='space-y-2'>
+                <p className='text-sm font-medium'>{authUser.username}</p>
+                <p className='text-xs text-slate-500'>
+                  {workspaceSaveState === 'saving'
+                    ? '작업공간 저장 중...'
+                    : workspaceSaveState === 'pending'
+                      ? '변경 사항 저장 대기'
+                      : workspaceSaveState === 'error'
+                        ? '작업공간 저장 오류'
+                        : '작업공간 저장됨'}
+                </p>
+                {workspaceError && (
+                  <p role='alert' className='text-xs text-red-600'>
+                    {workspaceError}
+                  </p>
+                )}
+                {workspaceSaveState === 'error' && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='w-full'
+                    onClick={() => setWorkspaceSaveRetry(previous => previous + 1)}
+                  >
+                    다시 저장
+                  </Button>
+                )}
+                {authUser.role === 'admin' && (
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='w-full'
+                    onClick={() => setAccountManagerOpen(true)}
+                  >
+                    사용자 계정 관리
+                  </Button>
+                )}
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='w-full'
+                  onClick={() => void handleLogout()}
+                  disabled={workspaceSaveState === 'saving'}
+                >
+                  로그아웃
+                </Button>
+              </div>
             </SidebarFooter>
           </Sidebar>
 
@@ -399,6 +870,7 @@ export default function App() {
                       monsterConfig={monsterConfig}
                       currentTick={currentTick}
                       currentDataRow={currentDataRow}
+                      playerDataset={playerDataset}
                       playerLevelConfig={playerLevelConfig}
                       monsterLevelConfig={monsterLevelConfig}
                       skillSlots={skillSlots}
@@ -412,6 +884,7 @@ export default function App() {
                       title='시뮬레이터'
                       selectedMonsterRows={selectedMonsterRows}
                       monsterDataset={monsterDataset}
+                      stageDefinition={activeStageDefinition}
                     />
 
                     {/* Datasets (Vertical) */}
@@ -461,6 +934,15 @@ export default function App() {
                     <CharacterTypeManager
                       characterTypes={characterTypes}
                       onCharacterTypesChange={setCharacterTypes}
+                      findTypeReferences={id =>
+                        findCharacterTypeReferences(id, {
+                          playerConfig,
+                          monsterConfig,
+                          monsterTypeStats,
+                          playerDataset,
+                          monsterDataset,
+                        })
+                      }
                     />
                   </div>
                 )}
@@ -472,6 +954,20 @@ export default function App() {
                       monsterTypeStats={monsterTypeStats}
                       onMonsterTypeStatsChange={setMonsterTypeStats}
                       characterTypes={characterTypes}
+                    />
+                  </div>
+                )}
+
+                {currentView === APP_VIEW.SETTINGS_WAVES && (
+                  <div className='max-w-6xl mx-auto'>
+                    <StageWaveManager
+                      stageDefinitions={stageDefinitions}
+                      onStageDefinitionsChange={setStageDefinitions}
+                      activeStageId={activeStageId}
+                      onActiveStageIdChange={setActiveStageId}
+                      monsterDataset={monsterDataset}
+                      maxMonsterCount={maxMonsterCount}
+                      defaultRespawnDelay={respawnDelay}
                     />
                   </div>
                 )}
@@ -544,9 +1040,17 @@ export default function App() {
                     monsterConfig={monsterConfig}
                     onMonsterConfigChange={setMonsterConfig}
                     playerLevelConfig={playerLevelConfig}
-                    onPlayerLevelConfigChange={setPlayerLevelConfig}
+                    onPlayerLevelConfigChange={config => {
+                      importedPlayerLevelConfig.current = true;
+                      setPlayerLevelConfig(config);
+                      setLevelImportRevision(revision => revision + 1);
+                    }}
                     monsterLevelConfig={monsterLevelConfig}
-                    onMonsterLevelConfigChange={setMonsterLevelConfig}
+                    onMonsterLevelConfigChange={config => {
+                      importedMonsterLevelConfig.current = true;
+                      setMonsterLevelConfig(config);
+                      setLevelImportRevision(revision => revision + 1);
+                    }}
                     skillConfigs={skillConfigs}
                     onSkillConfigsChange={setSkillConfigs}
                     playerBasicAttack={playerBasicAttack}
@@ -563,6 +1067,56 @@ export default function App() {
                     onPlayerDatasetChange={setPlayerDataset}
                     monsterDataset={monsterDataset}
                     onMonsterDatasetChange={setMonsterDataset}
+                    stageDefinitions={stageDefinitions}
+                    onStageDefinitionsChange={setStageDefinitions}
+                    onImportSuccess={data => {
+                      setActiveStageId(previous =>
+                        data.stageDefinitions?.some(stage => stage.id === previous)
+                          ? previous
+                          : null
+                      );
+                      const { tick, playerRow, monsterRow, currentRow } = selectImportedRows(
+                        data.playerDataset,
+                        data.monsterDataset,
+                        currentTick
+                      );
+                      setCurrentTick(tick);
+                      setCurrentDataRow(currentRow);
+                      setSelectedMonsterRows(new Set());
+                      if (selectedMonsterRows.size > 0) {
+                        toast.info(
+                          '이전 몬스터 행 선택을 해제했습니다. 새 데이터에서 다시 선택하세요.'
+                        );
+                      }
+                      if (playerRow?.player_size !== undefined) {
+                        applyPlayerRowFromData({
+                          row: playerRow,
+                          skillConfigs: data.skillConfigs,
+                          setPlayerLevelConfig,
+                          setPlayerConfig,
+                          setPlayerBasicAttack,
+                          setSkillSlots,
+                        });
+                      } else {
+                        setSkillSlots([]);
+                        toast.warning(
+                          '선택된 플레이어 행이 없거나 크기가 없어 행 설정을 적용하지 않았습니다.'
+                        );
+                      }
+                      if (monsterRow?.monster_size !== undefined) {
+                        applyMonsterRowFromData({
+                          row: monsterRow,
+                          skillConfigs: data.skillConfigs,
+                          setMonsterLevelConfig,
+                          setMonsterConfig,
+                          setMonsterBasicAttack,
+                        });
+                      } else {
+                        toast.warning(
+                          '선택된 몬스터 행이 없거나 크기가 없어 행 설정을 적용하지 않았습니다.'
+                        );
+                      }
+                    }}
                   />
                 )}
 
@@ -577,6 +1131,7 @@ export default function App() {
           </main>
         </div>
       </SidebarProvider>
+      <AccountManagementDialog open={accountManagerOpen} onOpenChange={setAccountManagerOpen} />
     </>
   );
 }

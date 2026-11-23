@@ -2,7 +2,8 @@ import { AlertCircle, Plus, Skull, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { CharacterTypeInfo } from '../lib/characterTypes';
-import { AIPatternConfig, defaultAIPatternConfig } from '../lib/monsterAI';
+import { defaultAIPatternConfig } from '../lib/monsterAI';
+import type { MonsterTypeStats } from '../lib/monsterTypes';
 import { defaultSkills } from '../lib/skillSystem';
 import { MonsterAIPatternEditor } from './MonsterAIPatternEditor';
 import { Button } from './ui/button';
@@ -10,19 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
-
-/**
- * 몬스터 타입 통계 (프리셋 기반)
- * - 레벨, 크기, AI 패턴, 스킬 세트를 포함하는 프리셋
- */
-export interface MonsterTypeStats {
-  characterType: string; // 캐릭터 타입 ID
-  baseLevel: number; // 기본 레벨
-  size: number; // 크기
-  aiPattern: string; // AI 패턴 이름 (aggressive, defensive 등)
-  skills: string[]; // 스킬 ID 목록
-  aiPatternConfig?: AIPatternConfig; // AI 패턴 설정
-}
 
 interface MonsterTypeDefinitionProps {
   monsterTypeStats: Record<string, MonsterTypeStats>;

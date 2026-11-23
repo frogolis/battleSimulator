@@ -13,6 +13,9 @@ export const DATA_WORKBOOK_SHEETS = {
   MONSTER_BASIC_ATTACK: 'Monster Basic Attack',
   PLAYER_CONFIG: 'Player Config',
   MONSTER_CONFIG: 'Monster Config',
+  STAGES: 'Stages',
+  WAVES: 'Waves',
+  WAVE_MONSTER_MAPPINGS: 'Wave Monster Mappings',
 } as const;
 
 export const DATA_WORKBOOK_SHEET_LABELS = [
@@ -28,4 +31,7 @@ export const DATA_WORKBOOK_SHEET_LABELS = [
   'Monster Basic Attack (몬스터 기본 공격)',
   'Player Config (플레이어 스탯 포뮬러)',
   'Monster Config (몬스터 스탯 포뮬러)',
+  'Stages (스테이지)',
+  'Waves (웨이브)',
+  'Wave Monster Mappings (웨이브 몬스터 매핑)',
 ] as const;

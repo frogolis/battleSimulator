@@ -7,7 +7,6 @@ import { BasicAttackSlot, Skill, SkillSlot } from '../../lib/skillSystem';
 interface PlayerRowApplyParams {
   row: DataRow;
   skillConfigs: Record<string, Skill>;
-  baseSkills: Record<string, Skill>;
   setPlayerLevelConfig: Dispatch<SetStateAction<LevelConfig>>;
   setPlayerConfig: Dispatch<SetStateAction<CharacterConfig>>;
   setPlayerBasicAttack: Dispatch<SetStateAction<BasicAttackSlot>>;
@@ -22,10 +21,25 @@ interface MonsterRowApplyParams {
   setMonsterBasicAttack: Dispatch<SetStateAction<BasicAttackSlot>>;
 }
 
+export function selectImportedRows(
+  playerDataset: DataRow[],
+  monsterDataset: DataRow[],
+  currentTick: number
+): { tick: number; playerRow?: DataRow; monsterRow?: DataRow; currentRow: DataRow | null } {
+  const tick = playerDataset[currentTick] || monsterDataset[currentTick] ? currentTick : 0;
+  const playerRow = playerDataset[tick];
+  const monsterRow = monsterDataset[tick];
+  return {
+    tick,
+    playerRow,
+    monsterRow,
+    currentRow: playerRow ? { ...playerRow, ...monsterRow } : monsterRow ? { ...monsterRow } : null,
+  };
+}
+
 export function applyPlayerRowFromData({
   row,
   skillConfigs,
-  baseSkills,
   setPlayerLevelConfig,
   setPlayerConfig,
   setPlayerBasicAttack,
@@ -76,6 +90,7 @@ export function applyPlayerRowFromData({
       row.player_attack_width !== undefined
         ? { min: row.player_attack_width, max: row.player_attack_width }
         : prev.attackWidth,
+    typeId: row.player_attack_type || prev.typeId,
     attackType: (row.player_attack_type as CharacterType) || prev.attackType,
   }));
 
@@ -103,38 +118,39 @@ export function applyPlayerRowFromData({
   }
 
   const newSkillSlots: SkillSlot[] = [];
-  for (let i = 1; i <= 4; i++) {
-    const skillId = row[`player_skill_${i}_id` as keyof DataRow] as string;
-    if (skillId && baseSkills[skillId]) {
-      const baseSkill = baseSkills[skillId];
-      const range = row[`player_skill_${i}_range` as keyof DataRow] as number;
-      const width = row[`player_skill_${i}_width` as keyof DataRow] as number;
-      const damage = row[`player_skill_${i}_damage` as keyof DataRow] as number;
-      const cooldown = row[`player_skill_${i}_cooldown` as keyof DataRow] as number;
-      const spCost = row[`player_skill_${i}_sp_cost` as keyof DataRow] as number;
-      const castTime = row[`player_skill_${i}_cast_time` as keyof DataRow] as number;
+  for (const i of [1, 2, 3, 4] as const) {
+    const skillId = row[`player_skill_${i}_id`];
+    if (skillId && Object.hasOwn(skillConfigs, skillId)) {
+      const baseSkill = skillConfigs[skillId];
+      const range = row[`player_skill_${i}_range`];
+      const area = row[`player_skill_${i}_width`];
+      const damageMultiplier = row[`player_skill_${i}_damage`];
+      const cooldown = row[`player_skill_${i}_cooldown`];
+      const spCost = row[`player_skill_${i}_sp_cost`];
+      const castTime = row[`player_skill_${i}_cast_time`];
+      const overrides: NonNullable<SkillSlot['overrides']> = {};
+      if (range !== undefined) overrides.range = range;
+      if (area !== undefined) overrides.area = area;
+      if (damageMultiplier !== undefined) overrides.damageMultiplier = damageMultiplier;
+      if (cooldown !== undefined) overrides.cooldown = cooldown;
+      if (spCost !== undefined) overrides.spCost = spCost;
+      if (castTime !== undefined) overrides.castTime = castTime;
 
       newSkillSlots.push({
-        slotNumber: i as 1 | 2 | 3 | 4,
+        slotNumber: i,
         skill: {
           ...baseSkill,
-          range: range !== undefined ? range : baseSkill.range,
-          area: width !== undefined ? width : baseSkill.area,
-          damageMultiplier: damage !== undefined ? damage : baseSkill.damageMultiplier,
-          cooldown: cooldown !== undefined ? cooldown : baseSkill.cooldown,
-          spCost: spCost !== undefined ? spCost : baseSkill.spCost,
-          castTime: castTime !== undefined ? castTime : baseSkill.castTime,
+          ...overrides,
           currentCooldown: 0,
           isOnCooldown: false,
         },
+        overrides,
         keyBinding: i.toString(),
       });
     }
   }
 
-  if (newSkillSlots.length > 0) {
-    setSkillSlots(newSkillSlots);
-  }
+  setSkillSlots(newSkillSlots);
 }
 
 export function applyMonsterRowFromData({
@@ -189,6 +205,7 @@ export function applyMonsterRowFromData({
       row.monster_attack_width !== undefined
         ? { min: row.monster_attack_width, max: row.monster_attack_width }
         : prev.attackWidth,
+    typeId: row.monster_attack_type || prev.typeId,
     attackType: (row.monster_attack_type as CharacterType) || prev.attackType,
   }));
 

@@ -28,7 +28,7 @@ import { ItemSlot } from '../lib/itemSystem';
 import { LevelConfig, generateExpChartDataWithSegments } from '../lib/levelSystem';
 import { DataRow } from '../lib/mockData';
 import { BasicAttackSlot, Skill, SkillSlot } from '../lib/skillSystem';
-import { MonsterTypeStats } from './MonsterTypeDefinition';
+import type { MonsterTypeStats } from '../lib/monsterTypes';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';

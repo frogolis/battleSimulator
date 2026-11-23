@@ -62,12 +62,12 @@ export function loadPlayerSkills(row: DataRow): CharacterSkills {
 
     return {
       id: id as string,
-      range: row[`player_skill_${slotNum}_range`] || 100,
-      width: row[`player_skill_${slotNum}_width`] || 120,
-      damage: row[`player_skill_${slotNum}_damage`] || 1.0,
-      cooldown: row[`player_skill_${slotNum}_cooldown`] || 3000,
-      spCost: row[`player_skill_${slotNum}_sp_cost`] || 20,
-      castTime: row[`player_skill_${slotNum}_cast_time`] || 500,
+      range: row[`player_skill_${slotNum}_range`] ?? 100,
+      width: row[`player_skill_${slotNum}_width`] ?? 120,
+      damage: row[`player_skill_${slotNum}_damage`] ?? 1.0,
+      cooldown: row[`player_skill_${slotNum}_cooldown`] ?? 3000,
+      spCost: row[`player_skill_${slotNum}_sp_cost`] ?? 20,
+      castTime: row[`player_skill_${slotNum}_cast_time`] ?? 500,
       currentCooldown: 0,
     };
   };
@@ -90,12 +90,12 @@ export function loadMonsterSkills(row: DataRow): CharacterSkills {
 
     return {
       id: id as string,
-      range: row[`monster_skill_${slotNum}_range`] || 100,
-      width: row[`monster_skill_${slotNum}_width`] || 120,
-      damage: row[`monster_skill_${slotNum}_damage`] || 1.0,
-      cooldown: row[`monster_skill_${slotNum}_cooldown`] || 3000,
-      spCost: row[`monster_skill_${slotNum}_sp_cost`] || 20,
-      castTime: row[`monster_skill_${slotNum}_cast_time`] || 500,
+      range: row[`monster_skill_${slotNum}_range`] ?? 100,
+      width: row[`monster_skill_${slotNum}_width`] ?? 120,
+      damage: row[`monster_skill_${slotNum}_damage`] ?? 1.0,
+      cooldown: row[`monster_skill_${slotNum}_cooldown`] ?? 3000,
+      spCost: row[`monster_skill_${slotNum}_sp_cost`] ?? 20,
+      castTime: row[`monster_skill_${slotNum}_cast_time`] ?? 500,
       currentCooldown: 0,
     };
   };
@@ -132,12 +132,12 @@ export function loadPlayerBasicAttack(row: DataRow): BasicAttackInfo {
   if (!skill) {
     return {
       id: skillId,
-      range: row.player_basic_attack_range || 75,
-      width: row.player_basic_attack_width || 90,
-      damage: row.player_basic_attack_damage || 1.0,
-      cooldown: row.player_basic_attack_cooldown || 1000,
-      spCost: row.player_basic_attack_sp_cost || 0,
-      castTime: row.player_basic_attack_cast_time || 300,
+      range: row.player_basic_attack_range ?? 75,
+      width: row.player_basic_attack_width ?? 90,
+      damage: row.player_basic_attack_damage ?? 1.0,
+      cooldown: row.player_basic_attack_cooldown ?? 1000,
+      spCost: row.player_basic_attack_sp_cost ?? 0,
+      castTime: row.player_basic_attack_cast_time ?? 300,
     };
   }
 
@@ -163,12 +163,12 @@ export function loadMonsterBasicAttack(row: DataRow): BasicAttackInfo {
   if (!skill) {
     return {
       id: skillId,
-      range: row.monster_basic_attack_range || 75,
-      width: row.monster_basic_attack_width || 90,
-      damage: row.monster_basic_attack_damage || 1.0,
-      cooldown: row.monster_basic_attack_cooldown || 1000,
-      spCost: row.monster_basic_attack_sp_cost || 0,
-      castTime: row.monster_basic_attack_cast_time || 300,
+      range: row.monster_basic_attack_range ?? 75,
+      width: row.monster_basic_attack_width ?? 90,
+      damage: row.monster_basic_attack_damage ?? 1.0,
+      cooldown: row.monster_basic_attack_cooldown ?? 1000,
+      spCost: row.monster_basic_attack_sp_cost ?? 0,
+      castTime: row.monster_basic_attack_cast_time ?? 300,
     };
   }
 
@@ -192,7 +192,7 @@ export function loadMonsterAI(row: DataRow): AIConfig {
 
   return {
     type: isAIType(aiType) ? aiType : 'aggressive',
-    aggroRange: row.monster_ai_aggro_range || 300,
+    aggroRange: row.monster_ai_aggro_range ?? 300,
     skillPriority: isSkillPriority(skillPriority) ? skillPriority : 'damage',
   };
 }

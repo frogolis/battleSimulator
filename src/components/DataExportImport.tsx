@@ -5,13 +5,15 @@ import { DATA_WORKBOOK_SHEET_LABELS } from '../features/data-file/constants';
 import { exportGameDataToWorkbook } from '../features/data-file/exportManager';
 import { importGameDataFromWorkbook, readFileAsBinary } from '../features/data-io/importManager';
 import { DATA_IO_MESSAGES } from '../features/data-io/messages';
-import { GameDataSetters, GameDataState } from '../features/data-io/model';
+import { GameDataSetters, GameDataState, ImportedGameData } from '../features/data-io/model';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Separator } from './ui/separator';
 
-interface DataExportImportProps extends GameDataState, GameDataSetters {}
+interface DataExportImportProps extends GameDataState, GameDataSetters {
+  onImportSuccess: (data: ImportedGameData) => void;
+}
 
 const logDataIO = (..._args: unknown[]): void => {};
 
@@ -40,6 +42,9 @@ export function DataExportImport({
   onPlayerDatasetChange,
   monsterDataset,
   onMonsterDatasetChange,
+  stageDefinitions,
+  onStageDefinitionsChange,
+  onImportSuccess,
 }: DataExportImportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -61,6 +66,7 @@ export function DataExportImport({
         monsterTypeStats,
         playerDataset,
         monsterDataset,
+        stageDefinitions,
       });
 
       toast.success(DATA_IO_MESSAGES.EXPORT_SUCCESS);
@@ -76,7 +82,7 @@ export function DataExportImport({
     if (!file) return;
     try {
       const binary = await readFileAsBinary(file);
-      importGameDataFromWorkbook(binary, {
+      const data = importGameDataFromWorkbook(binary, {
         onPlayerConfigChange,
         onMonsterConfigChange,
         onPlayerLevelConfigChange,
@@ -89,7 +95,9 @@ export function DataExportImport({
         onMonsterTypeStatsChange,
         onPlayerDatasetChange,
         onMonsterDatasetChange,
+        onStageDefinitionsChange,
       });
+      onImportSuccess(data);
 
       setUploadStatus('success');
       setUploadMessage(DATA_IO_MESSAGES.IMPORT_STATUS_SUCCESS);

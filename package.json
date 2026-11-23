@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
@@ -49,14 +52,17 @@
     "xlsx": "*"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite",
+    "dev:api": "node server/index.mjs",
     "build": "vite build",
+    "start": "node server/index.mjs",
     "preview": "vite preview",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
     "format": "prettier . --check",
     "format:fix": "prettier . --write",
-    "test": "vitest run"
+    "test": "vitest run src && node --test server/auth.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",

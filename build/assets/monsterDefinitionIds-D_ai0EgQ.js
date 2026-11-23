@@ -1,0 +1,1 @@
+function r(o){const n=globalThis.crypto;if(!n||typeof n.randomUUID!="function")throw new Error("이 브라우저는 정의 ID 생성에 필요한 암호화 기능을 지원하지 않습니다.");return`${o}_${n.randomUUID()}`}function t(){return r("monster")}export{r as a,t as c};

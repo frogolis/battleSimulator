@@ -63,6 +63,10 @@ export interface EffectPreset {
 
   repeatCount?: number;
   repeatInterval?: number;
+
+  /** 파티클 생성 코드 (함수 본문). useCustomCode가 true이면 내장 생성기 대신 실행된다. */
+  customCode?: string;
+  useCustomCode?: boolean;
 }
 
 type LegacyVisualFields = {

@@ -26,12 +26,14 @@ export interface RespawnConfig {
  */
 export interface RespawnContext {
   monsterDataset?: DataRow[];
-  selectedMonsterRows?: Set<number>;
+  preserveMonsterDefinition?: boolean;
+  selectedMonsterRows?: Set<string>;
   skillConfigs?: Record<string, Skill>;
   selectMonsterByWeight?: () => DataRow | null;
   currentDataRow?: DataRow;
   nextMonsterId: number; // 다음 몬스터 ID
   monsterLevelConfig?: LevelConfig; // 몬스터 레벨 설정
+  requireMonsterStats?: boolean;
 }
 
 /**
@@ -54,8 +56,8 @@ export function updateRespawnTimers(
   const aliveCount = monsters.filter(m => !m.isDead).length;
 
   monsters.forEach(monster => {
-    if (monster.isDead && monster.respawnTimer > 0) {
-      monster.respawnTimer -= deltaTime;
+    if (monster.isDead) {
+      monster.respawnTimer = Math.max(0, monster.respawnTimer - deltaTime);
 
       // 리스폰 조건: 타이머 완료 & 최대 수 미만
       if (monster.respawnTimer <= 0 && aliveCount + respawnedCount < config.maxCount) {
@@ -79,9 +81,22 @@ export function respawnMonster(
   config: RespawnConfig,
   context: RespawnContext
 ): void {
-  // 가중치 기반 선택 또는 현재 데이터 행 사용
-  const selectedMonster = context.selectMonsterByWeight?.() || null;
-  const monsterData = selectedMonster || context.currentDataRow;
+  let monsterData: DataRow | undefined;
+  if (context.preserveMonsterDefinition) {
+    const definitionId = monster.sourceStats?.monster_definition_id;
+    if (!definitionId) {
+      throw new TypeError('Cannot respawn a stage monster without its definition ID.');
+    }
+    monsterData = context.monsterDataset?.find(
+      row => row.monster_definition_id === definitionId
+    );
+    if (!monsterData) {
+      throw new TypeError(`Monster definition "${definitionId}" is unavailable for respawn.`);
+    }
+  } else {
+    const selectedMonster = context.selectMonsterByWeight?.() || null;
+    monsterData = selectedMonster || context.currentDataRow;
+  }
 
   // 새로운 몬스터 데이터로 초기화
   const newMonster = createMonster({
@@ -89,8 +104,10 @@ export function respawnMonster(
     canvasWidth: config.canvasWidth,
     canvasHeight: config.canvasHeight,
     monsterData,
+    fallbackName: monster.name,
     skillConfigs: context.skillConfigs,
     monsterLevelConfig: context.monsterLevelConfig,
+    requireMonsterStats: context.requireMonsterStats,
   });
 
   // 기존 몬스터 상태에 새 데이터 복사
@@ -109,10 +126,16 @@ export function respawnMonster(
 export function killMonster(
   monster: MonsterState,
   respawnDelay: number = DEFAULT_RESPAWN_DELAY
-): void {
+): boolean {
+  if (monster.isDead) return false;
   monster.isDead = true;
   monster.respawnTimer = respawnDelay;
   monster.stats.hp = 0;
+  return true;
+}
+
+export function removeDeadMonsters(monsters: MonsterState[]): MonsterState[] {
+  return monsters.filter(monster => !monster.isDead);
 }
 
 /**
@@ -145,6 +168,8 @@ export function respawnAllDead(
   config: RespawnConfig,
   context: RespawnContext
 ): number {
+  if (!config.enabled) return 0;
+
   let count = 0;
   const aliveCount = countAliveMonsters(monsters);
 

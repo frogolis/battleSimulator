@@ -19,6 +19,12 @@ import { updateDataRowWithLevel } from '../lib/levelBasedStats';
 import { LevelConfig } from '../lib/levelSystem';
 import { DataRow } from '../lib/mockData';
 import {
+  MONSTER_STAT_FIELDS,
+  parseMonsterStatInput,
+  type MonsterStatField,
+} from '../lib/simulator/monsterStats';
+import { createMonsterDefinitionId } from '../lib/simulator/monsterDefinitionIds';
+import {
   AIPatternConfig,
   AIType,
   aiTypes,
@@ -66,8 +72,8 @@ interface MonsterDatasetViewerProps {
   monsterLevelConfig?: LevelConfig;
   onApplyRow?: (row: DataRow) => void;
   characterTypes: CharacterTypeInfo[];
-  selectedRows?: Set<number>;
-  onSelectedRowsChange?: (rows: Set<number>) => void;
+  selectedRows?: Set<string>;
+  onSelectedRowsChange?: (rows: Set<string>) => void;
   maxMonsterCount?: number;
   onMaxMonsterCountChange?: (count: number) => void;
   respawnDelay?: number;
@@ -79,6 +85,20 @@ interface ColumnWidths {
   [key: string]: number;
 }
 
+const monsterStatLabels: Record<MonsterStatField, string> = {
+  monster_hp: 'HP',
+  monster_sp: 'SP',
+  monster_attack: '공격력',
+  monster_defense: '방어력',
+  monster_speed: '속도',
+  monster_attack_speed: '공격속도',
+  monster_accuracy: '명중',
+  monster_critical_rate: '크리티컬',
+};
+
+const isMonsterStatField = (field: string): field is MonsterStatField =>
+  MONSTER_STAT_FIELDS.some(stat => stat === field);
+
 export function MonsterDatasetViewer({
   dataset,
   setDataset,
@@ -88,7 +108,7 @@ export function MonsterDatasetViewer({
   monsterLevelConfig,
   onApplyRow,
   characterTypes,
-  selectedRows = new Set<number>(),
+  selectedRows = new Set<string>(),
   onSelectedRowsChange,
   maxMonsterCount = 5,
   onMaxMonsterCountChange,
@@ -98,10 +118,15 @@ export function MonsterDatasetViewer({
 }: MonsterDatasetViewerProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingCell, setEditingCell] = useState<{ row: number; field: string } | null>(null);
+  const [statDraft, setStatDraft] = useState('');
   const [editingAIPattern, setEditingAIPattern] = useState<{
     rowIndex: number;
     config: AIPatternConfig;
   } | null>(null);
+  const selectedMonsterEntries = dataset.flatMap((row, index) => {
+    const id = row.monster_definition_id;
+    return id && selectedRows.has(id) ? [{ id, index, row }] : [];
+  });
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     select: 50,
     index: 60,
@@ -142,6 +167,7 @@ export function MonsterDatasetViewer({
     const defaultSkillIds = firstType?.defaultSkillIds || ['powerSlash', 'whirlwind'];
 
     const baseRow: DataRow = {
+      monster_definition_id: createMonsterDefinitionId(),
       t: dataset.length * 0.1,
       x: 600,
       y: 350,
@@ -232,8 +258,14 @@ export function MonsterDatasetViewer({
   };
 
   const handleDeleteRow = (index: number) => {
+    const deletedId = dataset[index]?.monster_definition_id;
     const newDataset = dataset.filter((_, i) => i !== index);
     setDataset(newDataset);
+    if (deletedId && selectedRows.has(deletedId)) {
+      const newSelectedRows = new Set(selectedRows);
+      newSelectedRows.delete(deletedId);
+      onSelectedRowsChange?.(newSelectedRows);
+    }
     if (currentTick >= newDataset.length) {
       setCurrentTick(Math.max(0, newDataset.length - 1));
     }
@@ -254,13 +286,18 @@ export function MonsterDatasetViewer({
 
   const handleRowSelect = (index: number) => {
     if (!onSelectedRowsChange) return;
+    const monsterId = dataset[index]?.monster_definition_id;
+    if (!monsterId) {
+      toast.error(`몬스터 행 ${index}에 ID가 없습니다. 다시 불러오거나 새 행으로 추가해 주세요.`);
+      return;
+    }
 
     const newSelected = new Set(selectedRows);
-    if (newSelected.has(index)) {
-      newSelected.delete(index);
+    if (newSelected.has(monsterId)) {
+      newSelected.delete(monsterId);
       toast.info(`🔲 행 ${index} 선택 해제`);
     } else {
-      newSelected.add(index);
+      newSelected.add(monsterId);
       toast.success(`✅ 행 ${index} 선택됨`);
     }
     onSelectedRowsChange(newSelected);
@@ -1403,9 +1440,11 @@ export function MonsterDatasetViewer({
     }
 
     const numericValue = typeof value === 'number' ? value : Number(value);
-    const hasNumericValue = Number.isFinite(numericValue);
+    const hasNumericValue = value !== undefined && value !== null && value !== '' &&
+      Number.isFinite(numericValue);
+    const isMonsterStat = isMonsterStatField(field);
     const displayValue = hasNumericValue
-      ? field.includes('attack_speed')
+      ? !isMonsterStat && field.includes('attack_speed')
         ? numericValue.toFixed(1)
         : numericValue
       : value || '-';
@@ -1416,6 +1455,7 @@ export function MonsterDatasetViewer({
         onOpenChange={open => {
           if (open) {
             setEditingCell({ row: rowIndex, field });
+            if (isMonsterStat) setStatDraft(hasNumericValue ? String(numericValue) : '');
           } else {
             setEditingCell(null);
           }
@@ -1457,18 +1497,46 @@ export function MonsterDatasetViewer({
                 <X className='h-3 w-3' />
               </Button>
             </div>
-            <Slider
-              value={[hasNumericValue ? numericValue : getFieldConfig(field).min]}
-              onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
-              min={getFieldConfig(field).min}
-              max={getFieldConfig(field).max}
-              step={getFieldConfig(field).step}
-              className='w-full'
-            />
-            <div className='flex justify-between text-xs text-slate-600'>
-              <span>{getFieldConfig(field).min}</span>
-              <span>{getFieldConfig(field).max}</span>
-            </div>
+            {isMonsterStat && isMonsterStatField(field) ? (
+              <>
+                <Input
+                  type='text'
+                  inputMode='decimal'
+                  aria-label={`몬스터 행 ${rowIndex} ${monsterStatLabels[field]}`}
+                  value={statDraft}
+                  onChange={event => setStatDraft(event.target.value)}
+                />
+                <Button
+                  size='sm'
+                  onClick={() => {
+                    const number = parseMonsterStatInput(statDraft);
+                    if (number === undefined) {
+                      toast.error(`${monsterStatLabels[field]} 값은 0보다 큰 유한한 숫자여야 합니다.`);
+                      return;
+                    }
+                    handleCellUpdate(rowIndex, field, number);
+                    setEditingCell(null);
+                  }}
+                >
+                  적용
+                </Button>
+              </>
+            ) : (
+              <>
+                <Slider
+                  value={[hasNumericValue ? numericValue : getFieldConfig(field).min]}
+                  onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
+                  min={getFieldConfig(field).min}
+                  max={getFieldConfig(field).max}
+                  step={getFieldConfig(field).step}
+                  className='w-full'
+                />
+                <div className='flex justify-between text-xs text-slate-600'>
+                  <span>{getFieldConfig(field).min}</span>
+                  <span>{getFieldConfig(field).max}</span>
+                </div>
+              </>
+            )}
           </div>
         </PopoverContent>
       </Popover>
@@ -1586,7 +1654,11 @@ export function MonsterDatasetViewer({
                       <span className='text-muted-foreground whitespace-nowrap'>총 가중치:</span>
                       <Badge variant='outline' className='bg-amber-100'>
                         {dataset
-                          .filter((_, idx) => selectedRows.has(idx))
+                          .filter(row =>
+                            row.monster_definition_id
+                              ? selectedRows.has(row.monster_definition_id)
+                              : false
+                          )
                           .reduce((sum, row) => sum + (row.monster_spawn_weight || 1), 0)}
                       </Badge>
                     </div>
@@ -1599,13 +1671,9 @@ export function MonsterDatasetViewer({
                 <div className='border-t pt-3 space-y-2'>
                   <Label className='text-xs text-muted-foreground'>선택된 몬스터 스폰 확률</Label>
                   <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
-                    {Array.from(selectedRows)
-                      .sort((a, b) => a - b)
-                      .map(idx => {
-                        const row = dataset[idx];
-                        const totalWeight = dataset
-                          .filter((_, i) => selectedRows.has(i))
-                          .reduce((sum, r) => sum + (r.monster_spawn_weight || 1), 0);
+                    {selectedMonsterEntries.map(({ id, index, row }) => {
+                        const totalWeight = selectedMonsterEntries
+                          .reduce((sum, entry) => sum + (entry.row.monster_spawn_weight || 1), 0);
                         const probability =
                           totalWeight > 0
                             ? (((row.monster_spawn_weight || 1) / totalWeight) * 100).toFixed(1)
@@ -1613,7 +1681,7 @@ export function MonsterDatasetViewer({
 
                         return (
                           <div
-                            key={idx}
+                            key={id}
                             className='flex items-center gap-2 text-xs bg-white rounded px-2 py-1 border'
                           >
                             <div
@@ -1621,7 +1689,7 @@ export function MonsterDatasetViewer({
                               style={{ backgroundColor: row.monster_color || '#ff6b6b' }}
                             />
                             <span className='truncate flex-1'>
-                              {row.monster_name || `몬스터 ${idx}`}
+                              {row.monster_name || `몬스터 ${index}`}
                             </span>
                             <Badge variant='secondary' className='text-xs'>
                               {probability}%
@@ -1824,7 +1892,7 @@ export function MonsterDatasetViewer({
                       <tr
                         key={index}
                         className={`border-b cursor-pointer transition-colors ${
-                          selectedRows.has(index)
+                          selectedRows.has(row.monster_definition_id ?? '')
                             ? 'bg-purple-100 hover:bg-purple-150 border-purple-400 border-l-4'
                             : index === currentTick
                               ? 'bg-red-200 hover:bg-red-250 border-red-400 border-l-4'
@@ -1839,7 +1907,7 @@ export function MonsterDatasetViewer({
                         >
                           <input
                             type='checkbox'
-                            checked={selectedRows.has(index)}
+                            checked={selectedRows.has(row.monster_definition_id ?? '')}
                             onChange={() => handleRowSelect(index)}
                             className='w-4 h-4 cursor-pointer'
                           />

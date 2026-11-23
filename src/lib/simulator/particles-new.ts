@@ -8,6 +8,7 @@
  */
 
 import { EffectPreset } from '../skillSystem';
+import { runEffectCodeSafely } from '../effects/customCode';
 import { LightningSegment, MonsterState, Position, SkillParticle, TrailEffect } from './types';
 
 let particleIdCounter = 0;
@@ -244,15 +245,6 @@ export function createTrailEffect(options: CreateEffectOptions): SkillParticle[]
   const width = preset.trailWidth || 5;
   const fadeSpeed = preset.trailFadeSpeed || 1.0;
   const trailType = preset.trailType || 'thrust';
-
-  // 디버깅: 실제 사용되는 값 출력
-  if (preset.id === 'trail_slash' && Math.random() < 0.1) {
-    logParticlesNew('🔴 [Trail Effect] 궤적 생성', {
-      radius: `${radius}px`,
-      skillArea: `${skillArea}°`,
-      skillRange: `${skillRange}px`,
-    });
-  }
 
   // 이 궤적 그룹의 고유 ID (같은 휘두르기의 파티클들을 묶기 위해)
   const groupId = particleIdCounter;
@@ -515,6 +507,15 @@ export function createGlowEffect(options: CreateEffectOptions): SkillParticle[] 
 export function createEffect(options: CreateEffectOptions): SkillParticle[] {
   const { preset, skillRange, skillArea } = options;
 
+  if (preset.useCustomCode && preset.customCode?.trim()) {
+    return runEffectCodeSafely(
+      preset.customCode,
+      options,
+      () => particleIdCounter++,
+      () => particleIdCounter
+    );
+  }
+
   // 🔍 디버깅: 진입점 확인
   logParticlesNew('🟢 [createEffect] 호출됨', {
     presetId: preset.id,
@@ -542,11 +543,22 @@ export function createEffect(options: CreateEffectOptions): SkillParticle[] {
 /**
  * ===== 파티클 업데이트 =====
  */
+function applyBodyPhysics(particle: SkillParticle, deltaTime: number): SkillParticle {
+  if (!particle.gravity && !particle.drag) return particle;
+  const damping = particle.drag ? Math.max(0, 1 - particle.drag * deltaTime) : 1;
+  return {
+    ...particle,
+    vx: particle.vx * damping,
+    vy: (particle.vy + (particle.gravity ?? 0) * deltaTime) * damping,
+  };
+}
+
 export function updateNewParticle(
-  particle: SkillParticle,
+  source: SkillParticle,
   deltaTime: number,
   monsters?: MonsterState[]
 ): SkillParticle {
+  const particle = applyBodyPhysics(source, deltaTime);
   const updated = { ...particle };
 
   // 수명 감소
@@ -606,7 +618,9 @@ export function updateNewParticle(
       break;
 
     case 'trail':
-      // 궤적은 정적 (위치 고정, 페이드만)
+      // 내장 궤적은 정지 상태(vx=vy=0)이며, 코드 이펙트만 속도를 가질 수 있다
+      updated.x = particle.x + particle.vx * deltaTime;
+      updated.y = particle.y + particle.vy * deltaTime;
       break;
 
     case 'lightning':
@@ -624,11 +638,9 @@ export function updateNewParticle(
       break;
 
     case 'glow':
-      // 글로우 파티클 상승
-      if (particle.riseSpeed) {
-        updated.x = particle.x + particle.vx * deltaTime;
-        updated.y = particle.y + particle.vy * deltaTime;
-      }
+      // 글로우 파티클 이동 (중앙 글로우는 속도 0)
+      updated.x = particle.x + particle.vx * deltaTime;
+      updated.y = particle.y + particle.vy * deltaTime;
       break;
   }
 

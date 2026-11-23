@@ -52,6 +52,7 @@ const serializeSkills = (skillConfigs: Record<string, Skill>) =>
     buffDuration: skill.buffDuration,
     buffEffect: stringify(skill.buffEffect),
     visual: stringify(skill.visual),
+    effects: skill.effects === undefined ? '' : JSON.stringify(skill.effects),
     projectile: stringify(skill.projectile),
     animation: stringify(skill.animation),
     sound: stringify(skill.sound),
@@ -79,6 +80,11 @@ const serializeLevelConfig = (levelConfig: LevelConfig) => ({
   attackGrowth: stringify(levelConfig.attackGrowth),
   defenseGrowth: stringify(levelConfig.defenseGrowth),
   speedGrowth: stringify(levelConfig.speedGrowth),
+  hpFormulaBlocks: levelConfig.hpFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.hpFormulaBlocks),
+  spFormulaBlocks: levelConfig.spFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.spFormulaBlocks),
+  attackFormulaBlocks: levelConfig.attackFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.attackFormulaBlocks),
+  defenseFormulaBlocks: levelConfig.defenseFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.defenseFormulaBlocks),
+  speedFormulaBlocks: levelConfig.speedFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.speedFormulaBlocks),
   formulaMode: levelConfig.formulaMode ?? '',
   expGrowth: stringify(levelConfig.expGrowth),
   expGrowthConfig: stringify(levelConfig.expGrowthConfig ?? null),
@@ -162,6 +168,38 @@ export function exportGameDataToWorkbook(
     workbook,
     DATA_WORKBOOK_SHEETS.MONSTER_DATASET,
     state.monsterDataset as unknown as Array<Record<string, unknown>>
+  );
+  appendJsonSheet(
+    workbook,
+    DATA_WORKBOOK_SHEETS.STAGES,
+    state.stageDefinitions.map(stage => ({ id: stage.id, name: stage.name }))
+  );
+  appendJsonSheet(
+    workbook,
+    DATA_WORKBOOK_SHEETS.WAVES,
+    state.stageDefinitions.flatMap(stage =>
+      stage.waves.map((wave, order) => ({
+        id: wave.id,
+        stageId: stage.id,
+        order,
+        durationMs: wave.durationMs,
+        respawnEnabled: wave.respawn.enabled,
+        respawnDelayMs: wave.respawn.delayMs,
+      }))
+    )
+  );
+  appendJsonSheet(
+    workbook,
+    DATA_WORKBOOK_SHEETS.WAVE_MONSTER_MAPPINGS,
+    state.stageDefinitions.flatMap(stage =>
+      stage.waves.flatMap(wave =>
+        wave.monsterSpawns.map(mapping => ({
+          waveId: wave.id,
+          monsterDefinitionId: mapping.monsterDefinitionId,
+          count: mapping.count,
+        }))
+      )
+    )
   );
   appendJsonSheet(workbook, DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG, [
     serializeLevelConfig(state.playerLevelConfig),

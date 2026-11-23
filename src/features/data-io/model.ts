@@ -1,9 +1,10 @@
-import { MonsterTypeStats } from '../../components/MonsterTypeDefinition';
 import { CharacterTypeInfo } from '../../lib/characterTypes';
 import { CharacterConfig } from '../../lib/gameTypes';
 import { ItemSlot } from '../../lib/itemSystem';
 import { LevelConfig } from '../../lib/levelSystem';
 import { DataRow } from '../../lib/mockData';
+import type { MonsterTypeStats } from '../../lib/monsterTypes';
+import type { StageDefinition } from '../../lib/simulator/waves';
 import { BasicAttackSlot, Skill } from '../../lib/skillSystem';
 
 export interface GameDataState {
@@ -19,7 +20,11 @@ export interface GameDataState {
   monsterTypeStats: Record<string, MonsterTypeStats>;
   playerDataset: DataRow[];
   monsterDataset: DataRow[];
+  stageDefinitions: StageDefinition[];
 }
+
+export type ImportedGameData = Partial<GameDataState> &
+  Pick<GameDataState, 'skillConfigs' | 'playerDataset' | 'monsterDataset'>;
 
 export interface GameDataSetters {
   onPlayerConfigChange: (config: CharacterConfig) => void;
@@ -34,4 +39,5 @@ export interface GameDataSetters {
   onMonsterTypeStatsChange: (stats: Record<string, MonsterTypeStats>) => void;
   onPlayerDatasetChange: (dataset: DataRow[]) => void;
   onMonsterDatasetChange: (dataset: DataRow[]) => void;
+  onStageDefinitionsChange: (stages: StageDefinition[]) => void;
 }

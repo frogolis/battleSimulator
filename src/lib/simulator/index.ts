@@ -15,6 +15,12 @@ export * from './characters';
 // 리스폰 시스템
 export * from './respawn';
 
+// 안정적인 정의 ID
+export * from './monsterDefinitionIds';
+
+// 스테이지·웨이브 설정
+export * from './waves';
+
 // AI 시스템
 export * from './ai';
 

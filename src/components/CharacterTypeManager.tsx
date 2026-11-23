@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 interface CharacterTypeManagerProps {
   characterTypes: CharacterTypeInfo[];
   onCharacterTypesChange: (types: CharacterTypeInfo[]) => void;
+  findTypeReferences: (id: string) => string[];
 }
 
 const AVAILABLE_COLORS = [
@@ -43,6 +44,7 @@ const AVAILABLE_COLORS = [
 export function CharacterTypeManager({
   characterTypes,
   onCharacterTypesChange,
+  findTypeReferences,
 }: CharacterTypeManagerProps) {
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(
     characterTypes[0]?.id || null
@@ -144,6 +146,12 @@ export function CharacterTypeManager({
     // 기본 타입(warrior, archer, mage)은 삭제 불가
     if (id === 'warrior' || id === 'archer' || id === 'mage') {
       toast.error('기본 타입은 삭제할 수 없습니다.');
+      return;
+    }
+
+    const references = findTypeReferences(id);
+    if (references.length > 0) {
+      toast.error(`사용 중인 타입은 삭제할 수 없습니다: ${references.join(', ')}`);
       return;
     }
 

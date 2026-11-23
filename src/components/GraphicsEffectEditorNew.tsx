@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, Layers, Plus, Sparkles, Trash2 } from 'lucide-react
 import { useEffect, useState } from 'react';
 import { EFFECT_PRESETS, EffectPreset, EffectType } from '../lib/skillSystem';
 import { EffectPreviewCanvasNew } from './graphics-effects/EffectPreviewCanvasNew';
+import { EffectCodeEditor } from './graphics-effects/EffectCodeEditor';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -113,9 +114,9 @@ function LayerSettings({ effect, onChange, onReplace }: LayerSettingsProps) {
   const shapePropertyKeys = ['shapeScaleX', 'shapeScaleY', 'shapeRotation', 'shapeOutlineWidth', 'shapeCornerRadius', 'starPoints', 'starInnerRatio'] as const;
   const hasShapeProperties = shapePropertyKeys.some(key => effect[key] !== undefined);
   const removeProperties = (keys: readonly string[]) => {
-    const nextEffect = { ...effect } as Record<string, unknown>;
-    keys.forEach(key => delete nextEffect[key]);
-    onReplace(nextEffect as EffectPreset);
+    const nextEffect = { ...effect };
+    keys.forEach(key => Reflect.deleteProperty(nextEffect, key));
+    onReplace(nextEffect);
   };
   const restoreTypeProperties = () => {
     const template = Object.values(EFFECT_PRESETS).find(preset => preset.effectType === effect.effectType);
@@ -178,7 +179,7 @@ export function GraphicsEffectEditorNew({
   useEffect(() => {
     const preset = selectedPresetKeyProp ? findPreset(selectedPresetKeyProp) : undefined;
     if (preset) {
-      setSelectedPresetKey(selectedPresetKeyProp);
+      setSelectedPresetKey(preset.id);
       setEditedPreset(preset);
     }
   }, [selectedPresetKeyProp, customPresets]);
@@ -328,6 +329,8 @@ export function GraphicsEffectEditorNew({
       secondaryColor: selectedPreset.secondaryColor,
       particleTexture: selectedPreset.particleTexture,
       glowIntensity: selectedPreset.glowIntensity,
+      customCode: selectedPreset.customCode,
+      useCustomCode: selectedPreset.useCustomCode,
     });
   };
 
@@ -986,6 +989,11 @@ export function GraphicsEffectEditorNew({
               </Card>
             </div>
           </div>
+          {selectedPreset && (
+            <div className='mt-2 rounded-md border border-slate-200 bg-white p-3'>
+              <EffectCodeEditor preset={selectedPreset} onChange={updatePreset} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -5,12 +5,13 @@ import { CharacterTypeInfo } from '../lib/characterTypes';
 import { CharacterConfig, CharacterType } from '../lib/gameTypes';
 import { updateDataRowWithLevel } from '../lib/levelBasedStats';
 import { LevelConfig } from '../lib/levelSystem';
-import { DataRow } from '../lib/mockData';
+import { DataRow, PLAYER_LEVEL_STAT_FIELDS, type PlayerLevelStatField } from '../lib/mockData';
 import { defaultSkills, Skill } from '../lib/skillSystem';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -33,6 +34,20 @@ interface ColumnWidths {
 }
 
 type EditableCellValue = string | number | undefined;
+
+const playerStatLabels: Record<PlayerLevelStatField, string> = {
+  player_hp: 'HP',
+  player_sp: 'SP',
+  player_attack: '공격력',
+  player_defense: '방어력',
+  player_speed: '속도',
+  player_attack_speed: '공격속도',
+  player_accuracy: '명중',
+  player_critical_rate: '크리티컬',
+};
+
+const isPlayerLevelStatField = (field: string): field is PlayerLevelStatField =>
+  PLAYER_LEVEL_STAT_FIELDS.some(stat => stat === field);
 
 const toOptionalNumber = (value: EditableCellValue): number | undefined =>
   typeof value === 'number' ? value : undefined;
@@ -58,8 +73,10 @@ export function PlayerDatasetViewer({
 }: PlayerDatasetViewerProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [editingCell, setEditingCell] = useState<{ row: number; field: string } | null>(null);
+  const [statDraft, setStatDraft] = useState('');
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     index: 60,
+    player_character_id: 140,
     player_attack_type: 100,
     player_level: 60,
     player_size: 80,
@@ -184,12 +201,15 @@ export function PlayerDatasetViewer({
     setCurrentTick(index);
   };
 
-  const handleCellUpdate = (rowIndex: number, field: string, value: string | number) => {
+  const handleCellUpdate = (rowIndex: number, field: string, value: EditableCellValue) => {
     const newDataset: DataRow[] = [...dataset];
     const row = newDataset[rowIndex];
 
     // 레벨, 크기, 타입 변경 시 능력치 재계산
-    if (field === 'player_level' || field === 'player_size' || field === 'player_attack_type') {
+    if (
+      !row.player_character_id?.trim() &&
+      (field === 'player_level' || field === 'player_size' || field === 'player_attack_type')
+    ) {
       const level = field === 'player_level' ? value : row.player_level;
       const size = field === 'player_size' ? value : row.player_size;
       const typeId = field === 'player_attack_type' ? value : row.player_attack_type;
@@ -254,6 +274,17 @@ export function PlayerDatasetViewer({
     }
 
     setDataset(newDataset);
+    if (field === 'player_level') {
+      const updated = newDataset[rowIndex];
+      const id = updated.player_character_id?.trim();
+      if (id && newDataset.some((other, otherIndex) =>
+        otherIndex !== rowIndex &&
+        other.player_character_id?.trim() === id &&
+        other.player_level === updated.player_level
+      )) {
+        toast.error(`캐릭터 "${id}"의 레벨 ${updated.player_level} 행이 중복되었습니다.`);
+      }
+    }
   };
 
   const getFieldConfig = (field: string) => {
@@ -699,7 +730,7 @@ export function PlayerDatasetViewer({
       const slotNum = field.split('_')[2];
       const row = dataset[rowIndex];
 
-      const currentSkillId = (value as string) || 'powerSlash';
+      const currentSkillId = (value as string) || '';
       const currentSkill = skillConfigs[currentSkillId];
 
       // 일반 스킬만 필터링
@@ -730,9 +761,9 @@ export function PlayerDatasetViewer({
               onClick={e => {
                 e.stopPropagation();
               }}
-              title={currentSkill?.name || currentSkillId}
+              title={currentSkill?.name || currentSkillId || '스킬 없음'}
             >
-              <span className='text-purple-700'>{currentSkill?.name || currentSkillId}</span>
+              <span className='text-purple-700'>{currentSkill?.name || currentSkillId || '없음'}</span>
             </div>
           </PopoverTrigger>
           <PopoverContent
@@ -783,7 +814,7 @@ export function PlayerDatasetViewer({
                   }}
                 >
                   <SelectTrigger className='h-8 w-full'>
-                    <SelectValue />
+                    <SelectValue placeholder='스킬 선택' />
                   </SelectTrigger>
                   <SelectContent className='max-h-64'>
                     {normalSkills.map(skill => (
@@ -953,7 +984,11 @@ export function PlayerDatasetViewer({
       );
     }
 
-    const displayValue = formatDisplayValue(value, field);
+    const isAuthoredStat = Boolean(dataset[rowIndex].player_character_id?.trim()) &&
+      isPlayerLevelStatField(field);
+    const displayValue = isAuthoredStat && typeof value === 'number'
+      ? value
+      : formatDisplayValue(value, field);
 
     return (
       <Popover
@@ -961,6 +996,7 @@ export function PlayerDatasetViewer({
         onOpenChange={open => {
           if (open) {
             setEditingCell({ row: rowIndex, field });
+            if (isAuthoredStat) setStatDraft(typeof value === 'number' ? String(value) : '');
           } else {
             setEditingCell(null);
           }
@@ -1003,18 +1039,47 @@ export function PlayerDatasetViewer({
                 <X className='h-3 w-3' />
               </Button>
             </div>
-            <Slider
-              value={[typeof value === 'number' ? value : getFieldConfig(field).min]}
-              onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
-              min={getFieldConfig(field).min}
-              max={getFieldConfig(field).max}
-              step={getFieldConfig(field).step}
-              className='w-full'
-            />
-            <div className='flex justify-between text-xs text-slate-600'>
-              <span>{getFieldConfig(field).min}</span>
-              <span>{getFieldConfig(field).max}</span>
-            </div>
+            {isAuthoredStat && isPlayerLevelStatField(field) ? (
+              <>
+                <Input
+                  type='text'
+                  inputMode='decimal'
+                  aria-label={`행 ${rowIndex} ${playerStatLabels[field]}`}
+                  value={statDraft}
+                  onChange={event => setStatDraft(event.target.value)}
+                />
+                <Button
+                  size='sm'
+                  onClick={() => {
+                    const input = statDraft.trim();
+                    const number = Number(input);
+                    if (input && (!Number.isFinite(number) || number < 0)) {
+                      toast.error(`${playerStatLabels[field]}은(는) 0 이상의 유한한 숫자여야 합니다.`);
+                      return;
+                    }
+                    handleCellUpdate(rowIndex, field, input ? number : undefined);
+                    setEditingCell(null);
+                  }}
+                >
+                  적용
+                </Button>
+              </>
+            ) : (
+              <>
+                <Slider
+                  value={[typeof value === 'number' ? value : getFieldConfig(field).min]}
+                  onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
+                  min={getFieldConfig(field).min}
+                  max={getFieldConfig(field).max}
+                  step={getFieldConfig(field).step}
+                  className='w-full'
+                />
+                <div className='flex justify-between text-xs text-slate-600'>
+                  <span>{getFieldConfig(field).min}</span>
+                  <span>{getFieldConfig(field).max}</span>
+                </div>
+              </>
+            )}
           </div>
         </PopoverContent>
       </Popover>
@@ -1070,7 +1135,7 @@ export function PlayerDatasetViewer({
                       >
                         <div className='truncate'>#</div>
                       </th>
-                      <th className='text-center border-r p-1 text-xs bg-blue-50' colSpan={3}>
+                      <th className='text-center border-r p-1 text-xs bg-blue-50' colSpan={4}>
                         <div className='truncate'>설정 정보</div>
                       </th>
                       <th className='text-center border-r p-1 text-xs bg-slate-50' colSpan={8}>
@@ -1089,6 +1154,15 @@ export function PlayerDatasetViewer({
                     </tr>
                     {/* 두 번째 행: 개별 컬럼 */}
                     <tr className='border-b bg-muted/50'>
+                      <th
+                        className='relative text-center border-r p-2'
+                        style={{ width: columnWidths.player_character_id }}
+                      >
+                        <div className='truncate' title='같은 캐릭터의 레벨별 행에 같은 ID를 입력하세요'>
+                          캐릭터 ID
+                        </div>
+                        <ResizeHandle column='player_character_id' />
+                      </th>
                       <th
                         className='relative text-center border-r p-2'
                         style={{ width: columnWidths.player_attack_type }}
@@ -1222,6 +1296,41 @@ export function PlayerDatasetViewer({
                         </td>
                         <td
                           className='border-r p-1'
+                          style={{ width: columnWidths.player_character_id }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Input
+                            aria-label={`행 ${index} 캐릭터 ID`}
+                            className='h-8'
+                            value={row.player_character_id ?? ''}
+                            placeholder='캐릭터 ID'
+                            onChange={event => {
+                              const newDataset = [...dataset];
+                              newDataset[index] = {
+                                ...row,
+                                player_character_id: event.target.value,
+                              };
+                              setDataset(newDataset);
+                            }}
+                            onBlur={event => {
+                              const id = event.target.value.trim();
+                              if (id !== event.target.value) {
+                                handleCellUpdate(index, 'player_character_id', id);
+                              }
+                              if (id && (!Number.isInteger(row.player_level) || (row.player_level ?? 0) < 1)) {
+                                toast.error('캐릭터 ID가 있는 행의 레벨은 1 이상의 정수여야 합니다.');
+                              } else if (id && dataset.some((other, otherIndex) =>
+                                otherIndex !== index &&
+                                other.player_character_id?.trim() === id &&
+                                other.player_level === row.player_level
+                              )) {
+                                toast.error(`캐릭터 "${id}"의 레벨 ${row.player_level} 행이 중복되었습니다.`);
+                              }
+                            }}
+                          />
+                        </td>
+                        <td
+                          className='border-r p-1'
                           style={{ width: columnWidths.player_attack_type }}
                           onClick={e => e.stopPropagation()}
                         >
@@ -1325,7 +1434,7 @@ export function PlayerDatasetViewer({
                           {renderEditableCell(
                             index,
                             'player_skill_1_id',
-                            row.player_skill_1_id || 'powerSlash'
+                            row.player_skill_1_id || ''
                           )}
                         </td>
                         <td
@@ -1336,7 +1445,7 @@ export function PlayerDatasetViewer({
                           {renderEditableCell(
                             index,
                             'player_skill_2_id',
-                            row.player_skill_2_id || 'whirlwind'
+                            row.player_skill_2_id || ''
                           )}
                         </td>
                         <td
@@ -1347,7 +1456,7 @@ export function PlayerDatasetViewer({
                           {renderEditableCell(
                             index,
                             'player_skill_3_id',
-                            row.player_skill_3_id || 'heal'
+                            row.player_skill_3_id || ''
                           )}
                         </td>
                         <td
@@ -1358,7 +1467,7 @@ export function PlayerDatasetViewer({
                           {renderEditableCell(
                             index,
                             'player_skill_4_id',
-                            row.player_skill_4_id || 'powerBuff'
+                            row.player_skill_4_id || ''
                           )}
                         </td>
                         <td

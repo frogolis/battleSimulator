@@ -219,7 +219,8 @@ export function calculateExpForLevel(level: number, formula?: ExpGrowthFormula):
  */
 export function addExperience(
   config: LevelConfig,
-  expGained: number
+  expGained: number,
+  canAdvance?: (nextLevel: number) => boolean
 ): { newConfig: LevelConfig; leveledUp: boolean; levelsGained: number } {
   let currentLevel = config.currentLevel;
   let currentExp = config.currentExp + expGained;
@@ -231,6 +232,9 @@ export function addExperience(
 
   // 레벨업 체크 (여러 레벨 동시 상승 가능)
   while (currentExp >= expToNext && currentLevel < maxLevel) {
+    if (canAdvance && !canAdvance(currentLevel + 1)) {
+      break;
+    }
     currentExp -= expToNext;
     currentLevel++;
     levelsGained++;
