@@ -114,6 +114,77 @@ export function AuthenticationScreen({
   );
 }
 
+interface WorkspaceRecoveryScreenProps {
+  username: string;
+  error: string;
+  busy: boolean;
+  exported: boolean;
+  onExport: () => void;
+  onConfirmExport: (confirmed: boolean) => void;
+  onReload: () => void;
+  onReset: () => void;
+  onLogout: () => void;
+}
+
+export function WorkspaceRecoveryScreen({
+  username,
+  error,
+  busy,
+  exported,
+  onExport,
+  onConfirmExport,
+  onReload,
+  onReset,
+  onLogout,
+}: WorkspaceRecoveryScreenProps) {
+  return (
+    <main className='flex min-h-screen items-center justify-center bg-slate-100 p-6'>
+      <Card className='w-full max-w-lg'>
+        <CardHeader>
+          <CardTitle>작업공간 복구가 필요합니다</CardTitle>
+          <CardDescription>
+            {username} 계정의 저장 데이터 구조를 읽을 수 없어 시뮬레이터를 열지 않았습니다. 원본은
+            아직 변경되지 않았습니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className='space-y-4'>
+          <Alert variant='destructive'>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+          <p className='text-sm text-muted-foreground'>
+            먼저 저장된 원본을 JSON 파일로 내보내 보관하세요. 기본 작업공간으로 복구하면 이 계정의
+            현재 저장본이 대체됩니다.
+          </p>
+          <div className='space-y-2'>
+            <Button className='w-full' variant='outline' onClick={onExport} disabled={busy}>
+              손상된 원본 작업공간 내보내기
+            </Button>
+            <label className='flex items-start gap-2 text-sm'>
+              <input
+                type='checkbox'
+                checked={exported}
+                onChange={event => onConfirmExport(event.target.checked)}
+                disabled={busy}
+                className='mt-1'
+              />
+              내보낸 JSON 파일을 보관했습니다.
+            </label>
+            <Button className='w-full' variant='outline' onClick={onReload} disabled={busy}>
+              최신 저장본 다시 확인
+            </Button>
+            <Button className='w-full' onClick={onReset} disabled={busy || !exported}>
+              {busy ? '복구 중...' : '내보낸 뒤 기본 작업공간으로 복구'}
+            </Button>
+            <Button className='w-full' variant='ghost' onClick={onLogout} disabled={busy}>
+              로그아웃
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </main>
+  );
+}
+
 interface AccountManagementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;

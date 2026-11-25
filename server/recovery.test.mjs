@@ -20,8 +20,10 @@ function fixture() {
     .prepare('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)')
     .run('admin-id', 'admin', salt, hash, 'admin', '2026-01-01');
   database
-    .prepare('INSERT INTO workspaces VALUES (?, ?, ?)')
-    .run('admin-id', '{"version":1}', '2026-01-01');
+    .prepare(
+      'INSERT INTO workspaces (user_id, data_json, updated_at, revision) VALUES (?, ?, ?, ?)'
+    )
+    .run('admin-id', '{"version":1}', '2026-01-01', 1);
   database
     .prepare('INSERT INTO sessions VALUES (?, ?, ?)')
     .run('session', 'admin-id', Date.now() + 100000);
@@ -126,8 +128,10 @@ test('backup captures WAL data and restore recovers workspace without restoring 
       .prepare('INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)')
       .run('user-id', 'user', salt, hash, 'user', '2026-01-01');
     f.database
-      .prepare('INSERT INTO workspaces VALUES (?, ?, ?)')
-      .run('user-id', '{"version":1,"user":true}', '2026-01-01');
+      .prepare(
+        'INSERT INTO workspaces (user_id, data_json, updated_at, revision) VALUES (?, ?, ?, ?)'
+      )
+      .run('user-id', '{"version":1,"user":true}', '2026-01-01', 1);
     backupDatabase(f.database, backupPath);
     assert.throws(() => backupDatabase(f.database, backupPath), /EEXIST/);
     resetAdminPassword(f.database, 'admin', 'changed password 123');

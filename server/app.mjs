@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hashPassword, resetPassword, validPassword } from './password.mjs';
+import { getWorkspaceSnapshotError } from '../shared/workspaceValidation.mjs';
 
 export { hashPassword } from './password.mjs';
 
@@ -35,9 +36,14 @@ export function initializeDatabase(database) {
     CREATE TABLE IF NOT EXISTS workspaces (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       data_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1
     );
   `);
+  const workspaceColumns = database.prepare('PRAGMA table_info(workspaces)').all();
+  if (!workspaceColumns.some(column => column.name === 'revision')) {
+    database.exec('ALTER TABLE workspaces ADD COLUMN revision INTEGER NOT NULL DEFAULT 1');
+  }
 }
 
 export function verifyPassword(password, saltHex, hashHex) {
@@ -393,19 +399,31 @@ export function createApiServer(database) {
 
       if (request.method === 'GET' && url.pathname === '/api/workspace') {
         const row = database
-          .prepare('SELECT data_json, updated_at FROM workspaces WHERE user_id = ?')
+          .prepare('SELECT data_json, updated_at, revision FROM workspaces WHERE user_id = ?')
           .get(currentUser.id);
         sendJson(response, 200, {
           workspace: row ? JSON.parse(row.data_json) : null,
           updatedAt: row?.updated_at ?? null,
+          revision: row?.revision ?? 0,
         });
         return;
       }
 
       if (request.method === 'PUT' && url.pathname === '/api/workspace') {
         const body = await readJson(request);
-        if (!isRecord(body.workspace) || body.workspace.version !== 1) {
-          sendJson(response, 400, { error: '지원하지 않는 작업공간 데이터 형식입니다.' });
+        if (
+          !isRecord(body) ||
+          !Number.isSafeInteger(body.expectedRevision) ||
+          body.expectedRevision < 0
+        ) {
+          sendJson(response, 400, { error: '작업공간 저장 버전이 올바르지 않습니다.' });
+          return;
+        }
+        const workspaceError = getWorkspaceSnapshotError(body.workspace);
+        if (workspaceError) {
+          sendJson(response, 400, {
+            error: `작업공간 데이터 형식이 올바르지 않습니다 (${workspaceError}).`,
+          });
           return;
         }
         const dataJson = JSON.stringify(body.workspace);
@@ -414,15 +432,45 @@ export function createApiServer(database) {
           return;
         }
         const updatedAt = new Date().toISOString();
-        database
+        const result = database
           .prepare(
             `
-          INSERT INTO workspaces (user_id, data_json, updated_at) VALUES (?, ?, ?)
-          ON CONFLICT(user_id) DO UPDATE SET data_json = excluded.data_json, updated_at = excluded.updated_at
+          INSERT INTO workspaces (user_id, data_json, updated_at, revision)
+          SELECT ?, ?, ?, 1
+          WHERE ? = 0 OR EXISTS (
+            SELECT 1 FROM workspaces WHERE user_id = ? AND revision = ?
+          )
+          ON CONFLICT(user_id) DO UPDATE SET
+            data_json = excluded.data_json,
+            updated_at = excluded.updated_at,
+            revision = workspaces.revision + 1
+          WHERE workspaces.revision = ?
         `
           )
-          .run(currentUser.id, dataJson, updatedAt);
-        sendJson(response, 200, { updatedAt });
+          .run(
+            currentUser.id,
+            dataJson,
+            updatedAt,
+            body.expectedRevision,
+            currentUser.id,
+            body.expectedRevision,
+            body.expectedRevision
+          );
+        if (result.changes === 0) {
+          const current = database
+            .prepare('SELECT revision, updated_at FROM workspaces WHERE user_id = ?')
+            .get(currentUser.id);
+          sendJson(response, 409, {
+            error: '작업공간이 다른 탭 또는 기기에서 변경되었습니다.',
+            revision: current?.revision ?? 0,
+            updatedAt: current?.updated_at ?? null,
+          });
+          return;
+        }
+        const saved = database
+          .prepare('SELECT revision FROM workspaces WHERE user_id = ?')
+          .get(currentUser.id);
+        sendJson(response, 200, { updatedAt, revision: saved.revision });
         return;
       }
 

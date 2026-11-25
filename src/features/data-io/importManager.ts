@@ -16,6 +16,21 @@ import { MONSTER_STAT_FIELDS } from '../../lib/simulator/monsterStats';
 import { validateStageDefinitions } from '../../lib/simulator/waves';
 import type { StageDefinition, WaveDefinition } from '../../lib/simulator/waves';
 import { BasicAttackSlot, defaultSkills, Skill } from '../../lib/skillSystem';
+import { isAIPatternConfig as isAIPatternConfigShape } from '../../../shared/aiPatternValidation.mjs';
+import {
+  getMonsterDatasetRowError,
+  getPlayerDatasetRowError,
+} from '../../../shared/datasetValidation.mjs';
+import {
+  getEffectOptionalFieldsError,
+  isEffectPreset as isEffectPresetShape,
+} from '../../../shared/effectValidation.mjs';
+import { getItemSlotError } from '../../../shared/itemValidation.mjs';
+import {
+  hasCharacterTypeReference,
+  hasSkillReference,
+} from '../../../shared/referenceValidation.mjs';
+import { getSkillError } from '../../../shared/skillValidation.mjs';
 import { DATA_WORKBOOK_SHEETS } from '../data-file/constants';
 import { GameDataSetters, GameDataState, ImportedGameData } from './model';
 
@@ -57,7 +72,9 @@ function isFormulaBlock(value: unknown): value is FormulaBlock {
       (typeof value.operator === 'string' && ['+', '-', '*', '/', '^'].includes(value.operator))) &&
     (value.functionName === undefined ||
       (typeof value.functionName === 'string' &&
-        ['MIN', 'MAX', 'ROUND', 'FLOOR', 'CEIL', 'IF', 'ABS', 'SQRT', 'POW'].includes(value.functionName))) &&
+        ['MIN', 'MAX', 'ROUND', 'FLOOR', 'CEIL', 'IF', 'ABS', 'SQRT', 'POW'].includes(
+          value.functionName
+        ))) &&
     (value.children === undefined ||
       (Array.isArray(value.children) && value.children.every(isFormulaBlock))) &&
     (value.color === undefined || typeof value.color === 'string')
@@ -70,28 +87,30 @@ const isOptionalFormulaBlocks = (value: unknown): value is FormulaBlock[] | unde
 const isExpGrowthConfig = (value: unknown): value is ExpGrowthConfig =>
   isRecord(value) &&
   Array.isArray(value.segments) &&
-  value.segments.every(segment =>
-    isRecord(segment) &&
-    typeof segment.id === 'string' &&
-    isFiniteNumber(segment.startLevel) &&
-    isFiniteNumber(segment.endLevel) &&
-    typeof segment.formula === 'string'
+  value.segments.every(
+    segment =>
+      isRecord(segment) &&
+      typeof segment.id === 'string' &&
+      isFiniteNumber(segment.startLevel) &&
+      isFiniteNumber(segment.endLevel) &&
+      typeof segment.formula === 'string'
   ) &&
   (value.bezierSegments === undefined ||
     (Array.isArray(value.bezierSegments) &&
-      value.bezierSegments.every(segment =>
-        isRecord(segment) &&
-        typeof segment.id === 'string' &&
-        isFiniteNumber(segment.startLevel) &&
-        isFiniteNumber(segment.endLevel) &&
-        isFiniteNumber(segment.startExp) &&
-        isFiniteNumber(segment.endExp) &&
-        isRecord(segment.controlPoint1) &&
-        isFiniteNumber(segment.controlPoint1.x) &&
-        isFiniteNumber(segment.controlPoint1.y) &&
-        isRecord(segment.controlPoint2) &&
-        isFiniteNumber(segment.controlPoint2.x) &&
-        isFiniteNumber(segment.controlPoint2.y)
+      value.bezierSegments.every(
+        segment =>
+          isRecord(segment) &&
+          typeof segment.id === 'string' &&
+          isFiniteNumber(segment.startLevel) &&
+          isFiniteNumber(segment.endLevel) &&
+          isFiniteNumber(segment.startExp) &&
+          isFiniteNumber(segment.endExp) &&
+          isRecord(segment.controlPoint1) &&
+          isFiniteNumber(segment.controlPoint1.x) &&
+          isFiniteNumber(segment.controlPoint1.y) &&
+          isRecord(segment.controlPoint2) &&
+          isFiniteNumber(segment.controlPoint2.x) &&
+          isFiniteNumber(segment.controlPoint2.y)
       ))) &&
   (value.useBezier === undefined || typeof value.useBezier === 'boolean') &&
   (value.yAxisMax === undefined || isFiniteNumber(value.yAxisMax));
@@ -100,25 +119,7 @@ const isOptionalExpGrowthConfig = (value: unknown): value is ExpGrowthConfig | n
   value === null || value === undefined || isExpGrowthConfig(value);
 
 const isAIPatternConfig = (value: unknown): value is AIPatternConfig =>
-  isRecord(value) &&
-  isFiniteNumber(value.aggroRange) &&
-  isFiniteNumber(value.chaseMinDistance) &&
-  Array.isArray(value.patterns) &&
-  value.patterns.every(pattern =>
-    isRecord(pattern) &&
-    typeof pattern.action === 'string' &&
-    ['move', 'defend', 'chase', 'flee', 'attack', 'skill'].includes(pattern.action) &&
-    typeof pattern.enabled === 'boolean' &&
-    (pattern.skillId === undefined || typeof pattern.skillId === 'string') &&
-    Array.isArray(pattern.conditions) &&
-    pattern.conditions.every(condition =>
-      isRecord(condition) &&
-      (condition.type === 'distance' || condition.type === 'hp') &&
-      typeof condition.operator === 'string' &&
-      ['<', '>', '<=', '>='].includes(condition.operator) &&
-      isFiniteNumber(condition.value)
-    )
-  );
+  isAIPatternConfigShape(value);
 
 const isOptionalAIPatternConfig = (value: unknown): value is AIPatternConfig | null | undefined =>
   value === undefined || value === null || isAIPatternConfig(value);
@@ -130,8 +131,14 @@ const isOptionalStatFormulas = (
   value === null ||
   (isRecord(value) &&
     [
-      'hpFormula', 'spFormula', 'attackFormula', 'defenseFormula', 'moveSpeedFormula',
-      'attackSpeedFormula', 'accuracyFormula', 'criticalRateFormula',
+      'hpFormula',
+      'spFormula',
+      'attackFormula',
+      'defenseFormula',
+      'moveSpeedFormula',
+      'attackSpeedFormula',
+      'accuracyFormula',
+      'criticalRateFormula',
     ].every(key => value[key] === undefined || typeof value[key] === 'string'));
 
 const isSkillTiming = (value: unknown): value is Skill['timing'] =>
@@ -149,7 +156,9 @@ const isSkillBuffEffect = (value: unknown): value is Skill['buffEffect'] =>
 const isSkillProjectile = (value: unknown): value is Skill['projectile'] =>
   isRecord(value) &&
   typeof value.type === 'string' &&
-  ['none', 'arrow', 'fireball', 'lightning', 'energy', 'ice', 'wave', 'wind'].includes(value.type) &&
+  ['none', 'arrow', 'fireball', 'lightning', 'energy', 'ice', 'wave', 'wind'].includes(
+    value.type
+  ) &&
   isFiniteNumber(value.speed) &&
   isFiniteNumber(value.size) &&
   typeof value.piercing === 'boolean' &&
@@ -182,26 +191,7 @@ function isDamageFormula(value: unknown): value is NonNullable<Skill['damageForm
 }
 
 function hasValidOptionalEffectFields(effect: Record<string, unknown>): boolean {
-  const numericFields = [
-    'shapeScaleX', 'shapeScaleY', 'shapeRotation', 'shapeOutlineWidth', 'shapeCornerRadius',
-    'starPoints', 'starInnerRatio', 'projectileCount', 'projectileSpeed', 'projectileSize',
-    'projectileLifetime', 'spreadAngle', 'trailParticleCount', 'trailLength', 'trailWidth',
-    'trailFadeSpeed', 'trailArcAngle', 'lightningSegments', 'lightningJitter',
-    'lightningForkChance', 'ringRadius', 'ringExpansionSpeed', 'ringCount', 'ringInterval',
-    'glowRadius', 'glowParticleCount', 'glowRiseSpeed', 'glowFadeSpeed', 'repeatCount',
-    'repeatInterval',
-  ];
-  return (
-    numericFields.every(key => effect[key] === undefined || isFiniteNumber(effect[key])) &&
-    (effect.isHoming === undefined || typeof effect.isHoming === 'boolean') &&
-    (effect.useCustomCode === undefined || typeof effect.useCustomCode === 'boolean') &&
-    (effect.customCode === undefined || typeof effect.customCode === 'string') &&
-    (effect.projectilePattern === undefined ||
-      (typeof effect.projectilePattern === 'string' &&
-        ['directional', 'radial', 'cone'].includes(effect.projectilePattern))) &&
-    (effect.trailType === undefined ||
-      (typeof effect.trailType === 'string' && ['slash', 'thrust', 'spin'].includes(effect.trailType)))
-  );
+  return getEffectOptionalFieldsError(effect, 'effect') === undefined;
 }
 
 function isSkillVisual(value: unknown): value is Skill['visual'] {
@@ -214,7 +204,18 @@ function isSkillVisual(value: unknown): value is Skill['visual'] {
     isNonNegative(value.particleSize) &&
     isNonNegative(value.particleLifetime) &&
     typeof value.effectShape === 'string' &&
-    ['circle', 'cone', 'line', 'ring', 'star', 'shield', 'dome', 'spiral', 'cross', 'wave'].includes(value.effectShape) &&
+    [
+      'circle',
+      'cone',
+      'line',
+      'ring',
+      'star',
+      'shield',
+      'dome',
+      'spiral',
+      'cross',
+      'wave',
+    ].includes(value.effectShape) &&
     (value.effectPresetId === undefined || typeof value.effectPresetId === 'string') &&
     (value.effectType === undefined ||
       (typeof value.effectType === 'string' &&
@@ -345,7 +346,14 @@ const createSkillFromRow = (row: SheetRow): Skill => {
     name: readString(row, 'name', baseSkill.name),
     description: readString(row, 'description', baseSkill.description),
     type: readChoice(row, 'type', baseSkill.type, [
-      'melee', 'ranged', 'damage', 'heal', 'buff', 'debuff', 'area', 'defense',
+      'melee',
+      'ranged',
+      'damage',
+      'heal',
+      'buff',
+      'debuff',
+      'area',
+      'defense',
     ]),
     category: readChoice(row, 'category', baseSkill.category, ['basicAttack', 'skill']),
     tags: readValidatedJson(row, 'tags', baseSkill.tags, isStringArray),
@@ -370,21 +378,7 @@ const createSkillFromRow = (row: SheetRow): Skill => {
 };
 
 function isEffectPreset(value: unknown): value is NonNullable<Skill['effects']>[number] {
-  if (typeof value !== 'object' || value === null) return false;
-  const effect = value as Record<string, unknown>;
-  return (
-    typeof effect.id === 'string' &&
-    typeof effect.name === 'string' &&
-    typeof effect.description === 'string' &&
-    typeof effect.effectType === 'string' &&
-    ['projectile', 'trail', 'lightning', 'ring', 'glow'].includes(effect.effectType) &&
-    typeof effect.color === 'string' &&
-    typeof effect.secondaryColor === 'string' &&
-    typeof effect.particleTexture === 'string' &&
-    ['circle', 'star', 'square', 'diamond', 'spark'].includes(effect.particleTexture) &&
-    isFiniteNumber(effect.glowIntensity) &&
-    hasValidOptionalEffectFields(effect)
-  );
+  return isEffectPresetShape(value);
 }
 
 const createCharacterConfigFromRow = (row: SheetRow): CharacterConfig => ({
@@ -415,8 +409,11 @@ const createCharacterConfigFromRow = (row: SheetRow): CharacterConfig => ({
   },
 });
 
-function validateCharacterConfigType(config: CharacterConfig, typeIds: Set<string>): CharacterConfig {
-  if (!typeIds.has(config.typeId)) {
+function validateCharacterConfigType(
+  config: CharacterConfig,
+  typeIds: Set<string>
+): CharacterConfig {
+  if (!hasCharacterTypeReference(config.typeId, typeIds)) {
     throw new Error(`캐릭터 타입 "${config.typeId}"을 찾을 수 없습니다.`);
   }
   return config;
@@ -439,12 +436,33 @@ const createLevelConfigFromRow = (row: SheetRow): LevelConfig => ({
   speedGrowth: readValidatedJson(row, 'speedGrowth', { a: 0, b: 0 }, isStatGrowthFormula),
   hpFormulaBlocks: readValidatedJson(row, 'hpFormulaBlocks', undefined, isOptionalFormulaBlocks),
   spFormulaBlocks: readValidatedJson(row, 'spFormulaBlocks', undefined, isOptionalFormulaBlocks),
-  attackFormulaBlocks: readValidatedJson(row, 'attackFormulaBlocks', undefined, isOptionalFormulaBlocks),
-  defenseFormulaBlocks: readValidatedJson(row, 'defenseFormulaBlocks', undefined, isOptionalFormulaBlocks),
-  speedFormulaBlocks: readValidatedJson(row, 'speedFormulaBlocks', undefined, isOptionalFormulaBlocks),
+  attackFormulaBlocks: readValidatedJson(
+    row,
+    'attackFormulaBlocks',
+    undefined,
+    isOptionalFormulaBlocks
+  ),
+  defenseFormulaBlocks: readValidatedJson(
+    row,
+    'defenseFormulaBlocks',
+    undefined,
+    isOptionalFormulaBlocks
+  ),
+  speedFormulaBlocks: readValidatedJson(
+    row,
+    'speedFormulaBlocks',
+    undefined,
+    isOptionalFormulaBlocks
+  ),
   formulaMode: readFormulaMode(row),
-  expGrowth: readValidatedJson(row, 'expGrowth', { type: 'linear', a: 1, b: 0 }, isExpGrowthFormula),
-  expGrowthConfig: readValidatedJson(row, 'expGrowthConfig', undefined, isOptionalExpGrowthConfig) ?? undefined,
+  expGrowth: readValidatedJson(
+    row,
+    'expGrowth',
+    { type: 'linear', a: 1, b: 0 },
+    isExpGrowthFormula
+  ),
+  expGrowthConfig:
+    readValidatedJson(row, 'expGrowthConfig', undefined, isOptionalExpGrowthConfig) ?? undefined,
   baseHp: readNumber(row, 'baseHp', 100),
   baseSp: readNumber(row, 'baseSp', 50),
   baseAttack: readNumber(row, 'baseAttack', 10),
@@ -598,8 +616,12 @@ function normalizeMonsterDefinitionIds(rows: SheetRow[], sheetName: string): voi
       }
 
       const importedId = typeof value === 'string' ? value.trim() : '';
-      const rowNumber = row.__rowNum__ === undefined ? index + 1 : row.__rowNum__ + 1;
-      const id = importedId || `monster_legacy_${rowNumber}`;
+      if (!importedId) {
+        throw new Error(
+          '"monster_definition_id" 값이 필요합니다. 기존 파일은 안정 ID를 입력하고 웨이브 매핑도 갱신한 뒤 다시 가져오세요.'
+        );
+      }
+      const id = importedId;
       if (ids.has(id)) {
         throw new Error(`"monster_definition_id" "${id}"가 중복되었습니다.`);
       }
@@ -701,12 +723,7 @@ function parseStageDefinitionsFromWorkbook(
   return stages;
 }
 
-function parseSheetRow<T>(
-  row: SheetRow,
-  sheetName: string,
-  index: number,
-  parse: () => T
-): T {
+function parseSheetRow<T>(row: SheetRow, sheetName: string, index: number, parse: () => T): T {
   try {
     return parse();
   } catch (error) {
@@ -716,13 +733,9 @@ function parseSheetRow<T>(
   }
 }
 
-function validateSkillReference(
-  id: string,
-  location: string,
-  skills: Record<string, Skill>
-): void {
+function validateSkillReference(id: string, location: string, skills: Record<string, Skill>): void {
   const skill = id.trim() ? findSkill(id, skills) : undefined;
-  if (!skill) {
+  if (!skill || !hasSkillReference(id, [skills, defaultSkills])) {
     throw new Error(`${location}: 스킬 "${id}"를 찾을 수 없습니다.`);
   }
   if (!Object.hasOwn(skills, id)) {
@@ -736,7 +749,7 @@ function validateAIPatternSkillReferences(
 ): void {
   config.patterns.forEach((pattern, index) => {
     if ((pattern.action !== 'attack' && pattern.action !== 'skill') || !pattern.skillId) return;
-    if (!findSkill(pattern.skillId, skills) && /^skill[1-4]$/.test(pattern.skillId)) return;
+    if (!findSkill(pattern.skillId, skills) && hasSkillReference(pattern.skillId, [], true)) return;
     validateSkillReference(pattern.skillId, `AI 패턴 ${index + 1}`, skills);
   });
 }
@@ -862,8 +875,27 @@ function validateDatasetTypeReferences(
       if (typeof value !== 'string') {
         throw new Error(`"${key}" 값은 문자열이어야 합니다.`);
       }
-      if (!typeIds.has(value)) {
+      if (!hasCharacterTypeReference(value, typeIds)) {
         throw new Error(`"${key}": 캐릭터 타입 "${value}"을 찾을 수 없습니다.`);
+      }
+    });
+  });
+}
+
+function validateDatasetRowShapes(
+  rows: SheetRow[],
+  sheetName: string,
+  owner: 'player' | 'monster'
+): void {
+  rows.forEach((row, index) => {
+    parseSheetRow(row, sheetName, index, () => {
+      const field = `${owner}Dataset[${index}]`;
+      const invalidField =
+        owner === 'player'
+          ? getPlayerDatasetRowError(row, field)
+          : getMonsterDatasetRowError(row, field);
+      if (invalidField) {
+        throw new Error(`"${invalidField}" 값의 형식이 올바르지 않습니다.`);
       }
     });
   });
@@ -879,6 +911,10 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     skillRows.map((row, index) =>
       parseSheetRow(row, DATA_WORKBOOK_SHEETS.SKILLS, index, () => {
         const skill = createSkillFromRow(row);
+        const invalidField = getSkillError(skill, `skillConfigs[${index}]`);
+        if (invalidField) {
+          throw new Error(`스킬 데이터 형식이 올바르지 않습니다 (${invalidField}).`);
+        }
         return [skill.id, skill];
       })
     )
@@ -887,24 +923,27 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.CHARACTER_TYPES)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.CHARACTER_TYPES);
     validateUniqueIds(rows, DATA_WORKBOOK_SHEETS.CHARACTER_TYPES);
-    data.characterTypes = rows.map(
-      (row, index) =>
-        parseSheetRow(row, DATA_WORKBOOK_SHEETS.CHARACTER_TYPES, index, () => ({
-          id: readString(row, 'id'),
-          name: readString(row, 'name'),
-          description: readString(row, 'description', ''),
-          color: readString(row, 'color', 'text-gray-600'),
-          defaultLevel: readNumber(row, 'defaultLevel', 1),
-          defaultSize: readNumber(row, 'defaultSize', 20),
-          defaultBasicAttackId: readString(row, 'defaultBasicAttackId', ''),
-          defaultSkillIds: readValidatedJson(row, 'defaultSkillIds', [], isStringArray),
-          defaultAIPattern: readOptionalAIPatternConfig(
-            row,
-            'defaultAIPattern',
-            importedSkills
-          ),
-          statFormulas: readValidatedJson(row, 'statFormulas', undefined, isOptionalStatFormulas) ?? undefined,
-        }) satisfies CharacterTypeInfo)
+    data.characterTypes = rows.map((row, index) =>
+      parseSheetRow(
+        row,
+        DATA_WORKBOOK_SHEETS.CHARACTER_TYPES,
+        index,
+        () =>
+          ({
+            id: readString(row, 'id'),
+            name: readString(row, 'name'),
+            description: readString(row, 'description', ''),
+            color: readString(row, 'color', 'text-gray-600'),
+            defaultLevel: readNumber(row, 'defaultLevel', 1),
+            defaultSize: readNumber(row, 'defaultSize', 20),
+            defaultBasicAttackId: readString(row, 'defaultBasicAttackId', ''),
+            defaultSkillIds: readValidatedJson(row, 'defaultSkillIds', [], isStringArray),
+            defaultAIPattern: readOptionalAIPatternConfig(row, 'defaultAIPattern', importedSkills),
+            statFormulas:
+              readValidatedJson(row, 'statFormulas', undefined, isOptionalStatFormulas) ??
+              undefined,
+          }) satisfies CharacterTypeInfo
+      )
     );
   }
 
@@ -923,11 +962,7 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
               size: readNumber(row, 'size', 24),
               aiPattern: readString(row, 'aiPattern', 'aggressive'),
               skills: readValidatedJson(row, 'skills', [], isStringArray),
-              aiPatternConfig: readOptionalAIPatternConfig(
-                row,
-                'aiPatternConfig',
-                importedSkills
-              ),
+              aiPatternConfig: readOptionalAIPatternConfig(row, 'aiPatternConfig', importedSkills),
             } satisfies MonsterTypeStats,
           ] as const;
         })
@@ -943,13 +978,19 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
 
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.ITEMS)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.ITEMS);
-    data.itemSlots = rows.map(
-      (row, index) =>
-        parseSheetRow(row, DATA_WORKBOOK_SHEETS.ITEMS, index, () => ({
+    data.itemSlots = rows.map((row, index) =>
+      parseSheetRow(row, DATA_WORKBOOK_SHEETS.ITEMS, index, () => {
+        const itemSlot = {
           slotNumber: readNumber(row, 'slotNumber', 1) as ItemSlot['slotNumber'],
           keyBinding: readString(row, 'keyBinding', ''),
           item: readJson<Item | null>(row, 'item', null),
-        }) satisfies ItemSlot)
+        } satisfies ItemSlot;
+        const invalidField = getItemSlotError(itemSlot, `itemSlots[${index}]`);
+        if (invalidField) {
+          throw new Error(`아이템 데이터 형식이 올바르지 않습니다 (${invalidField}).`);
+        }
+        return itemSlot;
+      })
     );
   }
 
@@ -957,8 +998,19 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.PLAYER_DATASET);
     validatePlayerLevelRows(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET);
     validateDatasetResources(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player');
-    validateDatasetTypeReferences(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player', characterTypeIds);
-    validateDatasetSkillReferences(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player', importedSkills);
+    validateDatasetTypeReferences(
+      rows,
+      DATA_WORKBOOK_SHEETS.PLAYER_DATASET,
+      'player',
+      characterTypeIds
+    );
+    validateDatasetSkillReferences(
+      rows,
+      DATA_WORKBOOK_SHEETS.PLAYER_DATASET,
+      'player',
+      importedSkills
+    );
+    validateDatasetRowShapes(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player');
     data.playerDataset = rows as unknown as DataRow[];
   }
 
@@ -967,9 +1019,18 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     normalizeMonsterDefinitionIds(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
     validateDatasetResources(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     normalizeMonsterStats(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
-    validateDatasetTypeReferences(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster', characterTypeIds);
+    validateDatasetTypeReferences(
+      rows,
+      DATA_WORKBOOK_SHEETS.MONSTER_DATASET,
+      'monster',
+      characterTypeIds
+    );
     rows.forEach((row, index) => {
-      if (row.monster_ai_patterns !== undefined && row.monster_ai_patterns !== null && row.monster_ai_patterns !== '') {
+      if (
+        row.monster_ai_patterns !== undefined &&
+        row.monster_ai_patterns !== null &&
+        row.monster_ai_patterns !== ''
+      ) {
         parseSheetRow(row, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, index, () => {
           const config = readJson<unknown>(row, 'monster_ai_patterns', undefined);
           if (!isAIPatternConfig(config)) {
@@ -979,27 +1040,38 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
         });
       }
     });
-    validateDatasetSkillReferences(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster', importedSkills);
+    validateDatasetSkillReferences(
+      rows,
+      DATA_WORKBOOK_SHEETS.MONSTER_DATASET,
+      'monster',
+      importedSkills
+    );
+    validateDatasetRowShapes(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     data.monsterDataset = rows as unknown as DataRow[];
   }
-  data.stageDefinitions = parseStageDefinitionsFromWorkbook(
-    workbook,
-    data.monsterDataset ?? []
-  );
+  data.stageDefinitions = parseStageDefinitionsFromWorkbook(workbook, data.monsterDataset ?? []);
 
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG);
     if (rows.length > 0) {
-      data.playerLevelConfig = parseSheetRow(rows[0], DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG, 0,
-        () => createLevelConfigFromRow(rows[0]));
+      data.playerLevelConfig = parseSheetRow(
+        rows[0],
+        DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG,
+        0,
+        () => createLevelConfigFromRow(rows[0])
+      );
     }
   }
 
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG);
     if (rows.length > 0) {
-      data.monsterLevelConfig = parseSheetRow(rows[0], DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG, 0,
-        () => createLevelConfigFromRow(rows[0]));
+      data.monsterLevelConfig = parseSheetRow(
+        rows[0],
+        DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG,
+        0,
+        () => createLevelConfigFromRow(rows[0])
+      );
     }
   }
 
@@ -1008,7 +1080,11 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     if (rows.length > 0) {
       const row = rows[0];
       const skillId = readString(row, 'skillId');
-      validateSkillReference(skillId, `"${DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK}"`, importedSkills);
+      validateSkillReference(
+        skillId,
+        `"${DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK}"`,
+        importedSkills
+      );
       const skill = importedSkills[skillId];
       data.playerBasicAttack = { skill, keyBinding: 'click' } satisfies BasicAttackSlot;
     }
@@ -1019,7 +1095,11 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     if (rows.length > 0) {
       const row = rows[0];
       const skillId = readString(row, 'skillId');
-      validateSkillReference(skillId, `"${DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK}"`, importedSkills);
+      validateSkillReference(
+        skillId,
+        `"${DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK}"`,
+        importedSkills
+      );
       const skill = importedSkills[skillId];
       data.monsterBasicAttack = { skill, keyBinding: 'click' } satisfies BasicAttackSlot;
     }
@@ -1045,15 +1125,21 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
 
   data.characterTypes?.forEach(type => {
     if (type.defaultBasicAttackId) {
-      validateSkillReference(type.defaultBasicAttackId, `캐릭터 타입 "${type.id}" 기본 공격`, importedSkills);
+      validateSkillReference(
+        type.defaultBasicAttackId,
+        `캐릭터 타입 "${type.id}" 기본 공격`,
+        importedSkills
+      );
     }
     type.defaultSkillIds?.forEach(id =>
       validateSkillReference(id, `캐릭터 타입 "${type.id}"`, importedSkills)
     );
   });
   Object.entries(data.monsterTypeStats ?? {}).forEach(([id, monster]) => {
-    if (!characterTypeIds.has(monster.characterType)) {
-      throw new Error(`몬스터 타입 "${id}": 캐릭터 타입 "${monster.characterType}"을 찾을 수 없습니다.`);
+    if (!hasCharacterTypeReference(monster.characterType, characterTypeIds)) {
+      throw new Error(
+        `몬스터 타입 "${id}": 캐릭터 타입 "${monster.characterType}"을 찾을 수 없습니다.`
+      );
     }
     monster.skills.forEach(skillId =>
       validateSkillReference(skillId, `몬스터 타입 "${id}"`, importedSkills)
@@ -1062,7 +1148,10 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
   return data;
 }
 
-export function importGameDataFromWorkbook(binary: string, setters: GameDataSetters): ImportedGameData {
+export function importGameDataFromWorkbook(
+  binary: string,
+  setters: GameDataSetters
+): ImportedGameData {
   const data = parseGameDataFromWorkbook(binary);
   if (!data.skillConfigs || !data.playerDataset || !data.monsterDataset) {
     throw new Error('가져온 스킬 또는 데이터셋이 누락되었습니다.');
@@ -1076,10 +1165,14 @@ export function importGameDataFromWorkbook(binary: string, setters: GameDataSett
   if (data.stageDefinitions !== undefined) {
     setters.onStageDefinitionsChange(data.stageDefinitions);
   }
-  if (data.playerLevelConfig !== undefined) setters.onPlayerLevelConfigChange(data.playerLevelConfig);
-  if (data.monsterLevelConfig !== undefined) setters.onMonsterLevelConfigChange(data.monsterLevelConfig);
-  if (data.playerBasicAttack !== undefined) setters.onPlayerBasicAttackChange(data.playerBasicAttack);
-  if (data.monsterBasicAttack !== undefined) setters.onMonsterBasicAttackChange(data.monsterBasicAttack);
+  if (data.playerLevelConfig !== undefined)
+    setters.onPlayerLevelConfigChange(data.playerLevelConfig);
+  if (data.monsterLevelConfig !== undefined)
+    setters.onMonsterLevelConfigChange(data.monsterLevelConfig);
+  if (data.playerBasicAttack !== undefined)
+    setters.onPlayerBasicAttackChange(data.playerBasicAttack);
+  if (data.monsterBasicAttack !== undefined)
+    setters.onMonsterBasicAttackChange(data.monsterBasicAttack);
   if (data.playerConfig !== undefined) setters.onPlayerConfigChange(data.playerConfig);
   if (data.monsterConfig !== undefined) setters.onMonsterConfigChange(data.monsterConfig);
   return {

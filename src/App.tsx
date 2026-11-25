@@ -1,7 +1,11 @@
 import { ChevronRight } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { AccountManagementDialog, AuthenticationScreen } from './components/Authentication';
+import {
+  AccountManagementDialog,
+  AuthenticationScreen,
+  WorkspaceRecoveryScreen,
+} from './components/Authentication';
 import { defaultBindings, KeyBindings, KeyBindingSettings } from './components/KeyBindingSettings';
 import { Button } from './components/ui/button';
 import {
@@ -19,6 +23,7 @@ import {
 } from './components/ui/sidebar';
 import { Toaster } from './components/ui/sonner';
 import {
+  ApiError,
   getAuthStatus,
   getWorkspace,
   login,
@@ -108,6 +113,13 @@ const ViewLoader = () => (
     <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600' />
   </div>
 );
+
+interface WorkspaceRecovery {
+  user: AuthUser;
+  workspace: unknown;
+  revision: number;
+  error: string;
+}
 
 const createDefaultWorkspace = (): WorkspaceSnapshot => {
   const datasets = createInitialDatasets();
@@ -217,16 +229,26 @@ export default function App() {
   const [authNeedsSetup, setAuthNeedsSetup] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string>();
+  const [workspaceRecovery, setWorkspaceRecovery] = useState<WorkspaceRecovery>();
+  const [workspaceRecoveryExported, setWorkspaceRecoveryExported] = useState(false);
   const [workspaceLoaded, setWorkspaceLoaded] = useState(false);
   const [workspaceSaveState, setWorkspaceSaveState] = useState<
     'pending' | 'saving' | 'saved' | 'error'
   >('saved');
   const [workspaceSaveRetry, setWorkspaceSaveRetry] = useState(0);
   const [workspaceError, setWorkspaceError] = useState<string>();
+  const [workspaceConflict, setWorkspaceConflict] = useState(false);
+  const workspaceServerRevision = useRef(0);
+  const workspaceWriteGeneration = useRef(0);
+  const skipNextWorkspaceSave = useRef(false);
   const [writeWorkspace] = useState(() =>
-    createSerializedWriter(async (workspace: WorkspaceSnapshot) => {
-      await saveWorkspace(workspace);
-    })
+    createSerializedWriter(
+      async ({ workspace, generation }: { workspace: WorkspaceSnapshot; generation: number }) => {
+        if (generation !== workspaceWriteGeneration.current) return;
+        const saved = await saveWorkspace(workspace, workspaceServerRevision.current);
+        workspaceServerRevision.current = saved.revision;
+      }
+    )
   );
   const workspaceSaveRevision = useRef(0);
   const workspaceSaveTimeout = useRef<number | undefined>();
@@ -331,22 +353,11 @@ export default function App() {
         workspace = cloneWorkspace(input);
       }
 
-      const rowCount = Math.max(workspace.playerDataset.length, workspace.monsterDataset.length);
-      const tick = rowCount === 0 ? 0 : Math.min(workspace.currentTick, rowCount - 1);
-      const availableMonsterIds = new Set(
-        workspace.monsterDataset
-          .map(row => row.monster_definition_id)
-          .filter((id): id is string => typeof id === 'string')
-      );
-      const selectedMonsterIds = workspace.selectedMonsterIds.filter(id =>
-        availableMonsterIds.has(id)
-      );
-
       importedPlayerLevelConfig.current = true;
       importedMonsterLevelConfig.current = true;
       skipCurrentRowApplyRef.current = true;
       setCurrentView(APP_VIEW.SIMULATOR);
-      setCurrentTick(tick);
+      setCurrentTick(workspace.currentTick);
       setKeyBindings(workspace.keyBindings);
       setCharacterTypes(workspace.characterTypes);
       setPlayerLevelConfig(workspace.playerLevelConfig);
@@ -364,20 +375,16 @@ export default function App() {
       setPlayerDataset(workspace.playerDataset);
       setMonsterDataset(workspace.monsterDataset);
       setStageDefinitions(workspace.stageDefinitions);
-      setActiveStageId(
-        workspace.activeStageId &&
-          workspace.stageDefinitions.some(stage => stage.id === workspace.activeStageId)
-          ? workspace.activeStageId
-          : null
-      );
-      setSelectedMonsterRows(new Set(selectedMonsterIds));
+      setActiveStageId(workspace.activeStageId);
+      setSelectedMonsterRows(new Set(workspace.selectedMonsterIds));
       setPlayerConfig(workspace.playerConfig);
       setMonsterConfig(workspace.monsterConfig);
       setCurrentDataRow(
-        workspace.playerDataset[tick] || workspace.monsterDataset[tick]
+        workspace.playerDataset[workspace.currentTick] ||
+          workspace.monsterDataset[workspace.currentTick]
           ? {
-              ...(workspace.playerDataset[tick] || {}),
-              ...(workspace.monsterDataset[tick] || {}),
+              ...(workspace.playerDataset[workspace.currentTick] || {}),
+              ...(workspace.monsterDataset[workspace.currentTick] || {}),
             }
           : mockDataset[0] || null
       );
@@ -440,7 +447,12 @@ export default function App() {
   );
 
   const finishAuthentication = useCallback(
-    (user: AuthUser, workspace: unknown | null) => {
+    (user: AuthUser, workspace: unknown | null, revision: number) => {
+      workspaceServerRevision.current = revision;
+      workspaceWriteGeneration.current++;
+      setWorkspaceConflict(false);
+      setWorkspaceRecovery(undefined);
+      setWorkspaceRecoveryExported(false);
       applyWorkspace(workspace);
       setAuthUser(user);
       setAuthNeedsSetup(false);
@@ -449,12 +461,40 @@ export default function App() {
     [applyWorkspace]
   );
 
+  const enterWorkspaceRecovery = useCallback(
+    (user: AuthUser, workspace: unknown, revision: number, error: unknown) => {
+      workspaceServerRevision.current = revision;
+      setAuthUser(user);
+      setAuthError(undefined);
+      setWorkspaceLoaded(false);
+      setWorkspaceRecovery({
+        user,
+        workspace,
+        revision,
+        error: error instanceof Error ? error.message : '저장된 작업공간 데이터를 읽지 못했습니다.',
+      });
+      setWorkspaceRecoveryExported(false);
+    },
+    []
+  );
+
+  const reportWorkspaceSaveError = useCallback((error: unknown, fallback: string) => {
+    setWorkspaceSaveState('error');
+    setWorkspaceError(error instanceof Error ? error.message : fallback);
+    if (error instanceof ApiError && error.status === 409) {
+      workspaceWriteGeneration.current++;
+      setWorkspaceConflict(true);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     const restoreAuthentication = async () => {
       setAuthLoading(true);
       setAuthError(undefined);
       setAuthUser(null);
+      setWorkspaceRecovery(undefined);
+      setWorkspaceRecoveryExported(false);
       setWorkspaceLoaded(false);
       try {
         const status = await getAuthStatus();
@@ -463,7 +503,11 @@ export default function App() {
         if (status.user) {
           const result = await getWorkspace();
           if (!active) return;
-          finishAuthentication(status.user, result.workspace);
+          try {
+            finishAuthentication(status.user, result.workspace, result.revision);
+          } catch (error) {
+            enterWorkspaceRecovery(status.user, result.workspace, result.revision, error);
+          }
         }
       } catch (error) {
         if (active) {
@@ -479,7 +523,7 @@ export default function App() {
     return () => {
       active = false;
     };
-  }, [finishAuthentication]);
+  }, [enterWorkspaceRecovery, finishAuthentication]);
 
   const handleAuthentication = useCallback(
     async (username: string, password: string) => {
@@ -509,14 +553,18 @@ export default function App() {
             );
           }
         }
-        finishAuthentication(result.user, workspace);
+        try {
+          finishAuthentication(result.user, workspace, saved.revision);
+        } catch (error) {
+          enterWorkspaceRecovery(result.user, workspace, saved.revision, error);
+        }
       } catch (error) {
         setAuthError(error instanceof Error ? error.message : '로그인할 수 없습니다.');
       } finally {
         setAuthLoading(false);
       }
     },
-    [authNeedsSetup, defaultWorkspace, finishAuthentication]
+    [authNeedsSetup, defaultWorkspace, enterWorkspaceRecovery, finishAuthentication]
   );
 
   const handleLogout = useCallback(async () => {
@@ -525,7 +573,10 @@ export default function App() {
     workspaceSaveTimeout.current = undefined;
     setWorkspaceLoaded(false);
     try {
-      await writeWorkspace(getCurrentWorkspace());
+      await writeWorkspace({
+        workspace: getCurrentWorkspace(),
+        generation: workspaceWriteGeneration.current,
+      });
       await logout();
       setAuthUser(null);
       setAuthNeedsSetup(false);
@@ -533,22 +584,171 @@ export default function App() {
       setWorkspaceSaveState('saved');
     } catch (error) {
       setWorkspaceLoaded(true);
-      setWorkspaceSaveState('error');
-      setWorkspaceError(error instanceof Error ? error.message : '로그아웃을 완료하지 못했습니다.');
+      reportWorkspaceSaveError(error, '로그아웃을 완료하지 못했습니다.');
     }
-  }, [getCurrentWorkspace, writeWorkspace]);
+  }, [getCurrentWorkspace, reportWorkspaceSaveError, writeWorkspace]);
+
+  const handleReloadWorkspace = useCallback(async () => {
+    setWorkspaceLoaded(false);
+    try {
+      const latest = await getWorkspace();
+      workspaceServerRevision.current = latest.revision;
+      workspaceWriteGeneration.current++;
+      applyWorkspace(latest.workspace);
+      skipNextWorkspaceSave.current = true;
+      setWorkspaceConflict(false);
+      setWorkspaceSaveState('saved');
+      setWorkspaceLoaded(true);
+    } catch (error) {
+      setWorkspaceLoaded(true);
+      reportWorkspaceSaveError(error, '최신 작업공간을 불러오지 못했습니다.');
+    }
+  }, [applyWorkspace, reportWorkspaceSaveError]);
+
+  const handleOverwriteWorkspace = useCallback(async () => {
+    setWorkspaceSaveState('saving');
+    setWorkspaceError(undefined);
+    try {
+      const latest = await getWorkspace();
+      workspaceServerRevision.current = latest.revision;
+      await writeWorkspace({
+        workspace: getCurrentWorkspace(),
+        generation: workspaceWriteGeneration.current,
+      });
+      skipNextWorkspaceSave.current = true;
+      setWorkspaceConflict(false);
+      setWorkspaceSaveState('saved');
+    } catch (error) {
+      reportWorkspaceSaveError(error, '내 작업공간 변경 사항을 저장하지 못했습니다.');
+    }
+  }, [getCurrentWorkspace, reportWorkspaceSaveError, writeWorkspace]);
+
+  const handleExportWorkspaceRecovery = useCallback(() => {
+    if (!workspaceRecovery) return;
+    try {
+      const contents = JSON.stringify(workspaceRecovery.workspace, null, 2);
+      if (contents === undefined) throw new Error('작업공간을 JSON 파일로 변환하지 못했습니다.');
+      const url = URL.createObjectURL(
+        new globalThis.Blob([contents], { type: 'application/json' })
+      );
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `battle-simulator-workspace-recovery-${Date.now()}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch (error) {
+      setWorkspaceRecovery(previous =>
+        previous
+          ? {
+              ...previous,
+              error:
+                error instanceof Error ? error.message : '손상된 작업공간을 내보내지 못했습니다.',
+            }
+          : previous
+      );
+    }
+  }, [workspaceRecovery]);
+
+  const handleReloadWorkspaceRecovery = useCallback(async () => {
+    if (!workspaceRecovery) return;
+    setAuthLoading(true);
+    try {
+      const latest = await getWorkspace();
+      try {
+        finishAuthentication(workspaceRecovery.user, latest.workspace, latest.revision);
+        skipNextWorkspaceSave.current = true;
+      } catch (error) {
+        enterWorkspaceRecovery(workspaceRecovery.user, latest.workspace, latest.revision, error);
+      }
+    } catch (error) {
+      setWorkspaceRecovery(previous =>
+        previous
+          ? {
+              ...previous,
+              error:
+                error instanceof Error ? error.message : '최신 작업공간을 불러오지 못했습니다.',
+            }
+          : previous
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [enterWorkspaceRecovery, finishAuthentication, workspaceRecovery]);
+
+  const handleResetWorkspaceRecovery = useCallback(async () => {
+    if (!workspaceRecovery || !workspaceRecoveryExported) return;
+    if (
+      !window.confirm(
+        '내보낸 파일을 보관했는지 확인해 주세요. 계속하면 이 계정의 저장 작업공간을 기본값으로 교체합니다.'
+      )
+    ) {
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const saved = await saveWorkspace(defaultWorkspace, workspaceRecovery.revision);
+      finishAuthentication(workspaceRecovery.user, defaultWorkspace, saved.revision);
+      skipNextWorkspaceSave.current = true;
+    } catch (error) {
+      setWorkspaceRecovery(previous =>
+        previous
+          ? {
+              ...previous,
+              error:
+                error instanceof Error ? error.message : '기본 작업공간으로 복구하지 못했습니다.',
+            }
+          : previous
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }, [defaultWorkspace, finishAuthentication, workspaceRecovery, workspaceRecoveryExported]);
+
+  const handleRecoveryLogout = useCallback(async () => {
+    setAuthLoading(true);
+    try {
+      await logout();
+      setAuthUser(null);
+      setWorkspaceRecovery(undefined);
+      setWorkspaceRecoveryExported(false);
+      setWorkspaceLoaded(false);
+    } catch (error) {
+      setWorkspaceRecovery(previous =>
+        previous
+          ? {
+              ...previous,
+              error: error instanceof Error ? error.message : '로그아웃하지 못했습니다.',
+            }
+          : previous
+      );
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!authUser || !workspaceLoaded) return;
+    if (!authUser || !workspaceLoaded || workspaceConflict) return;
+    if (skipNextWorkspaceSave.current) {
+      skipNextWorkspaceSave.current = false;
+      return;
+    }
     const workspace = getCurrentWorkspace();
     const revision = ++workspaceSaveRevision.current;
+    const generation = workspaceWriteGeneration.current;
     setWorkspaceSaveState('pending');
     const timeout = window.setTimeout(async () => {
       workspaceSaveTimeout.current = undefined;
       setWorkspaceSaveState('saving');
       try {
-        await writeWorkspace(workspace);
-        if (revision !== workspaceSaveRevision.current) return;
+        await writeWorkspace({ workspace, generation });
+        if (
+          revision !== workspaceSaveRevision.current ||
+          generation !== workspaceWriteGeneration.current
+        ) {
+          return;
+        }
         setWorkspaceSaveState('saved');
         setWorkspaceError(undefined);
         if (removeLegacyPresetsAfterSave) {
@@ -562,11 +762,12 @@ export default function App() {
           }
         }
       } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          reportWorkspaceSaveError(error, '작업공간을 저장하지 못했습니다.');
+          return;
+        }
         if (revision !== workspaceSaveRevision.current) return;
-        setWorkspaceSaveState('error');
-        setWorkspaceError(
-          error instanceof Error ? error.message : '작업공간을 저장하지 못했습니다.'
-        );
+        reportWorkspaceSaveError(error, '작업공간을 저장하지 못했습니다.');
       }
     }, 500);
     workspaceSaveTimeout.current = timeout;
@@ -577,8 +778,10 @@ export default function App() {
   }, [
     authUser,
     workspaceLoaded,
+    workspaceConflict,
     getCurrentWorkspace,
     removeLegacyPresetsAfterSave,
+    reportWorkspaceSaveError,
     workspaceSaveRetry,
     writeWorkspace,
   ]);
@@ -728,6 +931,25 @@ export default function App() {
     );
   }
 
+  if (workspaceRecovery) {
+    return (
+      <>
+        <Toaster position='top-right' />
+        <WorkspaceRecoveryScreen
+          username={workspaceRecovery.user.username}
+          error={workspaceRecovery.error}
+          busy={authLoading}
+          exported={workspaceRecoveryExported}
+          onExport={handleExportWorkspaceRecovery}
+          onConfirmExport={setWorkspaceRecoveryExported}
+          onReload={() => void handleReloadWorkspaceRecovery()}
+          onReset={() => void handleResetWorkspaceRecovery()}
+          onLogout={() => void handleRecoveryLogout()}
+        />
+      </>
+    );
+  }
+
   if (!authUser) {
     return (
       <>
@@ -842,7 +1064,28 @@ export default function App() {
                     {workspaceError}
                   </p>
                 )}
-                {workspaceSaveState === 'error' && (
+                {workspaceConflict ? (
+                  <>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='w-full'
+                      onClick={() => void handleReloadWorkspace()}
+                      disabled={workspaceSaveState === 'saving'}
+                    >
+                      서버의 최신 작업공간 불러오기
+                    </Button>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='w-full'
+                      onClick={() => void handleOverwriteWorkspace()}
+                      disabled={workspaceSaveState === 'saving'}
+                    >
+                      내 변경 사항으로 덮어쓰기
+                    </Button>
+                  </>
+                ) : workspaceSaveState === 'error' ? (
                   <Button
                     variant='outline'
                     size='sm'
@@ -851,7 +1094,7 @@ export default function App() {
                   >
                     다시 저장
                   </Button>
-                )}
+                ) : null}
                 {authUser.role === 'admin' && (
                   <Button
                     variant='outline'

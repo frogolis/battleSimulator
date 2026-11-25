@@ -78,14 +78,18 @@ export function logout(): Promise<{ ok: boolean }> {
 export function getWorkspace(): Promise<{
   workspace: unknown | null;
   updatedAt: string | null;
+  revision: number;
 }> {
   return requestJson('/api/workspace');
 }
 
-export function saveWorkspace(workspace: WorkspaceSnapshot): Promise<{ updatedAt: string }> {
+export function saveWorkspace(
+  workspace: WorkspaceSnapshot,
+  expectedRevision: number
+): Promise<{ updatedAt: string; revision: number }> {
   return requestJson('/api/workspace', {
     method: 'PUT',
-    body: JSON.stringify({ workspace }),
+    body: JSON.stringify({ workspace, expectedRevision }),
   });
 }
 
