@@ -12,12 +12,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Separator } from './ui/separator';
 
 interface DataExportImportProps extends GameDataState, GameDataSetters {
+  currentTick: number;
   onImportSuccess: (data: ImportedGameData) => void;
 }
 
 const logDataIO = (..._args: unknown[]): void => {};
 
 export function DataExportImport({
+  currentTick,
   playerConfig,
   onPlayerConfigChange,
   monsterConfig,
@@ -47,6 +49,18 @@ export function DataExportImport({
   onImportSuccess,
 }: DataExportImportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importContextRef = useRef({
+    currentTick,
+    playerTypeId: playerConfig.typeId,
+    monsterTypeId: monsterConfig.typeId,
+  });
+  importContextRef.current = {
+    currentTick,
+    playerTypeId: playerConfig.typeId,
+    monsterTypeId: monsterConfig.typeId,
+  };
+  const importSuccessRef = useRef(onImportSuccess);
+  importSuccessRef.current = onImportSuccess;
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [uploadMessage, setUploadMessage] = useState<string>('');
 
@@ -82,22 +96,26 @@ export function DataExportImport({
     if (!file) return;
     try {
       const binary = await readFileAsBinary(file);
-      const data = importGameDataFromWorkbook(binary, {
-        onPlayerConfigChange,
-        onMonsterConfigChange,
-        onPlayerLevelConfigChange,
-        onMonsterLevelConfigChange,
-        onSkillConfigsChange,
-        onPlayerBasicAttackChange,
-        onMonsterBasicAttackChange,
-        onItemSlotsChange,
-        onCharacterTypesChange,
-        onMonsterTypeStatsChange,
-        onPlayerDatasetChange,
-        onMonsterDatasetChange,
-        onStageDefinitionsChange,
-      });
-      onImportSuccess(data);
+      const data = importGameDataFromWorkbook(
+        binary,
+        {
+          onPlayerConfigChange,
+          onMonsterConfigChange,
+          onPlayerLevelConfigChange,
+          onMonsterLevelConfigChange,
+          onSkillConfigsChange,
+          onPlayerBasicAttackChange,
+          onMonsterBasicAttackChange,
+          onItemSlotsChange,
+          onCharacterTypesChange,
+          onMonsterTypeStatsChange,
+          onPlayerDatasetChange,
+          onMonsterDatasetChange,
+          onStageDefinitionsChange,
+        },
+        importContextRef.current
+      );
+      importSuccessRef.current(data);
 
       setUploadStatus('success');
       setUploadMessage(DATA_IO_MESSAGES.IMPORT_STATUS_SUCCESS);

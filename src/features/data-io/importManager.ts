@@ -32,9 +32,16 @@ import {
 } from '../../../shared/referenceValidation.mjs';
 import { getSkillError } from '../../../shared/skillValidation.mjs';
 import { DATA_WORKBOOK_SHEETS } from '../data-file/constants';
+import { selectImportedRows } from '../simulator/rowApplyManager';
 import { GameDataSetters, GameDataState, ImportedGameData } from './model';
 
 type SheetRow = Record<string, unknown> & { __rowNum__?: number };
+
+export interface WorkbookImportContext {
+  currentTick: number;
+  playerTypeId: string;
+  monsterTypeId: string;
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -384,8 +391,8 @@ function isEffectPreset(value: unknown): value is NonNullable<Skill['effects']>[
 const createCharacterConfigFromRow = (row: SheetRow): CharacterConfig => ({
   typeId: readString(row, 'typeId', 'warrior'),
   attackType: readString(row, 'attackType', '') || undefined,
-  monsterRespawnDelay: readNumber(row, 'monsterRespawnDelay', 0) || undefined,
-  monsterMaxCount: readNumber(row, 'monsterMaxCount', 0) || undefined,
+  monsterRespawnDelay: readOptionalNumber(row, 'monsterRespawnDelay'),
+  monsterMaxCount: readOptionalNumber(row, 'monsterMaxCount'),
   size: { min: readNumber(row, 'sizeMin', 20), max: readNumber(row, 'sizeMax', 20) },
   speed: { min: readNumber(row, 'speedMin', 100), max: readNumber(row, 'speedMax', 100) },
   attack: { min: readNumber(row, 'attackMin', 10), max: readNumber(row, 'attackMax', 10) },
@@ -538,6 +545,14 @@ function readNumber(row: SheetRow, key: string, fallback = 0): number {
     throw new Error(`"${key}" 값은 유한한 숫자여야 합니다.`);
   }
   return parsed;
+}
+
+function readOptionalNumber(row: SheetRow, key: string): number | undefined {
+  const value = row[key];
+  if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
+    return undefined;
+  }
+  return readNumber(row, key);
 }
 
 function readRequiredString(row: SheetRow, key: string): string {
@@ -787,6 +802,31 @@ function validateDatasetSkillReferences(
   });
 }
 
+function normalizeDatasetSkillNumbers(
+  rows: SheetRow[],
+  sheetName: string,
+  owner: 'player' | 'monster'
+): void {
+  const prefixes = [`${owner}_basic_attack`, ...[1, 2, 3, 4].map(slot => `${owner}_skill_${slot}`)];
+  const fields = prefixes.flatMap(prefix =>
+    ['range', 'width', 'damage', 'cooldown', 'sp_cost', 'cast_time'].map(
+      suffix => `${prefix}_${suffix}`
+    )
+  );
+  rows.forEach((row, index) => {
+    parseSheetRow(row, sheetName, index, () => {
+      for (const field of fields) {
+        const value = row[field];
+        if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
+          delete row[field];
+        } else {
+          row[field] = readNumber(row, field);
+        }
+      }
+    });
+  });
+}
+
 function validateDatasetResources(
   rows: SheetRow[],
   sheetName: string,
@@ -998,6 +1038,7 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.PLAYER_DATASET);
     validatePlayerLevelRows(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET);
     validateDatasetResources(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player');
+    normalizeDatasetSkillNumbers(rows, DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player');
     validateDatasetTypeReferences(
       rows,
       DATA_WORKBOOK_SHEETS.PLAYER_DATASET,
@@ -1019,6 +1060,7 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     normalizeMonsterDefinitionIds(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
     validateDatasetResources(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     normalizeMonsterStats(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
+    normalizeDatasetSkillNumbers(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     validateDatasetTypeReferences(
       rows,
       DATA_WORKBOOK_SHEETS.MONSTER_DATASET,
@@ -1150,11 +1192,36 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
 
 export function importGameDataFromWorkbook(
   binary: string,
-  setters: GameDataSetters
+  setters: GameDataSetters,
+  context: WorkbookImportContext
 ): ImportedGameData {
   const data = parseGameDataFromWorkbook(binary);
-  if (!data.skillConfigs || !data.playerDataset || !data.monsterDataset) {
+  if (!data.characterTypes || !data.skillConfigs || !data.playerDataset || !data.monsterDataset) {
     throw new Error('가져온 스킬 또는 데이터셋이 누락되었습니다.');
+  }
+  const typeIds = new Set(data.characterTypes.map(type => type.id));
+  const { playerRow, monsterRow } = selectImportedRows(
+    data.playerDataset,
+    data.monsterDataset,
+    context.currentTick
+  );
+  const playerTypeId =
+    (playerRow?.player_size !== undefined && playerRow.player_attack_type) ||
+    data.playerConfig?.typeId ||
+    (data.playerConfig === undefined ? context.playerTypeId : '');
+  const monsterTypeId =
+    (monsterRow?.monster_size !== undefined && monsterRow.monster_attack_type) ||
+    data.monsterConfig?.typeId ||
+    (data.monsterConfig === undefined ? context.monsterTypeId : '');
+  for (const [field, typeId] of [
+    ['playerConfig.typeId', playerTypeId],
+    ['monsterConfig.typeId', monsterTypeId],
+  ]) {
+    if (typeId && !hasCharacterTypeReference(typeId, typeIds)) {
+      throw new Error(
+        `${field}: 캐릭터 타입 "${typeId}"을 찾을 수 없습니다. 기존 설정 또는 Excel 캐릭터 타입을 확인하세요.`
+      );
+    }
   }
   if (data.characterTypes !== undefined) setters.onCharacterTypesChange(data.characterTypes);
   if (data.monsterTypeStats !== undefined) setters.onMonsterTypeStatsChange(data.monsterTypeStats);

@@ -3,8 +3,25 @@ import * as XLSX from 'xlsx';
 import { defaultSkills, EFFECT_PRESETS } from '../../lib/skillSystem';
 import { DATA_WORKBOOK_SHEETS } from '../data-file/constants';
 import { findPlayerLevelRow } from '../simulator/playerLevelTable';
-import { importGameDataFromWorkbook, parseGameDataFromWorkbook } from './importManager';
+import { applyPlayerRowFromData } from '../simulator/rowApplyManager';
+import {
+  importGameDataFromWorkbook as importWithContext,
+  parseGameDataFromWorkbook,
+  type WorkbookImportContext,
+} from './importManager';
 import { GameDataSetters } from './model';
+
+function importGameDataFromWorkbook(
+  binary: string,
+  setters: GameDataSetters,
+  context: WorkbookImportContext = {
+    currentTick: 0,
+    playerTypeId: 'warrior',
+    monsterTypeId: 'warrior',
+  }
+) {
+  return importWithContext(binary, setters, context);
+}
 
 function buildValidWorkbookBinary(effects?: string): string {
   const workbook = XLSX.utils.book_new();
@@ -289,6 +306,80 @@ function addStageSheets(
 }
 
 describe('importGameDataFromWorkbook', () => {
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_CONFIG],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_CONFIG],
+  ] as const)(
+    'rejects an outdated retained %s type before applying any workbook data',
+    (owner, sheet) => {
+      const workbook = XLSX.read(buildValidWorkbookBinary(), { type: 'binary' });
+      workbook.Sheets[sheet] = XLSX.utils.aoa_to_sheet([]);
+      const binary = XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' });
+      const setters = createSetters();
+      const context = {
+        currentTick: 0,
+        playerTypeId: owner === 'player' ? 'missing-type' : 'warrior',
+        monsterTypeId: owner === 'monster' ? 'missing-type' : 'warrior',
+      };
+
+      expect(() => importGameDataFromWorkbook(binary, setters, context)).toThrow(
+        new RegExp(`${owner}Config\\.typeId.*missing-type`)
+      );
+      Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+    }
+  );
+
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_CONFIG, DATA_WORKBOOK_SHEETS.PLAYER_DATASET],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_CONFIG, DATA_WORKBOOK_SHEETS.MONSTER_DATASET],
+  ] as const)(
+    'accepts a retained %s configuration when the selected row supplies a valid type',
+    (owner, configSheet, datasetSheet) => {
+      const workbook = XLSX.read(buildValidWorkbookBinary(), { type: 'binary' });
+      workbook.Sheets[configSheet] = XLSX.utils.aoa_to_sheet([]);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[datasetSheet]);
+      Object.assign(rows[0], { [`${owner}_size`]: 20, [`${owner}_attack_type`]: 'warrior' });
+      workbook.Sheets[datasetSheet] = XLSX.utils.json_to_sheet(rows);
+      const binary = XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' });
+      const setters = createSetters();
+      const context = {
+        currentTick: 0,
+        playerTypeId: owner === 'player' ? 'missing-type' : 'warrior',
+        monsterTypeId: owner === 'monster' ? 'missing-type' : 'warrior',
+      };
+
+      expect(() => importGameDataFromWorkbook(binary, setters, context)).not.toThrow();
+      expect(setters.onCharacterTypesChange).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('uses the selected row and applies its type only when the row has a size', () => {
+    const workbook = XLSX.read(buildValidWorkbookBinary(), { type: 'binary' });
+    workbook.Sheets[DATA_WORKBOOK_SHEETS.PLAYER_CONFIG] = XLSX.utils.aoa_to_sheet([]);
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+      workbook.Sheets[DATA_WORKBOOK_SHEETS.PLAYER_DATASET]
+    );
+    Object.assign(rows[0], { player_size: 20, player_attack_type: 'warrior' });
+    rows.push({ ...rows[0], player_size: undefined });
+    workbook.Sheets[DATA_WORKBOOK_SHEETS.PLAYER_DATASET] = XLSX.utils.json_to_sheet(rows);
+    const binary = XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' });
+    const context = { currentTick: 0, playerTypeId: 'missing-type', monsterTypeId: 'warrior' };
+
+    expect(() => importGameDataFromWorkbook(binary, createSetters(), context)).not.toThrow();
+    const setters = createSetters();
+    expect(() =>
+      importGameDataFromWorkbook(binary, setters, { ...context, currentTick: 1 })
+    ).toThrow(/playerConfig\.typeId.*missing-type/);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+    expect(() =>
+      importGameDataFromWorkbook(binary, createSetters(), {
+        ...context,
+        currentTick: 1,
+        playerTypeId: '',
+      })
+    ).not.toThrow();
+  });
+
   it('throws when required sheet is missing', () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([{ a: 1 }]), 'Only One Sheet');
@@ -410,6 +501,129 @@ describe('importGameDataFromWorkbook', () => {
     expect(data.playerDataset?.[0]).toMatchObject({ player_hp: 123.5, player_sp: 0 });
     expect(data.playerDataset?.[1].player_hp).toBeUndefined();
     expect(data.playerDataset?.[1].player_sp).toBeUndefined();
+  });
+
+  it.each([
+    ['playerConfig', DATA_WORKBOOK_SHEETS.PLAYER_CONFIG],
+    ['monsterConfig', DATA_WORKBOOK_SHEETS.MONSTER_CONFIG],
+  ] as const)(
+    'preserves explicit zero and missing optional monster settings in %s',
+    (configKey, sheet) => {
+      const zeroWorkbook = changeSheet(sheet, rows => {
+        rows[0].monsterRespawnDelay = 0;
+        rows[0].monsterMaxCount = '0';
+      });
+      expect(parseGameDataFromWorkbook(zeroWorkbook)[configKey]).toMatchObject({
+        monsterRespawnDelay: 0,
+        monsterMaxCount: 0,
+      });
+
+      const blankWorkbook = changeSheet(sheet, rows => {
+        rows[0].monsterRespawnDelay = ' ';
+        delete rows[0].monsterMaxCount;
+      });
+      expect(parseGameDataFromWorkbook(blankWorkbook)[configKey]).toMatchObject({
+        monsterRespawnDelay: undefined,
+        monsterMaxCount: undefined,
+      });
+    }
+  );
+
+  it.each([
+    [DATA_WORKBOOK_SHEETS.PLAYER_CONFIG, 'monsterRespawnDelay'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_CONFIG, 'monsterMaxCount'],
+  ])('rejects invalid %s optional setting %s before applying data', (sheet, field) => {
+    const setters = createSetters();
+    const binary = changeSheet(sheet, rows => {
+      rows[0][field] = 'invalid';
+    });
+    expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(
+      new RegExp(`${sheet}.*2행.*${field}`)
+    );
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET],
+  ] as const)(
+    'normalizes all %s basic attack and skill numeric cells without filling blanks',
+    (owner, sheet) => {
+      const prefixes = [
+        `${owner}_basic_attack`,
+        ...[1, 2, 3, 4].map(slot => `${owner}_skill_${slot}`),
+      ];
+      const fields = prefixes.flatMap(prefix =>
+        ['range', 'width', 'damage', 'cooldown', 'sp_cost', 'cast_time'].map(
+          suffix => `${prefix}_${suffix}`
+        )
+      );
+      const binary = changeSheet(sheet, rows => {
+        fields.forEach((field, index) => {
+          rows[0][field] = ['0', '12.5', '-1'][index % 3];
+        });
+        rows.push({
+          ...rows[0],
+          ...(owner === 'monster' ? { monster_definition_id: 'draft' } : {}),
+        });
+        fields.forEach(field => {
+          rows[1][field] = ' ';
+        });
+      });
+      const rows = parseGameDataFromWorkbook(binary)[`${owner}Dataset`];
+
+      fields.forEach((field, index) => {
+        expect(rows?.[0]).toHaveProperty(field, [0, 12.5, -1][index % 3]);
+        expect(rows?.[1]).not.toHaveProperty(field);
+      });
+    }
+  );
+
+  it.each([
+    [DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_basic_attack_damage'],
+    [DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_skill_4_cooldown'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_basic_attack_range'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_skill_2_sp_cost'],
+  ])('rejects invalid %s numeric field %s before applying data', (sheet, field) => {
+    for (const invalid of ['not a number', 'Infinity', true]) {
+      const setters = createSetters();
+      const binary = changeSheet(sheet, rows => {
+        rows[0][field] = invalid;
+      });
+      expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(
+        new RegExp(`${sheet}.*2행.*${field}`)
+      );
+      Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+    }
+  });
+
+  it('applies imported numeric strings as numeric player attack and skill overrides', () => {
+    const binary = changeSheet(DATA_WORKBOOK_SHEETS.PLAYER_DATASET, rows => {
+      Object.assign(rows[0], {
+        player_size: 20,
+        player_basic_attack_id: 'meleeBasic',
+        player_basic_attack_damage: '0',
+        player_skill_1_id: 'powerSlash',
+        player_skill_1_range: '12.5',
+        player_skill_1_sp_cost: '0',
+      });
+    });
+    const data = parseGameDataFromWorkbook(binary);
+    if (!data.playerDataset?.[0] || !data.skillConfigs) throw new Error('Missing imported data');
+    const setPlayerBasicAttack = vi.fn();
+    const setSkillSlots = vi.fn();
+    applyPlayerRowFromData({
+      row: data.playerDataset[0],
+      skillConfigs: data.skillConfigs,
+      setPlayerLevelConfig: vi.fn(),
+      setPlayerConfig: vi.fn(),
+      setPlayerBasicAttack,
+      setSkillSlots,
+    });
+    expect(setPlayerBasicAttack).toHaveBeenCalledWith(expect.objectContaining({ damage: 0 }));
+    expect(setSkillSlots).toHaveBeenCalledWith([
+      expect.objectContaining({ overrides: { range: 12.5, spCost: 0 } }),
+    ]);
   });
 
   it('normalizes monster combat stats while preserving incomplete draft values', () => {

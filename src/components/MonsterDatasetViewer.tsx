@@ -24,6 +24,7 @@ import {
   type MonsterStatField,
 } from '../lib/simulator/monsterStats';
 import { createMonsterDefinitionId } from '../lib/simulator/monsterDefinitionIds';
+import type { StageDefinition } from '../lib/simulator/waves';
 import {
   AIPatternConfig,
   AIType,
@@ -72,6 +73,7 @@ interface MonsterDatasetViewerProps {
   monsterLevelConfig?: LevelConfig;
   onApplyRow?: (row: DataRow) => void;
   characterTypes: CharacterTypeInfo[];
+  stageDefinitions: StageDefinition[];
   selectedRows?: Set<string>;
   onSelectedRowsChange?: (rows: Set<string>) => void;
   maxMonsterCount?: number;
@@ -108,6 +110,7 @@ export function MonsterDatasetViewer({
   monsterLevelConfig,
   onApplyRow,
   characterTypes,
+  stageDefinitions,
   selectedRows = new Set<string>(),
   onSelectedRowsChange,
   maxMonsterCount = 5,
@@ -259,6 +262,20 @@ export function MonsterDatasetViewer({
 
   const handleDeleteRow = (index: number) => {
     const deletedId = dataset[index]?.monster_definition_id;
+    if (deletedId) {
+      for (const [stageIndex, stage] of stageDefinitions.entries()) {
+        const waveIndex = stage.waves.findIndex(wave =>
+          wave.monsterSpawns.some(spawn => spawn.monsterDefinitionId === deletedId)
+        );
+        if (waveIndex !== -1) {
+          const stageName = stage.name.trim();
+          toast.error(
+            `스테이지 ${stageIndex + 1}${stageName ? ` (${stageName})` : ''}, 웨이브 ${waveIndex + 1}에서 사용하는 몬스터입니다. 웨이브 매핑을 먼저 해제해 주세요.`
+          );
+          return;
+        }
+      }
+    }
     const newDataset = dataset.filter((_, i) => i !== index);
     setDataset(newDataset);
     if (deletedId && selectedRows.has(deletedId)) {
@@ -913,12 +930,12 @@ export function MonsterDatasetViewer({
         : defaultSkillsArray.filter(skill => skill.category === 'basicAttack');
 
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = (row.monster_basic_attack_range as number) || 100;
-      const width = (row.monster_basic_attack_width as number) || 120;
-      const damage = (row.monster_basic_attack_damage as number) || 1.0;
-      const cooldown = (row.monster_basic_attack_cooldown as number) || 1000;
-      const spCost = (row.monster_basic_attack_sp_cost as number) || 0;
-      const castTime = (row.monster_basic_attack_cast_time as number) || 300;
+      const range = row.monster_basic_attack_range ?? 100;
+      const width = row.monster_basic_attack_width ?? 120;
+      const damage = row.monster_basic_attack_damage ?? 1.0;
+      const cooldown = row.monster_basic_attack_cooldown ?? 1000;
+      const spCost = row.monster_basic_attack_sp_cost ?? 0;
+      const castTime = row.monster_basic_attack_cast_time ?? 300;
 
       return (
         <Popover
@@ -1028,7 +1045,7 @@ export function MonsterDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={30}
+                    min={0}
                     max={200}
                     step={10}
                     className='w-full'
@@ -1057,7 +1074,7 @@ export function MonsterDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={30}
+                    min={0}
                     max={360}
                     step={15}
                     className='w-full'
@@ -1082,7 +1099,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={5}
+                    min={0}
                     max={50}
                     step={1}
                     className='w-full'
@@ -1107,7 +1124,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={5}
+                    min={0}
                     max={100}
                     step={1}
                     className='w-full'
@@ -1157,7 +1174,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={10}
+                    min={0}
                     max={200}
                     step={5}
                     className='w-full'
@@ -1351,7 +1368,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={0.5}
+                    min={0}
                     max={5.0}
                     step={0.1}
                     className='w-full'
@@ -1376,7 +1393,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={1000}
+                    min={0}
                     max={30000}
                     step={500}
                     className='w-full'
@@ -1401,7 +1418,7 @@ export function MonsterDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={10}
+                    min={0}
                     max={100}
                     step={5}
                     className='w-full'
@@ -2098,6 +2115,7 @@ export function MonsterDatasetViewer({
                           <Button
                             size='sm'
                             variant='ghost'
+                            aria-label='몬스터 행 삭제'
                             onClick={() => handleDeleteRow(index)}
                             className='mx-auto'
                           >

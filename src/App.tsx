@@ -1171,6 +1171,7 @@ export default function App() {
                         monsterLevelConfig={monsterLevelConfig}
                         onApplyRow={handleApplyMonsterRow}
                         characterTypes={characterTypes}
+                        stageDefinitions={stageDefinitions}
                         skillConfigs={skillConfigs}
                         selectedRows={selectedMonsterRows}
                         onSelectedRowsChange={setSelectedMonsterRows}
@@ -1297,6 +1298,7 @@ export default function App() {
                 {/* Data Export/Import View */}
                 {currentView === APP_VIEW.EXPORT && (
                   <DataExportImport
+                    currentTick={currentTick}
                     playerConfig={playerConfig}
                     onPlayerConfigChange={setPlayerConfig}
                     monsterConfig={monsterConfig}

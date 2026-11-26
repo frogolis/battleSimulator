@@ -40,6 +40,8 @@ describe('exportGameDataToWorkbook', () => {
         attackRange: { min: 75, max: 85 },
         attackWidth: { min: 85, max: 95 },
         typeId: 'warrior',
+        monsterRespawnDelay: 0,
+        monsterMaxCount: 0,
       },
       monsterConfig: {
         size: { min: 22, max: 26 },
@@ -52,6 +54,8 @@ describe('exportGameDataToWorkbook', () => {
         attackRange: { min: 55, max: 65 },
         attackWidth: { min: 115, max: 125 },
         typeId: 'warrior',
+        monsterRespawnDelay: 0,
+        monsterMaxCount: 0,
       },
       playerLevelConfig: {
         ...defaultPlayerLevelConfig,
@@ -121,7 +125,16 @@ describe('exportGameDataToWorkbook', () => {
       onMonsterDatasetChange: vi.fn(),
       onStageDefinitionsChange: vi.fn(),
     };
-    importGameDataFromWorkbook(XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' }), setters);
+    importGameDataFromWorkbook(XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' }), setters, {
+      currentTick: 0,
+      playerTypeId: state.playerConfig.typeId,
+      monsterTypeId: state.monsterConfig.typeId,
+    });
+    for (const setter of [setters.onPlayerConfigChange, setters.onMonsterConfigChange]) {
+      expect(setter).toHaveBeenCalledWith(
+        expect.objectContaining({ monsterRespawnDelay: 0, monsterMaxCount: 0 })
+      );
+    }
     expect(setters.onPlayerDatasetChange).toHaveBeenCalledWith(
       expect.arrayContaining([expect.objectContaining({ player_character_id: 'playerA' })])
     );

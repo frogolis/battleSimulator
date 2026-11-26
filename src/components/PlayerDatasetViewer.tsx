@@ -454,12 +454,12 @@ export function PlayerDatasetViewer({
       );
 
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = (row.player_basic_attack_range as number) || 100;
-      const width = (row.player_basic_attack_width as number) || 120;
-      const damage = (row.player_basic_attack_damage as number) || 1.0;
-      const cooldown = (row.player_basic_attack_cooldown as number) || 1000;
-      const spCost = (row.player_basic_attack_sp_cost as number) || 0;
-      const castTime = (row.player_basic_attack_cast_time as number) || 300;
+      const range = row.player_basic_attack_range ?? 100;
+      const width = row.player_basic_attack_width ?? 120;
+      const damage = row.player_basic_attack_damage ?? 1.0;
+      const cooldown = row.player_basic_attack_cooldown ?? 1000;
+      const spCost = row.player_basic_attack_sp_cost ?? 0;
+      const castTime = row.player_basic_attack_cast_time ?? 300;
 
       return (
         <Popover
@@ -567,7 +567,7 @@ export function PlayerDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={30}
+                    min={0}
                     max={200}
                     step={10}
                     className='w-full'
@@ -596,7 +596,7 @@ export function PlayerDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={30}
+                    min={0}
                     max={360}
                     step={15}
                     className='w-full'
@@ -625,7 +625,7 @@ export function PlayerDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={5}
+                    min={0}
                     max={50}
                     step={1}
                     className='w-full'
@@ -654,7 +654,7 @@ export function PlayerDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={5}
+                    min={0}
                     max={100}
                     step={1}
                     className='w-full'
@@ -712,7 +712,7 @@ export function PlayerDatasetViewer({
                         onApplyRow(newDataset[rowIndex]);
                       }
                     }}
-                    min={10}
+                    min={0}
                     max={200}
                     step={5}
                     className='w-full'
@@ -726,8 +726,8 @@ export function PlayerDatasetViewer({
     }
 
     // 스킬 슬롯별 스킬 선택 (player_skill_1_id, player_skill_2_id, etc)
-    if (field.match(/player_skill_[1-4]_id$/)) {
-      const slotNum = field.split('_')[2];
+    const slotNum = ([1, 2, 3, 4] as const).find(slot => field === `player_skill_${slot}_id`);
+    if (slotNum !== undefined) {
       const row = dataset[rowIndex];
 
       const currentSkillId = (value as string) || '';
@@ -737,12 +737,12 @@ export function PlayerDatasetViewer({
       const normalSkills = Object.values(skillConfigs).filter(skill => skill.category === 'skill');
 
       // 현재 슬롯의 파라미터 값 가져오기
-      const range = (row[`player_skill_${slotNum}_range` as keyof DataRow] as number) || 100;
-      const width = (row[`player_skill_${slotNum}_width` as keyof DataRow] as number) || 120;
-      const damage = (row[`player_skill_${slotNum}_damage` as keyof DataRow] as number) || 1.5;
-      const cooldown = (row[`player_skill_${slotNum}_cooldown` as keyof DataRow] as number) || 3000;
-      const spCost = (row[`player_skill_${slotNum}_sp_cost` as keyof DataRow] as number) || 20;
-      const castTime = (row[`player_skill_${slotNum}_cast_time` as keyof DataRow] as number) || 500;
+      const range = row[`player_skill_${slotNum}_range`] ?? 100;
+      const width = row[`player_skill_${slotNum}_width`] ?? 120;
+      const damage = row[`player_skill_${slotNum}_damage`] ?? 1.5;
+      const cooldown = row[`player_skill_${slotNum}_cooldown`] ?? 3000;
+      const spCost = row[`player_skill_${slotNum}_sp_cost`] ?? 20;
+      const castTime = row[`player_skill_${slotNum}_cast_time`] ?? 500;
 
       return (
         <Popover
@@ -846,7 +846,7 @@ export function PlayerDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={30}
+                    min={0}
                     max={200}
                     step={10}
                     className='w-full'
@@ -871,7 +871,7 @@ export function PlayerDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={30}
+                    min={0}
                     max={360}
                     step={15}
                     className='w-full'
@@ -896,7 +896,7 @@ export function PlayerDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={0.5}
+                    min={0}
                     max={5.0}
                     step={0.1}
                     className='w-full'
@@ -921,7 +921,7 @@ export function PlayerDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={1000}
+                    min={0}
                     max={30000}
                     step={500}
                     className='w-full'
@@ -946,7 +946,7 @@ export function PlayerDatasetViewer({
                       };
                       setDataset(newDataset);
                     }}
-                    min={10}
+                    min={0}
                     max={100}
                     step={5}
                     className='w-full'
