@@ -2,7 +2,12 @@ import { getAIPatternConfigError } from './aiPatternValidation.mjs';
 import { getMonsterDatasetRowError, getPlayerDatasetRowError } from './datasetValidation.mjs';
 import { getEffectPresetError } from './effectValidation.mjs';
 import { getItemSlotError } from './itemValidation.mjs';
-import { hasCharacterTypeReference, hasSkillReference } from './referenceValidation.mjs';
+import {
+  hasCharacterTypeReference,
+  hasSkillReference,
+  monsterDatasetSkillFields,
+  playerDatasetSkillFields,
+} from './referenceValidation.mjs';
 import { getBasicAttackSlotError, getSkillError, getSkillSlotError } from './skillValidation.mjs';
 
 const isRecord = value => typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -354,13 +359,7 @@ export function getWorkspaceSnapshotError(value) {
     if (invalidField) return invalidField;
   }
   for (const [index, row] of value.playerDataset.entries()) {
-    for (const key of [
-      'player_basic_attack_id',
-      'player_skill_1_id',
-      'player_skill_2_id',
-      'player_skill_3_id',
-      'player_skill_4_id',
-    ]) {
+    for (const key of playerDatasetSkillFields) {
       const invalidField = getOptionalSkillReferenceError(
         row[key],
         `playerDataset[${index}].${key}`,
@@ -376,13 +375,7 @@ export function getWorkspaceSnapshotError(value) {
     if (invalidField) return invalidField;
   }
   for (const [index, row] of value.monsterDataset.entries()) {
-    for (const key of [
-      'monster_basic_attack_id',
-      'monster_skill_1_id',
-      'monster_skill_2_id',
-      'monster_skill_3_id',
-      'monster_skill_4_id',
-    ]) {
+    for (const key of monsterDatasetSkillFields) {
       const invalidField = getOptionalSkillReferenceError(
         row[key],
         `monsterDataset[${index}].${key}`,

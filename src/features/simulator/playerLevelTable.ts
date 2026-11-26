@@ -1,6 +1,6 @@
 import { addExperience, type LevelConfig, type LevelStats } from '../../lib/levelSystem';
 import type { CharacterTypeInfo } from '../../lib/characterTypes';
-import { updateDataRowWithLevel } from '../../lib/levelBasedStats';
+import { getLevelRecalculationInputs, updateDataRowWithLevel } from '../../lib/levelBasedStats';
 import { PLAYER_LEVEL_STAT_FIELDS, type DataRow, type PlayerLevelStatField } from '../../lib/mockData';
 
 export type PlayerLevelRow = DataRow & Required<Pick<DataRow, PlayerLevelStatField>>;
@@ -13,17 +13,23 @@ export function recalculateLegacyPlayerRows(
   rows: DataRow[],
   levelConfig: LevelConfig,
   characterTypes: CharacterTypeInfo[]
-): { rows: DataRow[]; count: number } {
+): { rows: DataRow[]; count: number; skipped: Array<{ index: number; field: string }> } {
   let count = 0;
-  const updatedRows = rows.map(row => {
+  const skipped: Array<{ index: number; field: string }> = [];
+  const updatedRows = rows.map((row, index) => {
     if (row.player_character_id?.trim() || row.player_level === undefined) return row;
+    const inputs = getLevelRecalculationInputs(row, 'player');
+    if (!inputs.ok) {
+      skipped.push({ index, field: inputs.field });
+      return row;
+    }
     count++;
     const typeInfo = characterTypes.find(type => type.id === row.player_attack_type);
     return updateDataRowWithLevel(
-      row, true, levelConfig, row.player_level || 1, row.player_size || 20, typeInfo
+      row, true, levelConfig, inputs.level || 1, inputs.size || 20, typeInfo
     );
   });
-  return { rows: updatedRows, count };
+  return { rows: updatedRows, count, skipped };
 }
 
 function validStat(row: DataRow, field: PlayerLevelStatField): boolean {

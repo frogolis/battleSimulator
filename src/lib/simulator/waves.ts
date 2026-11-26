@@ -100,7 +100,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export function validateStageDefinitions(
   input: unknown,
   monsterDataset: readonly DataRow[],
-  maxMonsterCount: number
+  maxMonsterCount: number,
+  options: { allowIncomplete?: boolean } = {}
 ): string | undefined {
   if (!Array.isArray(input)) return '스테이지 설정은 배열이어야 합니다.';
   if (!Number.isSafeInteger(maxMonsterCount) || maxMonsterCount < 1) {
@@ -123,10 +124,10 @@ export function validateStageDefinitions(
     }
     if (stageIds.has(stage.id)) return `스테이지 ID "${stage.id}"가 중복되었습니다.`;
     stageIds.add(stage.id);
-    if (typeof stage.name !== 'string' || !stage.name.trim()) {
+    if (typeof stage.name !== 'string' || (!options.allowIncomplete && !stage.name.trim())) {
       return `스테이지 "${stage.id}"의 이름이 비어 있습니다.`;
     }
-    if (!Array.isArray(stage.waves) || stage.waves.length === 0) {
+    if (!Array.isArray(stage.waves) || (!options.allowIncomplete && stage.waves.length === 0)) {
       return `스테이지 "${stage.id}"에 웨이브가 없습니다.`;
     }
 
@@ -143,8 +144,10 @@ export function validateStageDefinitions(
       }
       waveIds.add(wave.id);
       if (typeof wave.durationMs !== 'number' || !Number.isFinite(wave.durationMs) ||
-        wave.durationMs <= 0) {
-        return `웨이브 "${wave.id}"의 지속 시간은 0보다 큰 유한한 숫자여야 합니다.`;
+        (options.allowIncomplete ? wave.durationMs < 0 : wave.durationMs <= 0)) {
+        return options.allowIncomplete
+          ? `웨이브 "${wave.id}"의 지속 시간은 0 이상의 유한한 숫자여야 합니다.`
+          : `웨이브 "${wave.id}"의 지속 시간은 0보다 큰 유한한 숫자여야 합니다.`;
       }
       if (!isRecord(wave.respawn) || typeof wave.respawn.enabled !== 'boolean') {
         return `웨이브 "${wave.id}"의 리스폰 설정이 올바르지 않습니다.`;
@@ -153,7 +156,8 @@ export function validateStageDefinitions(
         wave.respawn.delayMs < 0) {
         return `웨이브 "${wave.id}"의 리스폰 간격은 0 이상의 유한한 숫자여야 합니다.`;
       }
-      if (!Array.isArray(wave.monsterSpawns) || wave.monsterSpawns.length === 0) {
+      if (!Array.isArray(wave.monsterSpawns) ||
+        (!options.allowIncomplete && wave.monsterSpawns.length === 0)) {
         return `웨이브 "${wave.id}"에 몬스터 생성 매핑이 없습니다.`;
       }
 
@@ -174,8 +178,10 @@ export function validateStageDefinitions(
         }
         if (typeof mapping.count !== 'number' ||
           !Number.isSafeInteger(mapping.count) ||
-          mapping.count < 1) {
-          return `웨이브 "${wave.id}"의 몬스터 "${monsterId}" 생성 수는 1 이상의 정수여야 합니다.`;
+          mapping.count < (options.allowIncomplete ? 0 : 1)) {
+          return options.allowIncomplete
+            ? `웨이브 "${wave.id}"의 몬스터 "${monsterId}" 생성 수는 0 이상의 정수여야 합니다.`
+            : `웨이브 "${wave.id}"의 몬스터 "${monsterId}" 생성 수는 1 이상의 정수여야 합니다.`;
         }
         totalSpawnCount += mapping.count;
         if (!Number.isSafeInteger(totalSpawnCount) || totalSpawnCount > maxMonsterCount) {

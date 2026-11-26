@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { defaultSkills, EFFECT_PRESETS } from '../../lib/skillSystem';
 import { DATA_WORKBOOK_SHEETS } from '../data-file/constants';
 import { findPlayerLevelRow } from '../simulator/playerLevelTable';
-import { applyPlayerRowFromData } from '../simulator/rowApplyManager';
+import { applyMonsterRowFromData, applyPlayerRowFromData } from '../simulator/rowApplyManager';
 import {
   importGameDataFromWorkbook as importWithContext,
   parseGameDataFromWorkbook,
@@ -307,6 +307,108 @@ function addStageSheets(
 
 describe('importGameDataFromWorkbook', () => {
   it.each([
+    [DATA_WORKBOOK_SHEETS.SKILLS, 'spCost'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_definition_id'],
+  ])('rejects duplicate %s headers before applying data', (sheetName, header) => {
+    const workbook = XLSX.read(buildValidWorkbookBinary(), { type: 'binary' });
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet['!ref']) throw new Error('Sheet has no range.');
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const firstColumn = Array.from({ length: range.e.c - range.s.c + 1 }, (_, index) =>
+      range.s.c + index
+    ).find(column => sheet[XLSX.utils.encode_cell({ r: range.s.r, c: column })]?.v === header);
+    if (firstColumn === undefined) throw new Error(`Missing header: ${header}`);
+    const duplicateColumn = range.e.c + 1;
+    XLSX.utils.sheet_add_aoa(sheet, [[header], ['different']], {
+      origin: { r: range.s.r, c: duplicateColumn },
+    });
+    const binary = XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' });
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(
+      new RegExp(
+        `${sheetName}.*1행.*${header}.*중복.*${XLSX.utils.encode_col(firstColumn)}열.*${XLSX.utils.encode_col(duplicateColumn)}열`
+      )
+    );
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it('reports the actual header row and columns in a shifted wave sheet', () => {
+    const workbook = XLSX.read(addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'stage', name: 'stage' }],
+      [{ id: 'wave', stageId: 'stage', order: 0, durationMs: 1000, respawnEnabled: false, respawnDelayMs: 0 }],
+      []
+    ), { type: 'binary' });
+    const sheet = XLSX.utils.sheet_add_aoa({}, [
+      ['id', 'id', 'stageId', 'order', 'durationMs', 'respawnEnabled', 'respawnDelayMs'],
+      ['wave', 'other', 'stage', 0, 1000, false, 0],
+    ], { origin: 'B3' });
+    sheet['!ref'] = 'B3:H4';
+    workbook.Sheets[DATA_WORKBOOK_SHEETS.WAVES] = sheet;
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(
+      XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' }), setters
+    )).toThrow(/Waves.*3행.*id.*중복.*B열.*C열/);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it('accepts distinct headers that resemble an automatically suffixed duplicate', () => {
+    const workbook = XLSX.read(buildValidWorkbookBinary(), { type: 'binary' });
+    const sheet = workbook.Sheets[DATA_WORKBOOK_SHEETS.SKILLS];
+    if (!sheet['!ref']) throw new Error('Skills sheet has no range.');
+    const column = XLSX.utils.decode_range(sheet['!ref']).e.c + 1;
+    XLSX.utils.sheet_add_aoa(sheet, [['spCost_1'], [99]], { origin: { r: 0, c: column } });
+    const data = parseGameDataFromWorkbook(
+      XLSX.write(workbook, { type: 'binary', bookType: 'xlsx' })
+    );
+    expect(data.skillConfigs?.powerSlash.spCost).toBe(20);
+  });
+
+  it.each([
+    [DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, 'playerBasicAttack'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, 'monsterBasicAttack'],
+  ] as const)('imports %s optional overrides and preserves legacy defaults', (sheet, field) => {
+    const binary = changeSheet(sheet, rows => {
+      Object.assign(rows[0], {
+        keyBinding: 'auto', range: '0', width: '12.5', damage: '1.25',
+        cooldown: ' ', spCost: 0, castTime: 90,
+      });
+    });
+    expect(parseGameDataFromWorkbook(binary)[field]).toMatchObject({
+      keyBinding: 'auto', range: 0, width: 12.5, damage: 1.25,
+      cooldown: undefined, spCost: 0, castTime: 90,
+    });
+    expect(parseGameDataFromWorkbook(buildValidWorkbookBinary())[field]).toMatchObject({
+      keyBinding: 'click', range: undefined, width: undefined, damage: undefined,
+      cooldown: undefined, spCost: undefined, castTime: undefined,
+    });
+    const blankBinding = changeSheet(sheet, rows => {
+      rows[0].keyBinding = ' ';
+      rows[0].range = '-2';
+    });
+    expect(parseGameDataFromWorkbook(blankBinding)[field]).toMatchObject({
+      keyBinding: 'click', range: -2,
+    });
+  });
+
+  it.each([
+    [DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, 'range', 'bad'],
+    [DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, 'width', true],
+    [DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, 'damage', 'Infinity'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, 'cooldown', 'bad'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, 'spCost', true],
+    [DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, 'castTime', 'Infinity'],
+    [DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, 'keyBinding', 'invalid'],
+    [DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, 'keyBinding', true],
+  ])('rejects invalid %s.%s before applying data', (sheet, field, invalid) => {
+    const binary = changeSheet(sheet, rows => { rows[0][field] = invalid; });
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters))
+      .toThrow(new RegExp(`${sheet}.*2행.*${field}`));
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it.each([
     ['player', DATA_WORKBOOK_SHEETS.PLAYER_CONFIG],
     ['monster', DATA_WORKBOOK_SHEETS.MONSTER_CONFIG],
   ] as const)(
@@ -473,6 +575,97 @@ describe('importGameDataFromWorkbook', () => {
     Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
   });
 
+  it('imports legacy wave mappings without stage IDs when their wave IDs are unique', () => {
+    const binary = addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'forest', name: '숲' }],
+      [{
+        id: 'wave_1', stageId: 'forest', order: 0, durationMs: 1000,
+        respawnEnabled: false, respawnDelayMs: 0,
+      }],
+      [{ waveId: 'wave_1', monsterDefinitionId: 'monster_test', count: 2 }]
+    );
+    expect(parseGameDataFromWorkbook(binary).stageDefinitions).toEqual([{
+      id: 'forest', name: '숲', waves: [{
+        id: 'wave_1', durationMs: 1000,
+        respawn: { enabled: false, delayMs: 0 },
+        monsterSpawns: [{ monsterDefinitionId: 'monster_test', count: 2 }],
+      }],
+    }]);
+  });
+
+  it.each([
+    [-1, 1000, 'monster_test', /생성 수/],
+    [0.5, 1000, 'monster_test', /생성 수/],
+    [0, -1, 'monster_test', /지속 시간/],
+    [0, 0, 'missing', /몬스터 ID "missing"/],
+  ])('rejects invalid draft mapping data before applying it', (count, durationMs, monsterId, error) => {
+    const binary = addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'draft', name: '' }],
+      [{ id: 'wave', stageId: 'draft', order: 0, durationMs,
+        respawnEnabled: false, respawnDelayMs: 0 }],
+      [{ stageId: 'draft', waveId: 'wave', monsterDefinitionId: monsterId, count }]
+    );
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(error);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it('rejects ambiguous legacy wave mappings before applying any data', () => {
+    const binary = addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'forest', name: '숲' }, { id: 'cave', name: '동굴' }],
+      ['forest', 'cave'].map(stageId => ({
+        id: 'wave_1', stageId, order: 0, durationMs: 1000,
+        respawnEnabled: false, respawnDelayMs: 0,
+      })),
+      [{ waveId: 'wave_1', monsterDefinitionId: 'monster_test', count: 1 }]
+    );
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters))
+      .toThrow(/Wave Monster Mappings.*2행.*stageId/);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it.each([
+    ['unknown stage', 'missing', 'wave_1', /스테이지 ID "missing"/],
+    ['wave in a different stage', 'cave', 'forest_wave', /스테이지 "cave".*forest_wave/],
+    ['invalid stage type', true, 'wave_1', /stageId.*문자열/],
+  ])('rejects %s in a scoped wave mapping without applying data', (_label, stageId, waveId, error) => {
+    const binary = addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'forest', name: '숲' }, { id: 'cave', name: '동굴' }],
+      [
+        { id: 'forest_wave', stageId: 'forest', order: 0, durationMs: 1000,
+          respawnEnabled: false, respawnDelayMs: 0 },
+        { id: 'wave_1', stageId: 'cave', order: 0, durationMs: 1000,
+          respawnEnabled: false, respawnDelayMs: 0 },
+      ],
+      [{ stageId, waveId, monsterDefinitionId: 'monster_test', count: 1 }]
+    );
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(error);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
+  it('still rejects duplicate wave IDs within the same stage', () => {
+    const wave = {
+      id: 'wave_1', stageId: 'forest', order: 0, durationMs: 1000,
+      respawnEnabled: false, respawnDelayMs: 0,
+    };
+    const binary = addStageSheets(
+      buildValidWorkbookBinary(),
+      [{ id: 'forest', name: '숲' }],
+      [wave, { ...wave, order: 1 }],
+      [{ stageId: 'forest', waveId: 'wave_1', monsterDefinitionId: 'monster_test', count: 1 }]
+    );
+    const setters = createSetters();
+    expect(() => importGameDataFromWorkbook(binary, setters))
+      .toThrow(/Waves.*3행.*forest.*wave_1.*중복/);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+  });
+
   it.each([
     [DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_hp'],
     [DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_sp'],
@@ -626,6 +819,184 @@ describe('importGameDataFromWorkbook', () => {
     ]);
   });
 
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET],
+  ] as const)('normalizes %s row settings and applies numeric values', (owner, sheet) => {
+    const binary = changeSheet(sheet, rows => {
+      Object.assign(rows[0], {
+        [`${owner}_size`]: '20.5',
+        [`${owner}_level`]: '2',
+        [`${owner}_attack_range`]: '0',
+        [`${owner}_attack_width`]: '90.5',
+        [`${owner}_speed`]: '12.5',
+      });
+    });
+    const data = importGameDataFromWorkbook(binary, createSetters());
+    const row = data[`${owner}Dataset`][0];
+    expect(row).toMatchObject({
+      [`${owner}_size`]: 20.5,
+      [`${owner}_level`]: 2,
+      [`${owner}_attack_range`]: 0,
+      [`${owner}_attack_width`]: 90.5,
+      [`${owner}_speed`]: 12.5,
+    });
+    const setConfig = vi.fn();
+    const setLevel = vi.fn();
+    if (owner === 'player') {
+      applyPlayerRowFromData({
+        row,
+        skillConfigs: data.skillConfigs,
+        setPlayerConfig: setConfig,
+        setPlayerLevelConfig: setLevel,
+        setPlayerBasicAttack: vi.fn(),
+        setSkillSlots: vi.fn(),
+      });
+    } else {
+      applyMonsterRowFromData({
+        row,
+        skillConfigs: data.skillConfigs,
+        setMonsterConfig: setConfig,
+        setMonsterLevelConfig: setLevel,
+        setMonsterBasicAttack: vi.fn(),
+      });
+    }
+    expect(setLevel.mock.calls[0][0]({})).toMatchObject({ currentLevel: 2 });
+    expect(setConfig.mock.calls[0][0]({})).toMatchObject({
+      size: { min: 20.5, max: 20.5 },
+      speed: { min: 12.5, max: 12.5 },
+      attackRange: { min: 0, max: 0 },
+      attackWidth: { min: 90.5, max: 90.5 },
+    });
+  });
+
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET],
+  ] as const)('handles all optional %s applied-row numbers and blanks', (owner, sheet) => {
+    const binary = changeSheet(sheet, rows => {
+      Object.assign(rows[0], {
+        [`${owner}_size`]: '0',
+        [`${owner}_level`]: '-1',
+        [`${owner}_speed`]: '1',
+        [`${owner}_attack`]: '2',
+        [`${owner}_defense`]: '3',
+        [`${owner}_attack_speed`]: '4',
+        [`${owner}_accuracy`]: '5',
+        [`${owner}_critical_rate`]: '6',
+        [`${owner}_attack_range`]: ' ',
+        [`${owner}_attack_width`]: '8',
+      });
+    });
+    const row = importGameDataFromWorkbook(binary, createSetters())[`${owner}Dataset`][0];
+    expect(row).toMatchObject({
+      [`${owner}_size`]: 0,
+      [`${owner}_level`]: -1,
+      [`${owner}_speed`]: 1,
+      [`${owner}_attack`]: 2,
+      [`${owner}_defense`]: 3,
+      [`${owner}_attack_speed`]: 4,
+      [`${owner}_accuracy`]: 5,
+      [`${owner}_critical_rate`]: 6,
+      [`${owner}_attack_width`]: 8,
+    });
+    expect(row).not.toHaveProperty(`${owner}_attack_range`);
+  });
+
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_attack_range'],
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_level'],
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET, 'player_speed'],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_size'],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_attack_width'],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster_level'],
+  ] as const)(
+    'rejects invalid selected %s setting %s: %s before applying',
+    (owner, sheet, field) => {
+      for (const invalid of ['bad', 'Infinity', true]) {
+        const setters = createSetters();
+        const binary = changeSheet(sheet, rows => {
+          rows[0][`${owner}_size`] = 20;
+          rows[0][field] = invalid;
+        });
+        expect(() => importGameDataFromWorkbook(binary, setters)).toThrow(
+          new RegExp(`${sheet}.*2행.*${field}`)
+        );
+        Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+      }
+    }
+  );
+
+  it('preserves invalid legacy draft fields until the row is selected for application', () => {
+    const binary = changeSheet(DATA_WORKBOOK_SHEETS.PLAYER_DATASET, rows => {
+      rows[0].player_size = 20;
+      rows.push({ ...rows[0], player_attack_range: 'draft' });
+      rows.push({ ...rows[0], player_size: ' ', player_level: 'draft' });
+    });
+    const data = importGameDataFromWorkbook(binary, createSetters());
+    expect(data.playerDataset[1].player_attack_range).toBe('draft');
+    expect(data.playerDataset[2].player_size).toBe(' ');
+    expect(data.playerDataset[2].player_level).toBe('draft');
+    const setters = createSetters();
+    expect(() =>
+      importGameDataFromWorkbook(binary, setters, {
+        currentTick: 1,
+        playerTypeId: 'warrior',
+        monsterTypeId: 'warrior',
+      })
+    ).toThrow(/Player Dataset.*3행.*player_attack_range/);
+    Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+    const blankSizeData = importGameDataFromWorkbook(binary, createSetters(), {
+      currentTick: 2,
+      playerTypeId: 'warrior',
+      monsterTypeId: 'warrior',
+    });
+    expect(blankSizeData.playerDataset[2].player_size).toBeUndefined();
+    expect(blankSizeData.playerDataset[2].player_level).toBe('draft');
+  });
+
+  it.each([
+    ['player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET],
+    ['monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET],
+  ] as const)('safely applies a previously unselected %s row after import', (owner, sheet) => {
+    const binary = changeSheet(sheet, rows => {
+      rows.push({
+        ...rows[0],
+        ...(owner === 'monster' ? { monster_definition_id: 'other' } : {}),
+        [`${owner}_size`]: '25',
+        [`${owner}_attack_range`]: 'bad',
+      });
+    });
+    const data = importGameDataFromWorkbook(binary, createSetters());
+    const row = data[`${owner}Dataset`][1];
+    const setConfig = vi.fn();
+    const common = { row, skillConfigs: data.skillConfigs };
+    const apply = () =>
+      owner === 'player'
+        ? applyPlayerRowFromData({
+            ...common,
+            setPlayerLevelConfig: vi.fn(),
+            setPlayerConfig: setConfig,
+            setPlayerBasicAttack: vi.fn(),
+            setSkillSlots: vi.fn(),
+          })
+        : applyMonsterRowFromData({
+            ...common,
+            setMonsterLevelConfig: vi.fn(),
+            setMonsterConfig: setConfig,
+            setMonsterBasicAttack: vi.fn(),
+          });
+    expect(apply()).toEqual({ status: 'invalid', field: `${owner}_attack_range` });
+    expect(setConfig).not.toHaveBeenCalled();
+    Object.assign(row, { [`${owner}_attack_range`]: '30' });
+    expect(apply()).toEqual({ status: 'applied' });
+    expect(setConfig.mock.calls[0][0]({})).toMatchObject({
+      size: { min: 25, max: 25 },
+      attackRange: { min: 30, max: 30 },
+    });
+    expect(Reflect.get(row, `${owner}_size`)).toBe('25');
+  });
+
   it('normalizes monster combat stats while preserving incomplete draft values', () => {
     const binary = changeSheet(DATA_WORKBOOK_SHEETS.MONSTER_DATASET, rows => {
       Object.assign(rows[0], {
@@ -653,6 +1024,31 @@ describe('importGameDataFromWorkbook', () => {
     });
     expect(rows?.[1].monster_speed).toBeUndefined();
   });
+
+  it('normalizes monster weights while retaining zero and blank values', () => {
+    const binary = changeSheet(DATA_WORKBOOK_SHEETS.MONSTER_DATASET, rows => {
+      rows[0].monster_spawn_weight = '0';
+      rows.push({ ...rows[0], monster_definition_id: 'weighted', monster_spawn_weight: '2.5' });
+      rows.push({ ...rows[0], monster_definition_id: 'blank', monster_spawn_weight: ' ' });
+    });
+    const rows = parseGameDataFromWorkbook(binary).monsterDataset;
+    expect(rows?.[0].monster_spawn_weight).toBe(0);
+    expect(rows?.[1].monster_spawn_weight).toBe(2.5);
+    expect(rows?.[2].monster_spawn_weight).toBeUndefined();
+  });
+
+  it.each([-1, 'bad', 'Infinity', true])(
+    'rejects invalid monster spawn weight %s before applying any workbook data',
+    invalid => {
+      const setters = createSetters();
+      const binary = changeSheet(DATA_WORKBOOK_SHEETS.MONSTER_DATASET, rows => {
+        rows[0].monster_spawn_weight = invalid;
+      });
+      expect(() => importGameDataFromWorkbook(binary, setters))
+        .toThrow(/Monster Dataset.*2행.*monster_spawn_weight/);
+      Object.values(setters).forEach(setter => expect(setter).not.toHaveBeenCalled());
+    }
+  );
 
   it.each([
     'monster_attack',

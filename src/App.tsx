@@ -38,13 +38,13 @@ import {
   selectImportedRows,
 } from './features/simulator/rowApplyManager';
 import { findCharacterTypeReferences } from './features/simulator/characterTypeReferences';
+import { findSkillReferences } from './features/simulator/skillReferences';
 import { recalculateLegacyPlayerRows } from './features/simulator/playerLevelTable';
 import { createInitialDatasets, createInitialMonsterTypeStats } from './features/simulator/setup';
 import { APP_MENU_ITEMS } from './features/ui/navigation/menuConfig';
 import { CharacterTypeInfo, DEFAULT_CHARACTER_TYPES } from './lib/characterTypes';
 import { CharacterConfig } from './lib/gameTypes';
 import { getDefaultItemSlots, ItemSlot } from './lib/itemSystem';
-import { updateDataRowWithLevel } from './lib/levelBasedStats';
 import {
   defaultMonsterLevelConfig,
   defaultPlayerLevelConfig,
@@ -53,6 +53,7 @@ import {
 import { DataRow, mockDataset } from './lib/mockData';
 import type { MonsterTypeStats } from './lib/monsterTypes';
 import { DEFAULT_MAX_MONSTER_COUNT, DEFAULT_RESPAWN_DELAY } from './lib/simulator/constants';
+import { recalculateMonsterRows } from './lib/simulator/monsterStats';
 import type { StageDefinition } from './lib/simulator/waves';
 import { assertWorkspaceSnapshot, type WorkspaceSnapshot } from './features/workspace/model';
 import { createSerializedWriter } from './features/workspace/serializedWriter';
@@ -103,9 +104,6 @@ const SkillAndItemSettings = lazy(() =>
 );
 const DataExportImport = lazy(() =>
   import('./components/DataExportImport').then(m => ({ default: m.DataExportImport }))
-);
-const MakeConfigGuide = lazy(() =>
-  import('./components/MakeConfigGuide').then(m => ({ default: m.MakeConfigGuide }))
 );
 
 const ViewLoader = () => (
@@ -810,6 +808,12 @@ export default function App() {
     if (playerDataset.length === 0) return;
 
     const result = recalculateLegacyPlayerRows(playerDataset, playerLevelConfig, characterTypes);
+    if (result.skipped.length) {
+      const first = result.skipped[0];
+      toast.warning(
+        `플레이어 ${result.skipped.length}개 행은 레벨·크기 오류로 재계산하지 않았습니다. 행 ${first.index}: ${first.field}`
+      );
+    }
     if (result.count === 0) return;
     setPlayerDataset(result.rows);
     toast.info(`🔄 플레이어 레벨 설정 변경 → ${result.count}개 행 재계산 완료`);
@@ -838,17 +842,16 @@ export default function App() {
     if (importedMonsterLevelConfig.current) return;
     if (monsterDataset.length === 0) return;
 
-    const recalculatedDataset = monsterDataset.map(row => {
-      if (row.monster_level === undefined) return row;
-      const level = row.monster_level || 1;
-      const size = row.monster_size || 24;
-      const typeId = row.monster_attack_type;
-      const typeInfo = characterTypes.find(t => t.id === typeId);
-      return updateDataRowWithLevel(row, false, monsterLevelConfig, level, size, typeInfo);
-    });
-
-    setMonsterDataset(recalculatedDataset);
-    toast.info(`🔄 몬스터 레벨 설정 변경 → ${monsterDataset.length}개 행 재계산 완료`);
+    const result = recalculateMonsterRows(monsterDataset, monsterLevelConfig, characterTypes);
+    if (result.skipped.length) {
+      const first = result.skipped[0];
+      toast.warning(
+        `몬스터 ${result.skipped.length}개 행은 레벨·크기 오류로 재계산하지 않았습니다. 행 ${first.index}: ${first.field}`
+      );
+    }
+    if (result.count === 0) return;
+    setMonsterDataset(result.rows);
+    toast.info(`🔄 몬스터 레벨 설정 변경 → ${result.count}개 행 재계산 완료`);
   }, [
     monsterLevelConfig.baseHp,
     monsterLevelConfig.baseSp,
@@ -875,7 +878,7 @@ export default function App() {
 
   const handleApplyPlayerRow = useCallback(
     (row: DataRow) => {
-      applyPlayerRowFromData({
+      const result = applyPlayerRowFromData({
         row,
         skillConfigs,
         setPlayerLevelConfig,
@@ -883,19 +886,31 @@ export default function App() {
         setPlayerBasicAttack,
         setSkillSlots,
       });
+      if (result.status === 'missing') {
+        toast.error('플레이어 행의 크기가 없어 설정을 적용하지 않았습니다.');
+      } else if (result.status === 'invalid') {
+        toast.error(`플레이어 행의 "${result.field}" 값은 유한한 숫자여야 합니다.`);
+      }
+      return result.status === 'applied';
     },
     [skillConfigs]
   );
 
   const handleApplyMonsterRow = useCallback(
     (row: DataRow) => {
-      applyMonsterRowFromData({
+      const result = applyMonsterRowFromData({
         row,
         skillConfigs,
         setMonsterLevelConfig,
         setMonsterConfig,
         setMonsterBasicAttack,
       });
+      if (result.status === 'missing') {
+        toast.error('몬스터 행의 크기가 없어 설정을 적용하지 않았습니다.');
+      } else if (result.status === 'invalid') {
+        toast.error(`몬스터 행의 "${result.field}" 값은 유한한 숫자여야 합니다.`);
+      }
+      return result.status === 'applied';
     },
     [skillConfigs]
   );
@@ -1255,6 +1270,14 @@ export default function App() {
                     <SkillWorkspace
                       skills={skillConfigs}
                       onSkillsChange={setSkillConfigs}
+                      findSkillReferences={id =>
+                        findSkillReferences(id, {
+                          characterTypes,
+                          monsterTypeStats,
+                          playerDataset,
+                          monsterDataset,
+                        })
+                      }
                       playerBasicAttack={playerBasicAttack}
                       monsterBasicAttack={monsterBasicAttack}
                       onPlayerBasicAttackChange={setPlayerBasicAttack}
@@ -1384,12 +1407,6 @@ export default function App() {
                   />
                 )}
 
-                {/* Make View */}
-                {currentView === APP_VIEW.MAKE && (
-                  <div className='max-w-7xl mx-auto'>
-                    <MakeConfigGuide />
-                  </div>
-                )}
               </Suspense>
             </div>
           </main>

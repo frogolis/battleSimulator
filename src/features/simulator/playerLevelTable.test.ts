@@ -40,6 +40,25 @@ describe('player level table', () => {
     expect(result.rows[1].player_hp).not.toBe(9999);
   });
 
+  it('skips invalid legacy level inputs without changing the row and recalculates numeric strings', () => {
+    const invalid = { ...row, player_character_id: undefined, player_hp: 9999 };
+    Object.assign(invalid, { player_level: 'broken' });
+    const invalidSize = { ...row, player_character_id: undefined, player_hp: 8888 };
+    Object.assign(invalidSize, { player_size: 'Infinity' });
+    const numeric = { ...row, player_character_id: undefined, player_hp: 7777 };
+    Object.assign(numeric, { player_level: '3', player_size: '25' });
+    const result = recalculateLegacyPlayerRows([invalid, invalidSize, numeric], config, []);
+    expect(result.count).toBe(1);
+    expect(result.skipped).toEqual([
+      { index: 0, field: 'player_level' },
+      { index: 1, field: 'player_size' },
+    ]);
+    expect(result.rows[0]).toBe(invalid);
+    expect(result.rows[1]).toBe(invalidSize);
+    expect(result.rows[2]).toMatchObject({ player_level: 3, player_size: 25 });
+    expect(result.rows[2].player_hp).not.toBe(7777);
+  });
+
   it('uses the exact character and level without substituting another character', () => {
     expect(findPlayerLevelRow([row], 'hero', 2)).toEqual({ ok: true, row });
     expect(findPlayerLevelRow([row], 'other', 2)).toMatchObject({ ok: false });

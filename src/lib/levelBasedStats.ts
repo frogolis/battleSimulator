@@ -6,8 +6,26 @@
 
 import { CharacterTypeInfo } from './characterTypes';
 import { LevelConfig } from './levelSystem';
+import { parseOptionalRowNumber } from './simulator/rowNumbers';
 
 const logLevelStats = (..._args: unknown[]): void => {};
+
+export function getLevelRecalculationInputs(
+  row: object,
+  owner: 'player' | 'monster'
+): { ok: true; level: number; size: number } | { ok: false; field: string } {
+  const levelField = `${owner}_level`;
+  const sizeField = `${owner}_size`;
+  const level = parseOptionalRowNumber(Reflect.get(row, levelField));
+  const size = parseOptionalRowNumber(Reflect.get(row, sizeField));
+  if (level.status === 'invalid') return { ok: false, field: levelField };
+  if (size.status === 'invalid') return { ok: false, field: sizeField };
+  return {
+    ok: true,
+    level: level.status === 'valid' ? level.value : 1,
+    size: size.status === 'valid' ? size.value : owner === 'player' ? 20 : 24,
+  };
+}
 
 /**
  * 포뮬러 문자열을 평가하여 숫자 값을 반환

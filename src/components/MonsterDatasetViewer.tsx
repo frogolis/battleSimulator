@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { CharacterTypeInfo } from '../lib/characterTypes';
 import { CharacterConfig, CharacterType } from '../lib/gameTypes';
-import { updateDataRowWithLevel } from '../lib/levelBasedStats';
+import { getLevelRecalculationInputs, updateDataRowWithLevel } from '../lib/levelBasedStats';
 import { LevelConfig } from '../lib/levelSystem';
 import { DataRow } from '../lib/mockData';
 import {
@@ -24,6 +24,8 @@ import {
   type MonsterStatField,
 } from '../lib/simulator/monsterStats';
 import { createMonsterDefinitionId } from '../lib/simulator/monsterDefinitionIds';
+import { parseOptionalRowNumber } from '../lib/simulator/rowNumbers';
+import { buildMonsterWeightPool, readMonsterWeight } from '../lib/simulator/monsterWeights';
 import type { StageDefinition } from '../lib/simulator/waves';
 import {
   AIPatternConfig,
@@ -34,6 +36,7 @@ import {
   SkillPriority,
 } from '../lib/monsterAI';
 import { defaultSkills, Skill } from '../lib/skillSystem';
+import { AttackNumberWarning, getAttackEditorNumbers } from './AttackNumberEditor';
 import { MonsterAIPatternEditor } from './MonsterAIPatternEditor';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -71,7 +74,7 @@ interface MonsterDatasetViewerProps {
   setCurrentTick: (tick: number) => void;
   monsterConfig: CharacterConfig;
   monsterLevelConfig?: LevelConfig;
-  onApplyRow?: (row: DataRow) => void;
+  onApplyRow?: (row: DataRow) => boolean;
   characterTypes: CharacterTypeInfo[];
   stageDefinitions: StageDefinition[];
   selectedRows?: Set<string>;
@@ -130,6 +133,9 @@ export function MonsterDatasetViewer({
     const id = row.monster_definition_id;
     return id && selectedRows.has(id) ? [{ id, index, row }] : [];
   });
+  const selectedWeightPool = selectedMonsterEntries.length
+    ? buildMonsterWeightPool(selectedMonsterEntries.map(entry => entry.row))
+    : undefined;
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>({
     select: 50,
     index: 60,
@@ -291,14 +297,19 @@ export function MonsterDatasetViewer({
 
   const handleApplyRow = () => {
     const row = dataset[currentTick];
-    if (row && onApplyRow) {
-      onApplyRow(row);
+    if (row && onApplyRow?.(row)) {
       toast.success(`✅ 행 ${currentTick}의 몬스터 설정을 불러왔습니다!`);
     }
   };
 
   const handleRowClick = (index: number) => {
     setCurrentTick(index);
+  };
+
+  const handleFixAttackNumber = (rowIndex: number, field: string) => {
+    const newDataset = [...dataset];
+    newDataset[rowIndex] = { ...newDataset[rowIndex], [field]: 0 };
+    setDataset(newDataset);
   };
 
   const handleRowSelect = (index: number) => {
@@ -329,8 +340,19 @@ export function MonsterDatasetViewer({
       (field === 'monster_level' || field === 'monster_size' || field === 'monster_attack_type') &&
       monsterLevelConfig
     ) {
-      const newLevel = Number(field === 'monster_level' ? value : row.monster_level) || 1;
-      const currentSize = Number(field === 'monster_size' ? value : row.monster_size) || 24;
+      const inputs = getLevelRecalculationInputs({ ...row, [field]: value }, 'monster');
+      if (!inputs.ok) {
+        if (field === 'monster_attack_type') {
+          toast.error(`"${inputs.field}" 값을 수정한 뒤 타입을 변경해 주세요.`);
+        } else {
+          newDataset[rowIndex] = { ...row, [field]: value };
+          setDataset(newDataset);
+          toast.warning(`"${inputs.field}" 값이 올바르지 않아 능력치를 재계산하지 않았습니다.`);
+        }
+        return;
+      }
+      const newLevel = inputs.level || 1;
+      const currentSize = inputs.size || 24;
       const typeId =
         field === 'monster_attack_type' ? String(value) : (row.monster_attack_type ?? undefined);
 
@@ -351,8 +373,8 @@ export function MonsterDatasetViewer({
       if (field === 'monster_attack_type' && typeInfo) {
         const defaultSkillIds = typeInfo.defaultSkillIds || [];
         // 현재 행의 레벨과 크기 유지 (사용자가 수정한 값 보존)
-        const currentLevel = row.monster_level || typeInfo.defaultLevel || 1;
-        const currentSize = row.monster_size || typeInfo.defaultSize || 24;
+        const currentLevel = row.monster_level ? inputs.level : typeInfo.defaultLevel || 1;
+        const currentSize = row.monster_size ? inputs.size : typeInfo.defaultSize || 24;
         // 현재 레벨과 크기로 능력치만 재계산
         const typeBasedRow = updateDataRowWithLevel(
           row,
@@ -489,7 +511,7 @@ export function MonsterDatasetViewer({
       monster_critical_rate: { min: 0, max: 50, step: 5 },
       monster_attack_range: { min: 30, max: 150, step: 10 },
       monster_attack_width: { min: 30, max: 360, step: 15 },
-      monster_spawn_weight: { min: 1, max: 100, step: 1 },
+      monster_spawn_weight: { min: 0, max: 100, step: 1 },
       monster_ai_aggro_range: { min: 100, max: 600, step: 50 },
     };
     return configs[field] || { min: 0, max: 100, step: 1 };
@@ -930,12 +952,17 @@ export function MonsterDatasetViewer({
         : defaultSkillsArray.filter(skill => skill.category === 'basicAttack');
 
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = row.monster_basic_attack_range ?? 100;
-      const width = row.monster_basic_attack_width ?? 120;
-      const damage = row.monster_basic_attack_damage ?? 1.0;
-      const cooldown = row.monster_basic_attack_cooldown ?? 1000;
-      const spCost = row.monster_basic_attack_sp_cost ?? 0;
-      const castTime = row.monster_basic_attack_cast_time ?? 300;
+      const {
+        numbers: { range, width, damage, cooldown, spCost, castTime },
+        invalidFields,
+      } = getAttackEditorNumbers(row, 'monster_basic_attack', {
+        range: 100,
+        width: 120,
+        damage: 1,
+        cooldown: 1000,
+        spCost: 0,
+        castTime: 300,
+      });
 
       return (
         <Popover
@@ -1022,6 +1049,10 @@ export function MonsterDatasetViewer({
               </div>
 
               {/* 파라미터 편집 */}
+              <AttackNumberWarning
+                fields={invalidFields}
+                onFix={field => handleFixAttackNumber(rowIndex, field)}
+              />
               <div className='space-y-2 border-t pt-3'>
                 {/* 범위 */}
                 <div className='space-y-1'>
@@ -1195,12 +1226,17 @@ export function MonsterDatasetViewer({
         const rowData = dataset[rowIndex] as unknown as Record<string, unknown>;
         const skillId = rowData[`monster_skill_${slotNum}_id`];
         const skill = defaultSkillsArray.find(s => s.id === skillId);
-        const range = Number(rowData[`monster_skill_${slotNum}_range`] ?? 0);
-        const width = Number(rowData[`monster_skill_${slotNum}_width`] ?? 0);
-        const damage = Number(rowData[`monster_skill_${slotNum}_damage`] ?? 0);
-        const cooldown = Number(rowData[`monster_skill_${slotNum}_cooldown`] ?? 0);
-        const spCost = Number(rowData[`monster_skill_${slotNum}_sp_cost`] ?? 0);
-        const castTime = Number(rowData[`monster_skill_${slotNum}_cast_time`] ?? 0);
+        const {
+          numbers: { range, width, damage, cooldown, spCost, castTime },
+          invalidFields,
+        } = getAttackEditorNumbers(dataset[rowIndex], `monster_skill_${slotNum}`, {
+          range: 0,
+          width: 0,
+          damage: 0,
+          cooldown: 0,
+          spCost: 0,
+          castTime: 0,
+        });
 
         return (
           <Popover
@@ -1300,6 +1336,10 @@ export function MonsterDatasetViewer({
                   </Select>
                 </div>
 
+                <AttackNumberWarning
+                  fields={invalidFields}
+                  onFix={field => handleFixAttackNumber(rowIndex, field)}
+                />
                 {/* 범위 */}
                 <div className='space-y-1'>
                   <div className='flex justify-between text-xs'>
@@ -1456,10 +1496,11 @@ export function MonsterDatasetViewer({
       }
     }
 
-    const numericValue = typeof value === 'number' ? value : Number(value);
-    const hasNumericValue = value !== undefined && value !== null && value !== '' &&
-      Number.isFinite(numericValue);
+    const parsedValue = parseOptionalRowNumber(value);
+    const numericValue = parsedValue.status === 'valid' ? parsedValue.value : undefined;
+    const hasNumericValue = numericValue !== undefined;
     const isMonsterStat = isMonsterStatField(field);
+    const weightResult = field === 'monster_spawn_weight' ? readMonsterWeight(value) : undefined;
     const displayValue = hasNumericValue
       ? !isMonsterStat && field.includes('attack_speed')
         ? numericValue.toFixed(1)
@@ -1540,8 +1581,29 @@ export function MonsterDatasetViewer({
               </>
             ) : (
               <>
+                {weightResult && !weightResult.ok && (
+                  <div role='alert' className='text-xs text-destructive'>
+                    {weightResult.reason}
+                    <Button
+                      type='button'
+                      size='sm'
+                      variant='outline'
+                      aria-label={`몬스터 행 ${rowIndex} 가중치 0으로 수정`}
+                      onClick={() => handleCellUpdate(rowIndex, field, 0)}
+                    >
+                      0으로 수정
+                    </Button>
+                  </div>
+                )}
                 <Slider
-                  value={[hasNumericValue ? numericValue : getFieldConfig(field).min]}
+                  aria-label={`몬스터 행 ${rowIndex} ${field}`}
+                  value={[
+                    weightResult && !weightResult.ok
+                      ? 0
+                      : weightResult?.ok
+                        ? weightResult.weight
+                        : hasNumericValue ? numericValue : getFieldConfig(field).min,
+                  ]}
                   onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
                   min={getFieldConfig(field).min}
                   max={getFieldConfig(field).max}
@@ -1670,13 +1732,11 @@ export function MonsterDatasetViewer({
                     <div className='flex items-center gap-2'>
                       <span className='text-muted-foreground whitespace-nowrap'>총 가중치:</span>
                       <Badge variant='outline' className='bg-amber-100'>
-                        {dataset
-                          .filter(row =>
-                            row.monster_definition_id
-                              ? selectedRows.has(row.monster_definition_id)
-                              : false
-                          )
-                          .reduce((sum, row) => sum + (row.monster_spawn_weight || 1), 0)}
+                        {selectedWeightPool?.ok
+                          ? Number.isFinite(selectedWeightPool.total)
+                            ? selectedWeightPool.total
+                            : '표시 범위 초과'
+                          : selectedWeightPool ? '확인 필요' : 0}
                       </Badge>
                     </div>
                   </div>
@@ -1687,15 +1747,20 @@ export function MonsterDatasetViewer({
               {selectedRows.size > 0 && (
                 <div className='border-t pt-3 space-y-2'>
                   <Label className='text-xs text-muted-foreground'>선택된 몬스터 스폰 확률</Label>
-                  <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
-                    {selectedMonsterEntries.map(({ id, index, row }) => {
-                        const totalWeight = selectedMonsterEntries
-                          .reduce((sum, entry) => sum + (entry.row.monster_spawn_weight || 1), 0);
-                        const probability =
-                          totalWeight > 0
-                            ? (((row.monster_spawn_weight || 1) / totalWeight) * 100).toFixed(1)
-                            : 0;
-
+                  {selectedWeightPool && !selectedWeightPool.ok ? (
+                    <p role='alert' className='text-xs text-destructive'>
+                      {selectedWeightPool.reason}
+                    </p>
+                  ) : (
+                    <div className='grid grid-cols-2 md:grid-cols-4 gap-2'>
+                      {selectedMonsterEntries.map(({ id, index, row }, position) => {
+                        const probability = selectedWeightPool?.ok
+                          ? (
+                              (selectedWeightPool.scaledWeights[position] /
+                                selectedWeightPool.scaledTotal) *
+                              100
+                            ).toFixed(1)
+                          : '0.0';
                         return (
                           <div
                             key={id}
@@ -1714,7 +1779,8 @@ export function MonsterDatasetViewer({
                           </div>
                         );
                       })}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1943,7 +2009,7 @@ export function MonsterDatasetViewer({
                           {renderEditableCell(
                             index,
                             'monster_spawn_weight',
-                            row.monster_spawn_weight || 1
+                            row.monster_spawn_weight ?? 1
                           )}
                         </td>
                         <td
@@ -2133,6 +2199,7 @@ export function MonsterDatasetViewer({
             <div className='flex gap-2 mt-4'>
               <Button
                 onClick={handleApplyRow}
+                aria-label='몬스터 행 불러오기'
                 disabled={currentTick >= dataset.length || !dataset[currentTick]?.monster_size}
                 className='flex-1'
               >

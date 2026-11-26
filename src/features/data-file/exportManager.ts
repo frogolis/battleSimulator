@@ -9,11 +9,20 @@ import { DATA_EXPORT_FILENAME_PREFIX, DATA_WORKBOOK_SHEETS } from './constants';
 
 type WriteWorkbookFile = (workbook: XLSX.WorkBook, filename: string) => void;
 
-const stringify = (value: unknown): string => {
+const stringify = (value: unknown, field: string): string => {
   try {
-    return JSON.stringify(value);
-  } catch {
-    return '';
+    const result = JSON.stringify(value, (_key, item: unknown) => {
+      if (typeof item === 'number' && !Number.isFinite(item)) {
+        throw new Error('유한하지 않은 숫자는 JSON으로 보존할 수 없습니다.');
+      }
+      return item;
+    });
+    if (result === undefined) throw new Error('JSON 값이 없습니다.');
+    return result;
+  } catch (error) {
+    throw new Error(`Excel 내보내기에서 "${field}" 데이터를 변환할 수 없습니다.`, {
+      cause: error,
+    });
   }
 };
 
@@ -26,9 +35,15 @@ const serializeCharacterTypes = (characterTypes: CharacterTypeInfo[]) =>
     defaultLevel: characterType.defaultLevel ?? '',
     defaultSize: characterType.defaultSize ?? '',
     defaultBasicAttackId: characterType.defaultBasicAttackId ?? '',
-    defaultSkillIds: stringify(characterType.defaultSkillIds ?? []),
-    defaultAIPattern: stringify(characterType.defaultAIPattern ?? null),
-    statFormulas: stringify(characterType.statFormulas ?? null),
+    defaultSkillIds: stringify(
+      characterType.defaultSkillIds ?? [], `Character Types.${characterType.id}.defaultSkillIds`
+    ),
+    defaultAIPattern: stringify(
+      characterType.defaultAIPattern ?? null, `Character Types.${characterType.id}.defaultAIPattern`
+    ),
+    statFormulas: stringify(
+      characterType.statFormulas ?? null, `Character Types.${characterType.id}.statFormulas`
+    ),
   }));
 
 const serializeSkills = (skillConfigs: Record<string, Skill>) =>
@@ -38,34 +53,35 @@ const serializeSkills = (skillConfigs: Record<string, Skill>) =>
     description: skill.description,
     type: skill.type,
     category: skill.category,
-    tags: stringify(skill.tags),
+    tags: stringify(skill.tags, `Skills.${skill.id}.tags`),
     iconName: skill.iconName,
     spCost: skill.spCost,
     cooldown: skill.cooldown,
     castTime: skill.castTime,
     range: skill.range,
     area: skill.area,
-    timing: stringify(skill.timing),
+    timing: stringify(skill.timing, `Skills.${skill.id}.timing`),
     damageMultiplier: skill.damageMultiplier,
-    damageFormula: stringify(skill.damageFormula ?? null),
+    damageFormula: stringify(skill.damageFormula ?? null, `Skills.${skill.id}.damageFormula`),
     healAmount: skill.healAmount,
     buffDuration: skill.buffDuration,
-    buffEffect: stringify(skill.buffEffect),
-    visual: stringify(skill.visual),
-    effects: skill.effects === undefined ? '' : JSON.stringify(skill.effects),
-    projectile: stringify(skill.projectile),
-    animation: stringify(skill.animation),
-    sound: stringify(skill.sound),
+    buffEffect: stringify(skill.buffEffect, `Skills.${skill.id}.buffEffect`),
+    visual: stringify(skill.visual, `Skills.${skill.id}.visual`),
+    effects:
+      skill.effects === undefined ? '' : stringify(skill.effects, `Skills.${skill.id}.effects`),
+    projectile: stringify(skill.projectile, `Skills.${skill.id}.projectile`),
+    animation: stringify(skill.animation, `Skills.${skill.id}.animation`),
+    sound: stringify(skill.sound, `Skills.${skill.id}.sound`),
   }));
 
 const serializeItemSlots = (itemSlots: ItemSlot[]) =>
   itemSlots.map(slot => ({
     slotNumber: slot.slotNumber,
     keyBinding: slot.keyBinding,
-    item: stringify(slot.item),
+    item: stringify(slot.item, `Items.${slot.slotNumber}.item`),
   }));
 
-const serializeLevelConfig = (levelConfig: LevelConfig) => ({
+const serializeLevelConfig = (levelConfig: LevelConfig, sheetName: string) => ({
   currentLevel: levelConfig.currentLevel,
   currentExp: levelConfig.currentExp,
   expToNextLevel: levelConfig.expToNextLevel,
@@ -75,19 +91,24 @@ const serializeLevelConfig = (levelConfig: LevelConfig) => ({
   attackPerLevel: levelConfig.attackPerLevel,
   defensePerLevel: levelConfig.defensePerLevel,
   speedPerLevel: levelConfig.speedPerLevel,
-  hpGrowth: stringify(levelConfig.hpGrowth),
-  spGrowth: stringify(levelConfig.spGrowth),
-  attackGrowth: stringify(levelConfig.attackGrowth),
-  defenseGrowth: stringify(levelConfig.defenseGrowth),
-  speedGrowth: stringify(levelConfig.speedGrowth),
-  hpFormulaBlocks: levelConfig.hpFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.hpFormulaBlocks),
-  spFormulaBlocks: levelConfig.spFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.spFormulaBlocks),
-  attackFormulaBlocks: levelConfig.attackFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.attackFormulaBlocks),
-  defenseFormulaBlocks: levelConfig.defenseFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.defenseFormulaBlocks),
-  speedFormulaBlocks: levelConfig.speedFormulaBlocks === undefined ? '' : JSON.stringify(levelConfig.speedFormulaBlocks),
+  hpGrowth: stringify(levelConfig.hpGrowth, `${sheetName}.hpGrowth`),
+  spGrowth: stringify(levelConfig.spGrowth, `${sheetName}.spGrowth`),
+  attackGrowth: stringify(levelConfig.attackGrowth, `${sheetName}.attackGrowth`),
+  defenseGrowth: stringify(levelConfig.defenseGrowth, `${sheetName}.defenseGrowth`),
+  speedGrowth: stringify(levelConfig.speedGrowth, `${sheetName}.speedGrowth`),
+  hpFormulaBlocks:
+    levelConfig.hpFormulaBlocks === undefined ? '' : stringify(levelConfig.hpFormulaBlocks, `${sheetName}.hpFormulaBlocks`),
+  spFormulaBlocks:
+    levelConfig.spFormulaBlocks === undefined ? '' : stringify(levelConfig.spFormulaBlocks, `${sheetName}.spFormulaBlocks`),
+  attackFormulaBlocks:
+    levelConfig.attackFormulaBlocks === undefined ? '' : stringify(levelConfig.attackFormulaBlocks, `${sheetName}.attackFormulaBlocks`),
+  defenseFormulaBlocks:
+    levelConfig.defenseFormulaBlocks === undefined ? '' : stringify(levelConfig.defenseFormulaBlocks, `${sheetName}.defenseFormulaBlocks`),
+  speedFormulaBlocks:
+    levelConfig.speedFormulaBlocks === undefined ? '' : stringify(levelConfig.speedFormulaBlocks, `${sheetName}.speedFormulaBlocks`),
   formulaMode: levelConfig.formulaMode ?? '',
-  expGrowth: stringify(levelConfig.expGrowth),
-  expGrowthConfig: stringify(levelConfig.expGrowthConfig ?? null),
+  expGrowth: stringify(levelConfig.expGrowth, `${sheetName}.expGrowth`),
+  expGrowthConfig: stringify(levelConfig.expGrowthConfig ?? null, `${sheetName}.expGrowthConfig`),
   baseHp: levelConfig.baseHp,
   baseSp: levelConfig.baseSp,
   baseAttack: levelConfig.baseAttack,
@@ -96,8 +117,14 @@ const serializeLevelConfig = (levelConfig: LevelConfig) => ({
 });
 
 const serializeBasicAttack = (basicAttack: BasicAttackSlot) => ({
-  keyBinding: basicAttack.keyBinding,
+  keyBinding: basicAttack.keyBinding ?? '',
   skillId: basicAttack.skill.id,
+  range: basicAttack.range ?? '',
+  width: basicAttack.width ?? '',
+  damage: basicAttack.damage ?? '',
+  cooldown: basicAttack.cooldown ?? '',
+  spCost: basicAttack.spCost ?? '',
+  castTime: basicAttack.castTime ?? '',
 });
 
 const serializeCharacterConfig = (config: CharacterConfig) => ({
@@ -130,6 +157,22 @@ const appendJsonSheet = (
   name: string,
   rows: Array<Record<string, unknown>>
 ) => {
+  rows.forEach((row, index) => {
+    Object.entries(row).forEach(([field, value]) => {
+      if (
+        value === null ||
+        value === undefined ||
+        typeof value === 'string' ||
+        typeof value === 'boolean' ||
+        (typeof value === 'number' && Number.isFinite(value))
+      ) {
+        return;
+      }
+      throw new Error(
+        `Excel 내보내기에서 "${name}" 시트 ${index + 2}행 "${field}" 값을 보존할 수 없습니다.`
+      );
+    });
+  });
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), name);
 };
 
@@ -153,8 +196,10 @@ export function exportGameDataToWorkbook(
       baseLevel: stats.baseLevel,
       size: stats.size,
       aiPattern: stats.aiPattern,
-      skills: stringify(stats.skills),
-      aiPatternConfig: stringify(stats.aiPatternConfig ?? null),
+      skills: stringify(stats.skills, `Monster Types.${id}.skills`),
+      aiPatternConfig: stringify(
+        stats.aiPatternConfig ?? null, `Monster Types.${id}.aiPatternConfig`
+      ),
     }))
   );
   appendJsonSheet(workbook, DATA_WORKBOOK_SHEETS.SKILLS, serializeSkills(state.skillConfigs));
@@ -194,6 +239,7 @@ export function exportGameDataToWorkbook(
     state.stageDefinitions.flatMap(stage =>
       stage.waves.flatMap(wave =>
         wave.monsterSpawns.map(mapping => ({
+          stageId: stage.id,
           waveId: wave.id,
           monsterDefinitionId: mapping.monsterDefinitionId,
           count: mapping.count,
@@ -202,10 +248,10 @@ export function exportGameDataToWorkbook(
     )
   );
   appendJsonSheet(workbook, DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG, [
-    serializeLevelConfig(state.playerLevelConfig),
+    serializeLevelConfig(state.playerLevelConfig, DATA_WORKBOOK_SHEETS.PLAYER_LEVEL_CONFIG),
   ]);
   appendJsonSheet(workbook, DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG, [
-    serializeLevelConfig(state.monsterLevelConfig),
+    serializeLevelConfig(state.monsterLevelConfig, DATA_WORKBOOK_SHEETS.MONSTER_LEVEL_CONFIG),
   ]);
   appendJsonSheet(workbook, DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, [
     serializeBasicAttack(state.playerBasicAttack),

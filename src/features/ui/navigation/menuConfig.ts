@@ -10,7 +10,6 @@ import {
   Sparkles,
   TrendingUp,
   User,
-  Workflow,
   Zap,
 } from 'lucide-react';
 import { APP_VIEW, AppView } from '../../../shared/constants/appViews';
@@ -42,5 +41,4 @@ export const APP_MENU_ITEMS: AppMenuItem[] = [
     ],
   },
   { id: APP_VIEW.EXPORT, label: '데이터 내보내기', icon: FileDown },
-  { id: APP_VIEW.MAKE, label: 'Make 설정', icon: Workflow },
 ];

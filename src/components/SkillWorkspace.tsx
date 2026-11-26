@@ -10,6 +10,7 @@ import { Card } from './ui/card';
 interface SkillWorkspaceProps {
   skills: Record<string, Skill>;
   onSkillsChange: (skills: Record<string, Skill>) => void;
+  findSkillReferences: (id: string) => string[];
   playerBasicAttack?: BasicAttackSlot;
   monsterBasicAttack?: BasicAttackSlot;
   onPlayerBasicAttackChange?: (slot: BasicAttackSlot) => void;
@@ -19,6 +20,7 @@ interface SkillWorkspaceProps {
 export function SkillWorkspace({
   skills,
   onSkillsChange,
+  findSkillReferences,
   playerBasicAttack,
   monsterBasicAttack,
   onPlayerBasicAttackChange: _onPlayerBasicAttackChange,
@@ -59,6 +61,21 @@ export function SkillWorkspace({
 
   // 스킬 삭제
   const deleteSkill = (skillId: string) => {
+    if (!Object.hasOwn(skills, skillId)) {
+      toast.error('삭제할 스킬을 찾을 수 없습니다.');
+      return;
+    }
+    let references: string[];
+    try {
+      references = findSkillReferences(skillId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '스킬 사용처를 확인할 수 없습니다.');
+      return;
+    }
+    if (references.length > 0) {
+      toast.error(`사용 중인 스킬은 삭제할 수 없습니다: ${references.join(', ')}`);
+      return;
+    }
     const { [skillId]: removed, ...remainingSkills } = skills;
     onSkillsChange(remainingSkills);
 

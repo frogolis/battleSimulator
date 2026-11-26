@@ -159,11 +159,11 @@ export function SkillAndItemSettings({
   };
 
   // 스킬 세트 관리
-  const [skillSets, setSkillSets] = useState<SkillSet[]>([
+  const [skillSets, setSkillSets] = useState<SkillSet[]>(() => [
     {
       id: 'default',
       name: '기본 스킬 세트',
-      skills: defaultSkills,
+      skills,
     },
   ]);
   const [currentSetId, setCurrentSetId] = useState<string>('default');
@@ -181,7 +181,7 @@ export function SkillAndItemSettings({
   // 현재 세트의 스킬로 초기화
 
   useEffect(() => {
-    if (currentSet && JSON.stringify(currentSet.skills) !== JSON.stringify(skills)) {
+    if (!showOnlyItems && currentSet && JSON.stringify(currentSet.skills) !== JSON.stringify(skills)) {
       onSkillsChange(currentSet.skills);
     }
   }, [currentSetId]);

@@ -2,7 +2,7 @@
 
 ## 📋 프로젝트 개요
 
-**프로젝트명**: RPG 게임 시뮬레이터 (스프레드시트-Figma-Make 워크플로우)  
+**프로젝트명**: RPG 게임 시뮬레이터<br>
 **개발 환경**: React + TypeScript + Tailwind CSS  
 **버전**: 1.0  
 **최종 업데이트**: 2025년 10월
@@ -294,10 +294,6 @@ interface AIPatternConfig {
 
 - **PlayerDatasetViewer.tsx**: 플레이어 데이터 뷰어
 - **MonsterDatasetViewer.tsx**: 몬스터 데이터 뷰어
-
-### 7. 가이드 컴포넌트
-
-- **MakeConfigGuide.tsx**: 설정 가이드
 
 ---
 

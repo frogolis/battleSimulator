@@ -27,6 +27,153 @@ const row: DataRow = {
 };
 
 describe('applying a dataset row', () => {
+  it.each(['player', 'monster'] as const)(
+    'validates %s basic attack overrides before any state update',
+    owner => {
+      const source = { ...row };
+      Object.assign(source, {
+        [`${owner}_basic_attack_id`]: 'meleeBasic',
+        [`${owner}_basic_attack_range`]: '0',
+        [`${owner}_basic_attack_width`]: '12.5',
+        [`${owner}_basic_attack_damage`]: '-1',
+        [`${owner}_basic_attack_cooldown`]: ' ',
+        [`${owner}_basic_attack_sp_cost`]: '3',
+        [`${owner}_basic_attack_cast_time`]: '4',
+      });
+      const setLevel = vi.fn();
+      const setConfig = vi.fn();
+      const setBasicAttack = vi.fn();
+      const setSlots = vi.fn();
+      const common = { row: source, skillConfigs: defaultSkills };
+      const apply = () => owner === 'player'
+        ? applyPlayerRowFromData({
+            ...common, setPlayerLevelConfig: setLevel, setPlayerConfig: setConfig,
+            setPlayerBasicAttack: setBasicAttack, setSkillSlots: setSlots,
+          })
+        : applyMonsterRowFromData({
+            ...common, setMonsterLevelConfig: setLevel, setMonsterConfig: setConfig,
+            setMonsterBasicAttack: setBasicAttack,
+          });
+
+      for (const suffix of ['range', 'width', 'damage', 'cooldown', 'sp_cost', 'cast_time']) {
+        const field = `${owner}_basic_attack_${suffix}`;
+        const previous = Reflect.get(source, field);
+        Object.assign(source, { [field]: 'invalid' });
+        expect(apply()).toEqual({ status: 'invalid', field });
+        for (const setter of [setLevel, setConfig, setBasicAttack, setSlots]) {
+          expect(setter).not.toHaveBeenCalled();
+        }
+        Object.assign(source, { [field]: previous });
+      }
+      for (const invalid of ['Infinity', true]) {
+        Object.assign(source, { [`${owner}_basic_attack_damage`]: invalid });
+        expect(apply()).toEqual({ status: 'invalid', field: `${owner}_basic_attack_damage` });
+      }
+      Object.assign(source, { [`${owner}_basic_attack_damage`]: '-1' });
+      expect(apply()).toEqual({ status: 'applied' });
+      expect(setBasicAttack).toHaveBeenCalledWith(expect.objectContaining({
+        range: 0, width: 12.5, damage: -1, cooldown: defaultSkills.meleeBasic.cooldown,
+        spCost: 3, castTime: 4,
+      }));
+      expect(Reflect.get(source, `${owner}_basic_attack_range`)).toBe('0');
+    }
+  );
+
+  it('validates active player skill overrides before updating any state', () => {
+    const source = { ...row, player_skill_2_id: 'powerSlash' };
+    Object.assign(source, {
+      player_skill_2_range: '0',
+      player_skill_2_width: '20.5',
+      player_skill_2_damage: '1.5',
+      player_skill_2_cooldown: '500',
+      player_skill_2_sp_cost: ' ',
+      player_skill_2_cast_time: '10',
+    });
+    const setLevel = vi.fn();
+    const setConfig = vi.fn();
+    const setBasicAttack = vi.fn();
+    const setSlots = vi.fn();
+    const apply = () => applyPlayerRowFromData({
+      row: source, skillConfigs: defaultSkills, setPlayerLevelConfig: setLevel,
+      setPlayerConfig: setConfig, setPlayerBasicAttack: setBasicAttack, setSkillSlots: setSlots,
+    });
+    for (const suffix of ['range', 'width', 'damage', 'cooldown', 'sp_cost', 'cast_time']) {
+      const field = `player_skill_2_${suffix}`;
+      const previous = Reflect.get(source, field);
+      Object.assign(source, { [field]: 'bad' });
+      expect(apply()).toEqual({ status: 'invalid', field });
+      for (const setter of [setLevel, setConfig, setBasicAttack, setSlots]) {
+        expect(setter).not.toHaveBeenCalled();
+      }
+      Object.assign(source, { [field]: previous });
+    }
+    expect(apply()).toEqual({ status: 'applied' });
+    expect(setSlots).toHaveBeenCalledWith([expect.objectContaining({
+      slotNumber: 2,
+      overrides: { range: 0, area: 20.5, damageMultiplier: 1.5, cooldown: 500, castTime: 10 },
+    })]);
+    expect(Reflect.get(source, 'player_skill_2_range')).toBe('0');
+  });
+
+  it('preserves invalid draft overrides that do not belong to an applied skill', () => {
+    const source = { ...row, player_skill_2_id: '' };
+    Object.assign(source, { player_basic_attack_damage: 'draft', player_skill_2_damage: 'draft' });
+    expect(applyPlayerRowFromData({
+      row: source, skillConfigs: defaultSkills, setPlayerLevelConfig: vi.fn(),
+      setPlayerConfig: vi.fn(), setPlayerBasicAttack: vi.fn(), setSkillSlots: vi.fn(),
+    })).toEqual({ status: 'applied' });
+    expect(Reflect.get(source, 'player_skill_2_damage')).toBe('draft');
+  });
+
+  it.each(['player', 'monster'] as const)(
+    'validates and normalizes %s row settings before updating state without changing the source',
+    owner => {
+      const setLevel = vi.fn();
+      const setConfig = vi.fn<(value: SetStateAction<CharacterConfig>) => void>();
+      const setBasicAttack = vi.fn();
+      const setSlots = vi.fn();
+      const source = { ...row };
+      const apply = () => owner === 'player'
+        ? applyPlayerRowFromData({
+            row: source, skillConfigs: {}, setPlayerLevelConfig: setLevel,
+            setPlayerConfig: setConfig, setPlayerBasicAttack: setBasicAttack, setSkillSlots: setSlots,
+          })
+        : applyMonsterRowFromData({
+            row: source, skillConfigs: {}, setMonsterLevelConfig: setLevel,
+            setMonsterConfig: setConfig, setMonsterBasicAttack: setBasicAttack,
+          });
+      Object.assign(source, {
+        [`${owner}_size`]: '20.5',
+        [`${owner}_level`]: '2',
+        [`${owner}_attack_range`]: 'invalid',
+      });
+      expect(apply()).toEqual({ status: 'invalid', field: `${owner}_attack_range` });
+      for (const setter of [setLevel, setConfig, setBasicAttack, setSlots]) {
+        expect(setter).not.toHaveBeenCalled();
+      }
+
+      Object.assign(source, { [`${owner}_attack_range`]: '0', [`${owner}_attack_width`]: ' ' });
+      expect(apply()).toEqual({ status: 'applied' });
+      const update = setConfig.mock.lastCall?.[0];
+      if (typeof update !== 'function') throw new Error('Expected a config updater');
+      expect(update(config)).toMatchObject({
+        size: { min: 20.5, max: 20.5 },
+        attackRange: { min: 0, max: 0 },
+        attackWidth: config.attackWidth,
+      });
+      expect(setLevel.mock.calls[0][0]({})).toMatchObject({ currentLevel: 2 });
+      expect(Reflect.get(source, `${owner}_size`)).toBe('20.5');
+      expect(Reflect.get(source, `${owner}_attack_width`)).toBe(' ');
+
+      vi.clearAllMocks();
+      Object.assign(source, { [`${owner}_size`]: ' ' });
+      expect(apply()).toEqual({ status: 'missing' });
+      for (const setter of [setLevel, setConfig, setBasicAttack, setSlots]) {
+        expect(setter).not.toHaveBeenCalled();
+      }
+    }
+  );
+
   it('selects imported rows at the current tick and falls back when neither exists', () => {
     const players = [{ ...row, player_hp: 100 }, { ...row, player_hp: 200 }];
     const monsters = [{ ...row, monster_hp: 300 }, { ...row, monster_hp: 400 }];

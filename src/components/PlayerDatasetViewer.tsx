@@ -3,10 +3,12 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { CharacterTypeInfo } from '../lib/characterTypes';
 import { CharacterConfig, CharacterType } from '../lib/gameTypes';
-import { updateDataRowWithLevel } from '../lib/levelBasedStats';
+import { getLevelRecalculationInputs, updateDataRowWithLevel } from '../lib/levelBasedStats';
 import { LevelConfig } from '../lib/levelSystem';
 import { DataRow, PLAYER_LEVEL_STAT_FIELDS, type PlayerLevelStatField } from '../lib/mockData';
 import { defaultSkills, Skill } from '../lib/skillSystem';
+import { parseOptionalRowNumber } from '../lib/simulator/rowNumbers';
+import { AttackNumberWarning, getAttackEditorNumbers } from './AttackNumberEditor';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -24,7 +26,7 @@ interface PlayerDatasetViewerProps {
   setCurrentTick: (tick: number) => void;
   playerConfig: CharacterConfig;
   playerLevelConfig: LevelConfig;
-  onApplyRow?: (row: DataRow) => void;
+  onApplyRow?: (row: DataRow) => boolean;
   characterTypes: CharacterTypeInfo[];
   skillConfigs?: Record<string, Skill>;
 }
@@ -191,14 +193,19 @@ export function PlayerDatasetViewer({
 
   const handleApplyRow = () => {
     const row = dataset[currentTick];
-    if (row && onApplyRow) {
-      onApplyRow(row);
+    if (row && onApplyRow?.(row)) {
       toast.success(`✅ 행 ${currentTick}의 플레이어 설정을 불러왔습니다!`);
     }
   };
 
   const handleRowClick = (index: number) => {
     setCurrentTick(index);
+  };
+
+  const handleFixAttackNumber = (rowIndex: number, field: string) => {
+    const newDataset = [...dataset];
+    newDataset[rowIndex] = { ...newDataset[rowIndex], [field]: 0 };
+    setDataset(newDataset);
   };
 
   const handleCellUpdate = (rowIndex: number, field: string, value: EditableCellValue) => {
@@ -210,8 +217,13 @@ export function PlayerDatasetViewer({
       !row.player_character_id?.trim() &&
       (field === 'player_level' || field === 'player_size' || field === 'player_attack_type')
     ) {
-      const level = field === 'player_level' ? value : row.player_level;
-      const size = field === 'player_size' ? value : row.player_size;
+      const inputs = getLevelRecalculationInputs({ ...row, [field]: value }, 'player');
+      if (!inputs.ok) {
+        newDataset[rowIndex] = { ...row, [field]: value };
+        setDataset(newDataset);
+        toast.warning(`"${inputs.field}" 값이 올바르지 않아 능력치를 재계산하지 않았습니다.`);
+        return;
+      }
       const typeId = field === 'player_attack_type' ? value : row.player_attack_type;
 
       // 타입 정보 찾기
@@ -222,8 +234,8 @@ export function PlayerDatasetViewer({
         row,
         true,
         playerLevelConfig,
-        toOptionalNumber(level),
-        toOptionalNumber(size),
+        inputs.level,
+        inputs.size,
         typeInfo
       );
 
@@ -454,12 +466,17 @@ export function PlayerDatasetViewer({
       );
 
       // 현재 기본 공격의 파라미터 값 가져오기
-      const range = row.player_basic_attack_range ?? 100;
-      const width = row.player_basic_attack_width ?? 120;
-      const damage = row.player_basic_attack_damage ?? 1.0;
-      const cooldown = row.player_basic_attack_cooldown ?? 1000;
-      const spCost = row.player_basic_attack_sp_cost ?? 0;
-      const castTime = row.player_basic_attack_cast_time ?? 300;
+      const {
+        numbers: { range, width, damage, cooldown, spCost, castTime },
+        invalidFields,
+      } = getAttackEditorNumbers(row, 'player_basic_attack', {
+        range: 100,
+        width: 120,
+        damage: 1,
+        cooldown: 1000,
+        spCost: 0,
+        castTime: 300,
+      });
 
       return (
         <Popover
@@ -544,6 +561,10 @@ export function PlayerDatasetViewer({
               </div>
 
               {/* 파라미터 편집 */}
+              <AttackNumberWarning
+                fields={invalidFields}
+                onFix={field => handleFixAttackNumber(rowIndex, field)}
+              />
               <div className='space-y-2 border-t pt-3'>
                 {/* 범위 */}
                 <div className='space-y-1'>
@@ -737,12 +758,17 @@ export function PlayerDatasetViewer({
       const normalSkills = Object.values(skillConfigs).filter(skill => skill.category === 'skill');
 
       // 현재 슬롯의 파라미터 값 가져오기
-      const range = row[`player_skill_${slotNum}_range`] ?? 100;
-      const width = row[`player_skill_${slotNum}_width`] ?? 120;
-      const damage = row[`player_skill_${slotNum}_damage`] ?? 1.5;
-      const cooldown = row[`player_skill_${slotNum}_cooldown`] ?? 3000;
-      const spCost = row[`player_skill_${slotNum}_sp_cost`] ?? 20;
-      const castTime = row[`player_skill_${slotNum}_cast_time`] ?? 500;
+      const {
+        numbers: { range, width, damage, cooldown, spCost, castTime },
+        invalidFields,
+      } = getAttackEditorNumbers(row, `player_skill_${slotNum}`, {
+        range: 100,
+        width: 120,
+        damage: 1.5,
+        cooldown: 3000,
+        spCost: 20,
+        castTime: 500,
+      });
 
       return (
         <Popover
@@ -827,6 +853,10 @@ export function PlayerDatasetViewer({
               </div>
 
               {/* 파라미터 편집 */}
+              <AttackNumberWarning
+                fields={invalidFields}
+                onFix={field => handleFixAttackNumber(rowIndex, field)}
+              />
               <div className='space-y-2 border-t pt-3'>
                 {/* 범위 */}
                 <div className='space-y-1'>
@@ -989,6 +1019,7 @@ export function PlayerDatasetViewer({
     const displayValue = isAuthoredStat && typeof value === 'number'
       ? value
       : formatDisplayValue(value, field);
+    const numericValue = parseOptionalRowNumber(value);
 
     return (
       <Popover
@@ -1067,7 +1098,10 @@ export function PlayerDatasetViewer({
             ) : (
               <>
                 <Slider
-                  value={[typeof value === 'number' ? value : getFieldConfig(field).min]}
+                  aria-label={`플레이어 행 ${rowIndex} ${field}`}
+                  value={[
+                    numericValue.status === 'valid' ? numericValue.value : getFieldConfig(field).min,
+                  ]}
                   onValueChange={v => handleCellUpdate(rowIndex, field, v[0])}
                   min={getFieldConfig(field).min}
                   max={getFieldConfig(field).max}
@@ -1495,6 +1529,7 @@ export function PlayerDatasetViewer({
             <div className='flex gap-2 mt-4'>
               <Button
                 onClick={handleApplyRow}
+                aria-label='플레이어 행 불러오기'
                 disabled={currentTick >= dataset.length || !dataset[currentTick]?.player_size}
                 className='flex-1'
               >

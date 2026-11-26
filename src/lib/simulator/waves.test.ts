@@ -76,6 +76,44 @@ describe('stage and wave configuration', () => {
     expect(validateStageDefinitions([stage], monsterDataset, 3)).toBeUndefined();
   });
 
+  it('accepts incomplete drafts only during import while keeping execution strict', () => {
+    const draft: StageDefinition = {
+      id: 'draft', name: '', waves: [
+        { ...stage.waves[0], durationMs: 0,
+          monsterSpawns: [{ monsterDefinitionId: 'monster_guardian', count: 0 }] },
+        { ...stage.waves[0], id: 'empty', monsterSpawns: [] },
+      ],
+    };
+    const empty: StageDefinition = { id: 'empty', name: '', waves: [] };
+    expect(validateStageDefinitions([draft, empty], monsterDataset, 3, { allowIncomplete: true }))
+      .toBeUndefined();
+    expect(validateStageDefinitions([draft], monsterDataset, 3)).toMatch(/이름이 비어/);
+    expect(validateStageDefinitions([{ ...draft, name: 'draft' }], monsterDataset, 3))
+      .toMatch(/지속 시간/);
+    expect(validateStageDefinitions([{
+      ...draft, name: 'draft', waves: [{ ...draft.waves[0], durationMs: 1000 }],
+    }], monsterDataset, 3)).toMatch(/생성 수는 1 이상/);
+    expect(validateStageDefinitions([{
+      ...draft, name: 'draft', waves: [draft.waves[1]],
+    }], monsterDataset, 3)).toMatch(/매핑이 없습니다/);
+    expect(validateStageDefinitions([{ ...empty, name: 'empty' }], monsterDataset, 3))
+      .toMatch(/웨이브가 없습니다/);
+  });
+
+  it('still rejects invalid draft counts, durations and missing monster references', () => {
+    const wave = stage.waves[0];
+    for (const [invalidWave, message] of [
+      [{ ...wave, durationMs: -1 }, /지속 시간/],
+      [{ ...wave, monsterSpawns: [{ monsterDefinitionId: 'monster_guardian', count: -1 }] }, /생성 수/],
+      [{ ...wave, monsterSpawns: [{ monsterDefinitionId: 'monster_guardian', count: 0.5 }] }, /생성 수/],
+      [{ ...wave, monsterSpawns: [{ monsterDefinitionId: 'missing', count: 0 }] }, /찾을 수 없습니다/],
+    ] as const) {
+      expect(validateStageDefinitions(
+        [{ ...stage, waves: [invalidWave] }], monsterDataset, 3, { allowIncomplete: true }
+      )).toMatch(message);
+    }
+  });
+
   it('rejects missing monster references, duplicate mappings, and over-limit counts', () => {
     expect(validateStageDefinitions([{
       ...stage,

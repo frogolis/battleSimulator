@@ -100,7 +100,7 @@ export function respawnMonster(
 
   // 새로운 몬스터 데이터로 초기화
   const newMonster = createMonster({
-    id: context.nextMonsterId++,
+    id: context.nextMonsterId,
     canvasWidth: config.canvasWidth,
     canvasHeight: config.canvasHeight,
     monsterData,
@@ -109,6 +109,7 @@ export function respawnMonster(
     monsterLevelConfig: context.monsterLevelConfig,
     requireMonsterStats: context.requireMonsterStats,
   });
+  context.nextMonsterId++;
 
   // 기존 몬스터 상태에 새 데이터 복사
   Object.assign(monster, newMonster);

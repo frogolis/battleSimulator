@@ -3,6 +3,7 @@ import { CharacterConfig, CharacterType } from '../../lib/gameTypes';
 import { LevelConfig } from '../../lib/levelSystem';
 import { DataRow } from '../../lib/mockData';
 import { BasicAttackSlot, Skill, SkillSlot } from '../../lib/skillSystem';
+import { attackNumericFields, normalizeOptionalRowNumbers } from '../../lib/simulator/rowNumbers';
 
 interface PlayerRowApplyParams {
   row: DataRow;
@@ -19,6 +20,66 @@ interface MonsterRowApplyParams {
   setMonsterLevelConfig: Dispatch<SetStateAction<LevelConfig>>;
   setMonsterConfig: Dispatch<SetStateAction<CharacterConfig>>;
   setMonsterBasicAttack: Dispatch<SetStateAction<BasicAttackSlot>>;
+}
+
+type RowOwner = 'player' | 'monster';
+type RowApplyResult =
+  | { status: 'applied' }
+  | { status: 'missing' }
+  | { status: 'invalid'; field: string };
+
+export function prepareRowForApplication(
+  row: DataRow,
+  owner: RowOwner,
+  additionalFields: readonly string[] = []
+):
+  | { status: 'ready'; row: DataRow }
+  | { status: 'missing' }
+  | { status: 'invalid'; field: string } {
+  const fields = [
+    'size',
+    'level',
+    'speed',
+    'attack',
+    'defense',
+    'attack_speed',
+    'accuracy',
+    'critical_rate',
+    'attack_range',
+    'attack_width',
+  ].map(field => `${owner}_${field}`).concat(additionalFields);
+  const size: unknown = Reflect.get(row, `${owner}_size`);
+  if (size === undefined || size === null || (typeof size === 'string' && !size.trim())) {
+    return { status: 'missing' };
+  }
+  const normalized = normalizeOptionalRowNumbers(row, fields);
+  if (!normalized.ok) return { status: 'invalid', field: normalized.field };
+  return { status: 'ready', row: normalized.row };
+}
+
+function appliedSkillFields(
+  row: DataRow,
+  owner: RowOwner,
+  skillConfigs: Record<string, Skill>
+): string[] {
+  const prefixes: string[] = [];
+  const basicId = row[`${owner}_basic_attack_id`];
+  if (
+    basicId &&
+    Object.hasOwn(skillConfigs, basicId) &&
+    skillConfigs[basicId]?.category === 'basicAttack'
+  ) {
+    prefixes.push(`${owner}_basic_attack`);
+  }
+  if (owner === 'player') {
+    for (const slot of [1, 2, 3, 4] as const) {
+      const skillId = row[`player_skill_${slot}_id`];
+      if (skillId && Object.hasOwn(skillConfigs, skillId)) {
+        prefixes.push(`player_skill_${slot}`);
+      }
+    }
+  }
+  return prefixes.flatMap(attackNumericFields);
 }
 
 export function selectImportedRows(
@@ -38,14 +99,20 @@ export function selectImportedRows(
 }
 
 export function applyPlayerRowFromData({
-  row,
+  row: sourceRow,
   skillConfigs,
   setPlayerLevelConfig,
   setPlayerConfig,
   setPlayerBasicAttack,
   setSkillSlots,
-}: PlayerRowApplyParams): void {
-  if (row.player_size === undefined) return;
+}: PlayerRowApplyParams): RowApplyResult {
+  const prepared = prepareRowForApplication(
+    sourceRow,
+    'player',
+    appliedSkillFields(sourceRow, 'player', skillConfigs)
+  );
+  if (prepared.status !== 'ready') return prepared;
+  const row = prepared.row;
 
   if (row.player_level !== undefined) {
     setPlayerLevelConfig(prev => ({
@@ -95,7 +162,9 @@ export function applyPlayerRowFromData({
   }));
 
   if (row.player_basic_attack_id) {
-    const basicAttackSkill = skillConfigs[row.player_basic_attack_id as string];
+    const basicAttackSkill = Object.hasOwn(skillConfigs, row.player_basic_attack_id)
+      ? skillConfigs[row.player_basic_attack_id]
+      : undefined;
     if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
       const range = row.player_basic_attack_range as number;
       const width = row.player_basic_attack_width as number;
@@ -151,16 +220,23 @@ export function applyPlayerRowFromData({
   }
 
   setSkillSlots(newSkillSlots);
+  return { status: 'applied' };
 }
 
 export function applyMonsterRowFromData({
-  row,
+  row: sourceRow,
   skillConfigs,
   setMonsterLevelConfig,
   setMonsterConfig,
   setMonsterBasicAttack,
-}: MonsterRowApplyParams): void {
-  if (row.monster_size === undefined) return;
+}: MonsterRowApplyParams): RowApplyResult {
+  const prepared = prepareRowForApplication(
+    sourceRow,
+    'monster',
+    appliedSkillFields(sourceRow, 'monster', skillConfigs)
+  );
+  if (prepared.status !== 'ready') return prepared;
+  const row = prepared.row;
 
   if (row.monster_level !== undefined) {
     setMonsterLevelConfig(prev => ({
@@ -210,7 +286,9 @@ export function applyMonsterRowFromData({
   }));
 
   if (row.monster_basic_attack_id) {
-    const basicAttackSkill = skillConfigs[row.monster_basic_attack_id as string];
+    const basicAttackSkill = Object.hasOwn(skillConfigs, row.monster_basic_attack_id)
+      ? skillConfigs[row.monster_basic_attack_id]
+      : undefined;
     if (basicAttackSkill && basicAttackSkill.category === 'basicAttack') {
       const range = row.monster_basic_attack_range as number;
       const width = row.monster_basic_attack_width as number;
@@ -231,4 +309,5 @@ export function applyMonsterRowFromData({
       });
     }
   }
+  return { status: 'applied' };
 }

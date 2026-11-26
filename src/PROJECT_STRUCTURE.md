@@ -2,7 +2,7 @@
 
 ## 📋 프로젝트 개요
 
-스프레드시트-Figma-Make 워크플로우를 활용한 RPG 게임 시뮬레이터
+RPG 전투 시뮬레이터
 
 ## 🎯 핵심 기능
 
@@ -49,7 +49,6 @@
 #### 유틸리티
 
 - **SheetDebugger.tsx** - 데이터 디버깅 도구
-- **MakeConfigGuide.tsx** - Make 워크플로우 가이드
 
 ### 📚 라이브러리 (/lib)
 

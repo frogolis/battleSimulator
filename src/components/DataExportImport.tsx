@@ -86,7 +86,11 @@ export function DataExportImport({
       toast.success(DATA_IO_MESSAGES.EXPORT_SUCCESS);
     } catch (error) {
       logDataIO('Export error:', error);
-      toast.error(DATA_IO_MESSAGES.EXPORT_ERROR);
+      toast.error(
+        error instanceof Error
+          ? `${DATA_IO_MESSAGES.EXPORT_ERROR} ${error.message}`
+          : DATA_IO_MESSAGES.EXPORT_ERROR
+      );
     }
   };
 

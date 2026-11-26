@@ -32,7 +32,7 @@ import {
 } from '../../../shared/referenceValidation.mjs';
 import { getSkillError } from '../../../shared/skillValidation.mjs';
 import { DATA_WORKBOOK_SHEETS } from '../data-file/constants';
-import { selectImportedRows } from '../simulator/rowApplyManager';
+import { prepareRowForApplication, selectImportedRows } from '../simulator/rowApplyManager';
 import { GameDataSetters, GameDataState, ImportedGameData } from './model';
 
 type SheetRow = Record<string, unknown> & { __rowNum__?: number };
@@ -503,7 +503,25 @@ function validateWorkbookStructure(workbook: XLSX.WorkBook): void {
 }
 
 function readSheetRows(workbook: XLSX.WorkBook, sheetName: string): SheetRow[] {
-  return XLSX.utils.sheet_to_json<SheetRow>(workbook.Sheets[sheetName]);
+  const sheet = workbook.Sheets[sheetName];
+  if (sheet['!ref']) {
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const columns = new Map<string, number>();
+    for (let column = range.s.c; column <= range.e.c; column++) {
+      const cell = sheet[XLSX.utils.encode_cell({ r: range.s.r, c: column })];
+      if (!cell || cell.v === undefined || cell.v === null) continue;
+      const header = XLSX.utils.format_cell(cell);
+      if (header === '') continue;
+      const previous = columns.get(header);
+      if (previous !== undefined) {
+        throw new Error(
+          `"${sheetName}" 시트 ${range.s.r + 1}행의 열 이름 "${header}"이 중복되었습니다 (${XLSX.utils.encode_col(previous)}열, ${XLSX.utils.encode_col(column)}열).`
+        );
+      }
+      columns.set(header, column);
+    }
+  }
+  return XLSX.utils.sheet_to_json<SheetRow>(sheet);
 }
 
 function readString(row: SheetRow, key: string, fallback = ''): string {
@@ -672,22 +690,29 @@ function parseStageDefinitionsFromWorkbook(
       const id = readRequiredString(row, 'id');
       if (stageIds.has(id)) throw new Error(`스테이지 ID "${id}"가 중복되었습니다.`);
       stageIds.add(id);
-      return { id, name: readRequiredString(row, 'name'), waves: [] };
+      const name = row.name;
+      if (name !== undefined && name !== null && typeof name !== 'string') {
+        throw new Error('"name" 값은 문자열이어야 합니다.');
+      }
+      return { id, name: name ?? '', waves: [] };
     })
   );
   const stagesById = new Map(stages.map(stage => [stage.id, stage]));
-  const waveIds = new Set<string>();
+  const waveIdsByStage = new Map<string, Set<string>>();
   const waveOrders = new Map<string, Set<number>>();
   const waveRecords = waveRows.map((row, index) =>
     parseSheetRow(row, DATA_WORKBOOK_SHEETS.WAVES, index, () => {
       const id = readRequiredString(row, 'id');
-      if (waveIds.has(id)) throw new Error(`웨이브 ID "${id}"가 중복되었습니다.`);
-      waveIds.add(id);
-
       const stageId = readRequiredString(row, 'stageId');
       if (!stagesById.has(stageId)) {
         throw new Error(`스테이지 ID "${stageId}"를 찾을 수 없습니다.`);
       }
+      const waveIds = waveIdsByStage.get(stageId) ?? new Set<string>();
+      if (waveIds.has(id)) {
+        throw new Error(`스테이지 "${stageId}"의 웨이브 ID "${id}"가 중복되었습니다.`);
+      }
+      waveIds.add(id);
+      waveIdsByStage.set(stageId, waveIds);
       const order = readRequiredNumber(row, 'order');
       if (!Number.isSafeInteger(order) || order < 0) {
         throw new Error('"order" 값은 0 이상의 정수여야 합니다.');
@@ -711,13 +736,37 @@ function parseStageDefinitionsFromWorkbook(
       return { stageId, order, wave };
     })
   );
-  const wavesById = new Map(waveRecords.map(record => [record.wave.id, record.wave]));
+  const wavesById = new Map<string, typeof waveRecords>();
+  for (const record of waveRecords) {
+    const matches = wavesById.get(record.wave.id) ?? [];
+    matches.push(record);
+    wavesById.set(record.wave.id, matches);
+  }
 
   mappingRows.forEach((row, index) => {
     parseSheetRow(row, DATA_WORKBOOK_SHEETS.WAVE_MONSTER_MAPPINGS, index, () => {
       const waveId = readRequiredString(row, 'waveId');
-      const wave = wavesById.get(waveId);
-      if (!wave) throw new Error(`웨이브 ID "${waveId}"를 찾을 수 없습니다.`);
+      const matches = wavesById.get(waveId) ?? [];
+      const rawStageId = row.stageId;
+      const hasStageId = rawStageId !== undefined && rawStageId !== null &&
+        !(typeof rawStageId === 'string' && !rawStageId.trim());
+      let wave: WaveDefinition | undefined;
+      if (hasStageId) {
+        const stageId = readRequiredString(row, 'stageId');
+        if (!stagesById.has(stageId)) {
+          throw new Error(`스테이지 ID "${stageId}"를 찾을 수 없습니다.`);
+        }
+        wave = matches.find(record => record.stageId === stageId)?.wave;
+        if (!wave) {
+          throw new Error(`스테이지 "${stageId}"의 웨이브 ID "${waveId}"를 찾을 수 없습니다.`);
+        }
+      } else {
+        if (matches.length > 1) {
+          throw new Error(`웨이브 ID "${waveId}"가 여러 스테이지에 있습니다. "stageId"를 입력하세요.`);
+        }
+        wave = matches[0]?.wave;
+        if (!wave) throw new Error(`웨이브 ID "${waveId}"를 찾을 수 없습니다.`);
+      }
       wave.monsterSpawns.push({
         monsterDefinitionId: readRequiredString(row, 'monsterDefinitionId'),
         count: readRequiredNumber(row, 'count'),
@@ -733,7 +782,9 @@ function parseStageDefinitionsFromWorkbook(
       stage.waves.push(wave);
     });
 
-  const validationError = validateStageDefinitions(stages, monsterDataset, Number.MAX_SAFE_INTEGER);
+  const validationError = validateStageDefinitions(
+    stages, monsterDataset, Number.MAX_SAFE_INTEGER, { allowIncomplete: true }
+  );
   if (validationError) throw new Error(validationError);
   return stages;
 }
@@ -756,6 +807,36 @@ function validateSkillReference(id: string, location: string, skills: Record<str
   if (!Object.hasOwn(skills, id)) {
     skills[id] = globalThis.structuredClone(skill);
   }
+}
+
+function readBasicAttackSlot(
+  row: SheetRow,
+  sheetName: string,
+  skills: Record<string, Skill>
+): BasicAttackSlot {
+  return parseSheetRow(row, sheetName, 0, () => {
+    const skillId = readString(row, 'skillId');
+    validateSkillReference(skillId, `"${sheetName}"`, skills);
+    const rawBinding = row.keyBinding;
+    let keyBinding: BasicAttackSlot['keyBinding'] = 'click';
+    if (rawBinding !== undefined && rawBinding !== null &&
+        !(typeof rawBinding === 'string' && !rawBinding.trim())) {
+      if (rawBinding !== 'click' && rawBinding !== 'auto') {
+        throw new Error('"keyBinding" 값은 click 또는 auto여야 합니다.');
+      }
+      keyBinding = rawBinding;
+    }
+    return {
+      skill: skills[skillId],
+      keyBinding,
+      range: readOptionalNumber(row, 'range'),
+      width: readOptionalNumber(row, 'width'),
+      damage: readOptionalNumber(row, 'damage'),
+      cooldown: readOptionalNumber(row, 'cooldown'),
+      spCost: readOptionalNumber(row, 'spCost'),
+      castTime: readOptionalNumber(row, 'castTime'),
+    };
+  });
 }
 
 function validateAIPatternSkillReferences(
@@ -827,6 +908,33 @@ function normalizeDatasetSkillNumbers(
   });
 }
 
+function normalizeAppliedRowNumbers(
+  row: DataRow | undefined,
+  owner: 'player' | 'monster',
+  sheetName: string,
+  index: number
+): void {
+  if (!row) return;
+  const sheetRow: SheetRow = Object.fromEntries(Object.entries(row));
+  const rowNumber = Reflect.get(row, '__rowNum__');
+  if (typeof rowNumber === 'number') sheetRow.__rowNum__ = rowNumber;
+  const prepared = prepareRowForApplication(row, owner);
+  if (prepared.status === 'missing') {
+    Reflect.deleteProperty(row, `${owner}_size`);
+    return;
+  }
+  if (prepared.status === 'invalid') {
+    parseSheetRow(sheetRow, sheetName, index, () => {
+      throw new Error(`"${prepared.field}" 값은 유한한 숫자여야 합니다.`);
+    });
+    return;
+  }
+  for (const key of Object.keys(row)) {
+    if (!(key in prepared.row)) Reflect.deleteProperty(row, key);
+  }
+  Object.assign(row, prepared.row);
+}
+
 function validateDatasetResources(
   rows: SheetRow[],
   sheetName: string,
@@ -858,6 +966,19 @@ function normalizeMonsterStats(rows: SheetRow[], sheetName: string): void {
         } else {
           row[field] = readNonNegativeNumber(row, field, 0);
         }
+      }
+    });
+  });
+}
+
+function normalizeMonsterWeights(rows: SheetRow[], sheetName: string): void {
+  rows.forEach((row, index) => {
+    parseSheetRow(row, sheetName, index, () => {
+      const value = row.monster_spawn_weight;
+      if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
+        delete row.monster_spawn_weight;
+      } else {
+        row.monster_spawn_weight = readNonNegativeNumber(row, 'monster_spawn_weight', 0);
       }
     });
   });
@@ -1060,6 +1181,7 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
     normalizeMonsterDefinitionIds(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
     validateDatasetResources(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     normalizeMonsterStats(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
+    normalizeMonsterWeights(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET);
     normalizeDatasetSkillNumbers(rows, DATA_WORKBOOK_SHEETS.MONSTER_DATASET, 'monster');
     validateDatasetTypeReferences(
       rows,
@@ -1120,30 +1242,18 @@ export function parseGameDataFromWorkbook(binary: string): Partial<GameDataState
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK);
     if (rows.length > 0) {
-      const row = rows[0];
-      const skillId = readString(row, 'skillId');
-      validateSkillReference(
-        skillId,
-        `"${DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK}"`,
-        importedSkills
+      data.playerBasicAttack = readBasicAttackSlot(
+        rows[0], DATA_WORKBOOK_SHEETS.PLAYER_BASIC_ATTACK, importedSkills
       );
-      const skill = importedSkills[skillId];
-      data.playerBasicAttack = { skill, keyBinding: 'click' } satisfies BasicAttackSlot;
     }
   }
 
   if (workbook.SheetNames.includes(DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK)) {
     const rows = readSheetRows(workbook, DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK);
     if (rows.length > 0) {
-      const row = rows[0];
-      const skillId = readString(row, 'skillId');
-      validateSkillReference(
-        skillId,
-        `"${DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK}"`,
-        importedSkills
+      data.monsterBasicAttack = readBasicAttackSlot(
+        rows[0], DATA_WORKBOOK_SHEETS.MONSTER_BASIC_ATTACK, importedSkills
       );
-      const skill = importedSkills[skillId];
-      data.monsterBasicAttack = { skill, keyBinding: 'click' } satisfies BasicAttackSlot;
     }
   }
 
@@ -1200,11 +1310,13 @@ export function importGameDataFromWorkbook(
     throw new Error('가져온 스킬 또는 데이터셋이 누락되었습니다.');
   }
   const typeIds = new Set(data.characterTypes.map(type => type.id));
-  const { playerRow, monsterRow } = selectImportedRows(
+  const { tick, playerRow, monsterRow } = selectImportedRows(
     data.playerDataset,
     data.monsterDataset,
     context.currentTick
   );
+  normalizeAppliedRowNumbers(playerRow, 'player', DATA_WORKBOOK_SHEETS.PLAYER_DATASET, tick);
+  normalizeAppliedRowNumbers(monsterRow, 'monster', DATA_WORKBOOK_SHEETS.MONSTER_DATASET, tick);
   const playerTypeId =
     (playerRow?.player_size !== undefined && playerRow.player_attack_type) ||
     data.playerConfig?.typeId ||

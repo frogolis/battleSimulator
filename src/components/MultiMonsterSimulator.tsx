@@ -54,7 +54,12 @@ import {
   resolveMonsterCount,
 } from '../lib/simulator/characters';
 import { killMonster, removeDeadMonsters, updateRespawnTimers } from '../lib/simulator/respawn';
-import { validateMonsterSpawnRows, type MonsterStatsRow } from '../lib/simulator/monsterStats';
+import {
+  prepareMonsterCombatRow,
+  validateMonsterSpawnRows,
+  type MonsterStatsRow,
+} from '../lib/simulator/monsterStats';
+import { buildMonsterWeightPool, selectWeightedMonster } from '../lib/simulator/monsterWeights';
 import {
   advanceStageProgress,
   validateStageDefinitions,
@@ -401,26 +406,9 @@ export function MultiMonsterSimulator({
       return null;
     }
 
-    // 총 가중치 계산
-    const totalWeight = selectedMonsters.reduce(
-      (sum, row) => sum + (row.monster_spawn_weight || 1),
-      0
-    );
-
-    // 랜덤 값 생성
-    let random = Math.random() * totalWeight;
-
-    // 가중치에 따라 몬스터 선택
-    for (const row of selectedMonsters) {
-      const weight = row.monster_spawn_weight || 1;
-      random -= weight;
-      if (random <= 0) {
-        return row;
-      }
-    }
-
-    // 안전장치: 마지막 몬스터 반환
-    return selectedMonsters[selectedMonsters.length - 1];
+    const pool = buildMonsterWeightPool(selectedMonsters);
+    if (!pool.ok) throw new Error(pool.reason);
+    return selectWeightedMonster(selectedMonsters, pool, Math.random());
   }, [selectedMonsterRows, monsterDataset]);
 
   // testMode에서는 자동으로 몬스터 초기화 및 게임 시작
@@ -843,13 +831,18 @@ export function MultiMonsterSimulator({
       );
       return validateMonsterSpawnRows(monsterDataset ?? [], mappedMonsterIds, currentTick);
     }
-    if (!monsterDataset) return undefined;
-    return validateMonsterSpawnRows(monsterDataset, selectedMonsterRows, currentTick);
+    if (!monsterDataset) {
+      if (!currentDataRow) return undefined;
+      const combat = prepareMonsterCombatRow(currentDataRow);
+      return combat.ok ? undefined : `현재 몬스터 데이터: ${combat.reason}`;
+    }
+    return validateMonsterSpawnRows(monsterDataset, selectedMonsterRows, currentTick, true);
   }, [
     stageDefinition,
     monsterDataset,
     selectedMonsterRows,
     currentTick,
+    currentDataRow,
     effectiveMaxMonsterCount,
   ]);
 

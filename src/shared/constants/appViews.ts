@@ -10,7 +10,6 @@ export const APP_VIEW = {
   SETTINGS_WAVES: 'settings-waves',
   SETTINGS_EFFECTS: 'settings-effects',
   EXPORT: 'export',
-  MAKE: 'make',
 } as const;
 
 export type AppView = (typeof APP_VIEW)[keyof typeof APP_VIEW];

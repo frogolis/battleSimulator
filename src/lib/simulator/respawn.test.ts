@@ -13,6 +13,7 @@ import {
   respawnAllDead,
   updateRespawnTimers,
 } from './respawn';
+import { buildMonsterWeightPool, selectWeightedMonster } from './monsterWeights';
 
 const row: DataRow = {
   t: 0, x: 0, y: 0, speed: 0, dir: 0, is_attack: 0, is_miss: 0, is_crit: 0,
@@ -39,6 +40,36 @@ const stageMonsterRow: DataRow = {
 };
 
 describe('monster respawn', () => {
+  it('uses the same weighted choice for batch creation and respawn, but not stage mappings', () => {
+    const excluded = { ...stageMonsterRow, monster_definition_id: 'excluded', monster_spawn_weight: 0 };
+    const included = { ...stageMonsterRow, monster_definition_id: 'included', monster_spawn_weight: 1 };
+    const rows = [excluded, included];
+    const pool = buildMonsterWeightPool(rows);
+    if (!pool.ok) throw new Error(pool.reason);
+    const selectMonsterByWeight = () => selectWeightedMonster(rows, pool, 0);
+    const monsters = createMonsters({
+      count: 1, maxCount: 2, canvasWidth: 800, canvasHeight: 600, startId: 1,
+      selectMonsterByWeight, requireMonsterStats: true,
+    });
+    expect(monsters[0].sourceStats?.monster_definition_id).toBe('included');
+    killMonster(monsters[0], 0);
+    expect(updateRespawnTimers(monsters, 0, config, {
+      selectMonsterByWeight, nextMonsterId: 2, requireMonsterStats: true,
+    })).toBe(1);
+    expect(monsters[0].sourceStats?.monster_definition_id).toBe('included');
+    const mapped = createMonstersForMappings({
+      monsterSpawns: [{ monsterDefinitionId: 'excluded', count: 1 }],
+      monsterDataset: rows, maxCount: 2, startId: 3, canvasWidth: 800, canvasHeight: 600,
+    });
+    expect(mapped[0].sourceStats?.monster_definition_id).toBe('excluded');
+    killMonster(mapped[0], 0);
+    expect(updateRespawnTimers(mapped, 0, config, {
+      monsterDataset: rows, preserveMonsterDefinition: true, nextMonsterId: 4,
+      requireMonsterStats: true,
+    })).toBe(1);
+    expect(mapped[0].sourceStats?.monster_definition_id).toBe('excluded');
+  });
+
   it('caps requested monster counts to a non-negative integer limit', () => {
     expect(resolveMonsterCount(8, 5)).toBe(5);
     expect(resolveMonsterCount(3, 5)).toBe(3);
@@ -109,6 +140,33 @@ describe('monster respawn', () => {
       canvasWidth: 800,
       canvasHeight: 600,
     })).toThrow(/exceeds the maximum/);
+  });
+
+  it('rejects invalid mapped combat settings and keeps respawn ID and monster on failure', () => {
+    const invalid = { ...stageMonsterRow };
+    Object.assign(invalid, { monster_basic_attack_damage: 'invalid' });
+    expect(() => createMonstersForMappings({
+      monsterSpawns: [{ monsterDefinitionId: 'monster_stage_guard', count: 1 }],
+      monsterDataset: [invalid], maxCount: 2, startId: 5, canvasWidth: 800, canvasHeight: 600,
+    })).toThrow(/monster_basic_attack_damage/);
+
+    const monster = createMonster({
+      id: 1, canvasWidth: 800, canvasHeight: 600, monsterData: stageMonsterRow,
+      requireMonsterStats: true,
+    });
+    killMonster(monster, 0);
+    const context = {
+      monsterDataset: [invalid], preserveMonsterDefinition: true, nextMonsterId: 5,
+      requireMonsterStats: true,
+    };
+    expect(() => updateRespawnTimers([monster], 0, config, context))
+      .toThrow(/monster_basic_attack_damage/);
+    expect(monster).toMatchObject({ id: 1, isDead: true, respawnTimer: 0 });
+    expect(context.nextMonsterId).toBe(5);
+    Object.assign(invalid, { monster_basic_attack_damage: '0' });
+    expect(updateRespawnTimers([monster], 0, config, context)).toBe(1);
+    expect(monster).toMatchObject({ id: 5, isDead: false, basicAttack: { damage: 0 } });
+    expect(context.nextMonsterId).toBe(6);
   });
 
   it('records death once, clamps HP and leaves the existing respawn timer unchanged on repeats', () => {

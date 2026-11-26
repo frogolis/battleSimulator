@@ -7,6 +7,7 @@ import {
   loadPlayerSkills,
 } from '../combatSystem';
 import { defaultAIPatternConfig } from '../monsterAI';
+import { defaultMonsterLevelConfig } from '../levelSystem';
 import type { DataRow } from '../mockData';
 import { defaultSkills, type BasicAttackSlot } from '../skillSystem';
 import {
@@ -17,9 +18,10 @@ import {
   updatePlayerBasicAttack,
 } from './characters';
 import {
-  MONSTER_STAT_FIELDS, parseMonsterStatInput, validateMonsterSpawnRows, validateMonsterStats,
+  MONSTER_STAT_FIELDS, parseMonsterStatInput, recalculateMonsterRows, validateMonsterSpawnRows, validateMonsterStats,
 } from './monsterStats';
 import { killMonster, updateRespawnTimers } from './respawn';
+import { buildMonsterWeightPool, readMonsterWeight, selectWeightedMonster } from './monsterWeights';
 
 const row: DataRow = {
   t: 0, x: 0, y: 0, speed: 0, dir: 0, is_attack: 0, is_miss: 0, is_crit: 0,
@@ -30,6 +32,70 @@ const row: DataRow = {
 };
 
 describe('monster dataset stats', () => {
+  it('uses zero to exclude weighted monsters and treats missing weight as one', () => {
+    for (const empty of [undefined, null, '', '  ']) {
+      expect(readMonsterWeight(empty)).toEqual({ ok: true, weight: 1 });
+    }
+    const excluded = { ...row, monster_definition_id: 'excluded', monster_spawn_weight: 0 };
+    const twice = { ...row, monster_definition_id: 'twice' };
+    Object.assign(twice, { monster_spawn_weight: '2' });
+    const defaultWeight = { ...row, monster_definition_id: 'default' };
+    const rows = [excluded, twice, defaultWeight];
+    const pool = buildMonsterWeightPool(rows);
+    if (!pool.ok) throw new Error(pool.reason);
+    expect(pool.weights).toEqual([0, 2, 1]);
+    expect(selectWeightedMonster(rows, pool, 0)).toBe(twice);
+    expect(selectWeightedMonster(rows, pool, 0.6)).toBe(twice);
+    expect(selectWeightedMonster(rows, pool, 0.9)).toBe(defaultWeight);
+    expect(buildMonsterWeightPool([excluded])).toMatchObject({
+      ok: false, reason: expect.stringContaining('0보다 큰'),
+    });
+    const extreme = buildMonsterWeightPool([
+      { ...row, monster_spawn_weight: 1e308 },
+      { ...row, monster_spawn_weight: 1e308 },
+    ]);
+    if (!extreme.ok) throw new Error(extreme.reason);
+    expect(extreme.scaledWeights.map(weight => weight / extreme.scaledTotal)).toEqual([0.5, 0.5]);
+    const equalRows = [
+      { ...row, monster_spawn_weight: 1e308 },
+      { ...row, monster_spawn_weight: 1e308 },
+    ];
+    expect(selectWeightedMonster(equalRows, extreme, 0)).toBe(equalRows[0]);
+    expect(selectWeightedMonster(equalRows, extreme, 0.5)).toBe(equalRows[1]);
+    expect(selectWeightedMonster(equalRows, extreme, 0.9999999999999999)).toBe(equalRows[1]);
+    expect(() => selectWeightedMonster(equalRows, extreme, 1)).toThrow(/random value/);
+  });
+
+  it('validates weights and skips excluded rows only for weighted selection', () => {
+    const excluded = { ...row, monster_definition_id: 'excluded', monster_spawn_weight: 0, monster_hp: 0 };
+    const selected = new Set(['excluded', 'monster_guardian']);
+    expect(validateMonsterSpawnRows([excluded, row], selected, 0, true)).toBeUndefined();
+    expect(validateMonsterSpawnRows([excluded, row], selected, 0)).toMatch(/행 0.*monster_hp/);
+    expect(validateMonsterSpawnRows([excluded], new Set(['excluded']), 0, true)).toMatch(/0보다 큰/);
+    for (const invalid of [-1, 'bad', 'Infinity', Number.NaN, Number.POSITIVE_INFINITY, true, false]) {
+      const bad = { ...row };
+      Object.assign(bad, { monster_spawn_weight: invalid });
+      expect(validateMonsterSpawnRows([bad], new Set(['monster_guardian']), 0, true))
+        .toMatch(/가중치.*0 이상/);
+    }
+    expect(validateMonsterSpawnRows([excluded], new Set(), 0, true)).toMatch(/monster_hp/);
+    const direct = { ...row, monster_spawn_weight: -1 };
+    expect(validateMonsterSpawnRows([direct], new Set(), 0, true)).toBeUndefined();
+  });
+
+  it('preserves invalid level inputs during bulk recalculation and handles numeric strings', () => {
+    const invalid = { ...row, monster_level: 2, monster_hp: 9999 };
+    Object.assign(invalid, { monster_size: 'broken' });
+    const numeric = { ...row, monster_level: 2, monster_hp: 7777 };
+    Object.assign(numeric, { monster_level: '3', monster_size: '25' });
+    const result = recalculateMonsterRows([invalid, numeric], defaultMonsterLevelConfig, []);
+    expect(result.count).toBe(1);
+    expect(result.skipped).toEqual([{ index: 0, field: 'monster_size' }]);
+    expect(result.rows[0]).toBe(invalid);
+    expect(result.rows[1]).toMatchObject({ monster_level: 3, monster_size: 25 });
+    expect(result.rows[1].monster_hp).not.toBe(7777);
+  });
+
   it('preserves explicit zero values in basic attacks and monster aggro settings', () => {
     const zeroSettings = {
       ...row,
@@ -131,6 +197,53 @@ describe('monster dataset stats', () => {
       new Set(['monster_guardian']),
       0
     )).toMatch(/몬스터 ID "monster_guardian"가 중복/);
+  });
+
+  it('preflights all referenced spawn rows for basic attack and active skill values', () => {
+    const invalid = { ...row, monster_definition_id: 'other', monster_skill_2_id: 'powerSlash' };
+    Object.assign(invalid, { monster_basic_attack_damage: 'bad' });
+    expect(validateMonsterSpawnRows([row, invalid], new Set(['monster_guardian']), 1)).toBeUndefined();
+    expect(validateMonsterSpawnRows([row, invalid], new Set(['monster_guardian', 'other']), 0))
+      .toMatch(/행 1.*monster_basic_attack_damage/);
+    Object.assign(invalid, { monster_basic_attack_damage: '0', monster_skill_2_cast_time: true });
+    expect(validateMonsterSpawnRows([row, invalid], new Set(), 1))
+      .toMatch(/행 1.*monster_skill_2_cast_time/);
+    invalid.monster_skill_2_id = '';
+    expect(validateMonsterSpawnRows([row, invalid], new Set(), 1)).toBeUndefined();
+  });
+
+  it('normalizes combat values on the runtime copy and rejects invalid values on creation', () => {
+    const source = { ...row, monster_skill_1_id: 'powerSlash' };
+    Object.assign(source, {
+      monster_basic_attack_range: '0',
+      monster_basic_attack_damage: '-1.5',
+      monster_basic_attack_cooldown: ' ',
+      monster_skill_1_range: '12.5',
+      monster_skill_1_sp_cost: '0',
+      monster_skill_2_damage: 'draft',
+    });
+    const monster = createMonster({
+      id: 1, canvasWidth: 800, canvasHeight: 600, monsterData: source, requireMonsterStats: true,
+    });
+    expect(monster.basicAttack).toMatchObject({
+      range: 0, damage: -1.5, cooldown: defaultSkills.meleeBasic.cooldown,
+    });
+    expect(monster.skills.slot1).toMatchObject({ range: 12.5, spCost: 0 });
+    expect(monster.sourceStats).toMatchObject({
+      monster_basic_attack_range: 0, monster_skill_1_range: 12.5,
+    });
+    expect(Reflect.get(source, 'monster_basic_attack_range')).toBe('0');
+    expect(Reflect.get(source, 'monster_skill_2_damage')).toBe('draft');
+
+    for (const prefix of ['monster_basic_attack', 'monster_skill_1']) {
+      for (const suffix of ['range', 'width', 'damage', 'cooldown', 'sp_cost', 'cast_time']) {
+        const field = `${prefix}_${suffix}`;
+        const invalid = { ...source, [field]: 'Infinity' };
+        expect(() => createMonster({
+          id: 1, canvasWidth: 800, canvasHeight: 600, monsterData: invalid,
+        })).toThrow(field);
+      }
+    }
   });
 
   it('creates independent monsters using each row and rejects invalid required rows', () => {

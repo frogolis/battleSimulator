@@ -15,7 +15,7 @@ import { DataRow } from '../mockData';
 import { defaultAIPatternConfig, type AIPatternConfig } from '../monsterAI';
 import { BasicAttackSlot, defaultSkills, Skill } from '../skillSystem';
 import { CharacterState, MonsterState } from './types';
-import { validateMonsterStats } from './monsterStats';
+import { prepareMonsterCombatRow, validateMonsterStats } from './monsterStats';
 import type { MonsterSpawnMapping } from './waves';
 
 /**
@@ -105,8 +105,11 @@ function cloneAIPatternConfig(config: AIPatternConfig): AIPatternConfig {
  * 단일 몬스터 초기화
  */
 export function createMonster(params: MonsterInitParams): MonsterState {
-  const { id, canvasWidth, canvasHeight, monsterData, fallbackName, skillConfigs, monsterLevelConfig, requireMonsterStats } = params;
+  const { id, canvasWidth, canvasHeight, fallbackName, skillConfigs, monsterLevelConfig, requireMonsterStats } = params;
   validateMonsterExecutionId(id);
+  const combat = params.monsterData ? prepareMonsterCombatRow(params.monsterData) : undefined;
+  if (combat && !combat.ok) throw new Error(combat.reason);
+  const monsterData = combat?.ok ? combat.row : undefined;
   const result = requireMonsterStats ? validateMonsterStats(monsterData) : undefined;
   if (result && !result.ok) throw new Error(result.reason);
   const sourceStats = result?.ok ? { ...result.row } : undefined;
